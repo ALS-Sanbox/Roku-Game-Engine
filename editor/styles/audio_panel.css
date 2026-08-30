@@ -1,0 +1,655 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Audio Panel — Full Mixer UI
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Container ─────────────────────────────────────────────────────── */
+.audio-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  overflow: hidden;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────────────── */
+.ap-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  height: 30px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ap-toolbar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-hi);
+  letter-spacing: 0.04em;
+}
+.ap-toolbar-right {
+  display: flex;
+  gap: 6px;
+}
+.ap-toolbar-btn {
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  height: 22px;
+}
+.ap-toolbar-btn:hover { background: var(--panel); color: var(--text); border-color: var(--border-hi); }
+.ap-toolbar-btn--accent { background: #1f4068; border-color: var(--accent); color: var(--accent-hi); }
+.ap-toolbar-btn--accent:hover { background: #2d5a90; }
+
+/* ── Workspace: strips left, detail right ──────────────────────────── */
+.ap-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Strip Area ────────────────────────────────────────────────────── */
+.ap-strip-area {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1px;
+  overflow-x: auto;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 6px 4px 6px 4px;
+  min-width: 0;
+  flex-shrink: 0;
+  max-width: 60%;
+  align-self: stretch;
+}
+
+.ap-bus-sep {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 4px 2px;
+  border-left: 1px solid var(--border);
+  margin: 0 2px;
+}
+
+/* ── Individual Strip ──────────────────────────────────────────────── */
+.ap-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 130px;
+  min-width: 130px;
+  min-height: 240px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 7px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.12s;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.ap-strip:hover { border-color: var(--border-hi); }
+.ap-strip--master { background: #1c2233; border-color: #2d4568; }
+.ap-strip--selected { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) inset; }
+
+/* Inner layout: header pinned top, then a horizontal body */
+.ap-strip-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Left column: VU + fader + VU — takes all available height */
+.ap-fader-vu-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  gap: 2px;
+  padding: 4px 3px;
+  box-sizing: border-box;
+}
+
+/* Right column: all controls stacked vertically, fixed width */
+.ap-strip-right {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 44px;
+  flex-shrink: 0;
+  padding: 3px 3px 3px 2px;
+  gap: 4px;
+  border-left: 1px solid var(--border);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── Strip Header ──────────────────────────────────────────────────── */
+.ap-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 18px;
+}
+.ap-strip-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  cursor: default;
+  user-select: none;
+}
+.ap-strip--master .ap-strip-name { color: var(--accent-hi); font-size: 9px; letter-spacing: 0.06em; }
+.ap-strip-rename {
+  background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 9px; padding: 0 2px; line-height: 1; border-radius: 2px; opacity: 0; transition: opacity 0.15s;
+}
+.ap-strip:hover .ap-strip-rename { opacity: 1; }
+.ap-strip-rename:hover { color: var(--accent-hi); background: rgba(71,140,191,0.15); }
+
+  background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 9px; padding: 0 2px; line-height: 1; border-radius: 2px;
+}
+.ap-strip-delete:hover { color: var(--red); background: rgba(224,108,117,0.12); }
+
+/* ── Mute / Solo row ───────────────────────────────────────────────── */
+.ap-ms-row {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.ap-ms-btn {
+  flex: 1;
+  padding: 3px 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel-3);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  min-width: 0;
+}
+.ap-ms-mute.active { background: #c17a1a; border-color: #e5a030; color: #fff; }
+.ap-ms-solo.active { background: #1a6ec1; border-color: #3090e8; color: #fff; }
+.ap-ms-mute:hover:not(.active) { border-color: #e5a030; color: #e5a030; }
+.ap-ms-solo:hover:not(.active) { border-color: #3090e8; color: #3090e8; }
+
+/* ── Fader + flanking VU bars ──────────────────────────────────────── */
+.ap-fader-vu-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  gap: 2px;
+  padding: 2px 4px;
+  box-sizing: border-box;
+}
+.ap-vu-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 7px;
+  flex-shrink: 0;
+  gap: 1px;
+}
+.ap-vu-track {
+  flex: 1;
+  width: 100%;
+  background: #0d0f18;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  min-height: 40px;
+}
+.ap-vu-fill {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 0%;
+  background: #6dbd79;
+  border-radius: 1px;
+  transition: height 0.04s linear, background 0.04s linear;
+}
+.ap-vu-peak {
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 100%; height: 2px;
+  background: #fff;
+  border-radius: 1px;
+  opacity: 0.8;
+  transition: bottom 0.05s ease-out;
+}
+.ap-vu-lbl { font-size: 7px; color: var(--text-faint); line-height: 1; }
+
+/* ── Fader ─────────────────────────────────────────────────────────── */
+.ap-fader-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  gap: 2px;
+}
+.ap-fader-label { font-size: 8px; color: var(--text-faint); letter-spacing: 0.05em; }
+.ap-fader-db {
+  font-size: 8px;
+  color: var(--accent-hi);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+.ap-fader {
+  -webkit-appearance: auto;
+  appearance: auto;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 18px;
+  flex: 1;
+  min-height: 30px;
+  cursor: ns-resize;
+  accent-color: var(--accent);
+  background: transparent;
+}
+
+/* ── Pan Knob ──────────────────────────────────────────────────────── */
+.ap-pan-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+}
+.ap-pan-label { font-size: 8px; color: var(--text-faint); letter-spacing: 0.05em; }
+.ap-knob-wrap { display: flex; justify-content: center; }
+.ap-knob { cursor: ns-resize; display: block; }
+.ap-pan-val { font-size: 8px; color: var(--text-dim); text-align: center; }
+
+/* ── Strip Controls (FX, EQ buttons) ───────────────────────────────── */
+.ap-strip-controls {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+.ap-eq-row {
+  display: flex;
+  width: 100%;
+}
+.ap-ctrl-btn {
+  flex: 1;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: 700;
+  height: 18px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background 0.1s, color 0.1s;
+  min-width: 0;
+  padding: 0;
+}
+.ap-ctrl-btn:hover { background: var(--panel); color: var(--text); border-color: var(--border-hi); }
+.ap-ctrl-mute.active { background: #5a1a1a; border-color: var(--red); color: var(--red); }
+.ap-ctrl-solo.active { background: #4a3c00; border-color: var(--yellow); color: var(--yellow); }
+.ap-ctrl-fx.active  { background: #1a3a5a; border-color: var(--accent); color: var(--accent-hi); }
+.ap-ctrl-eq.active  { background: #1e3830; border-color: var(--green); color: var(--green); }
+
+/* ── Send Row ──────────────────────────────────────────────────────── */
+.ap-send-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+.ap-send-label { font-size: 8px; color: var(--text-faint); }
+.ap-send-select {
+  width: 100%;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 8px;
+  border-radius: 2px;
+  height: 16px;
+  padding: 0 2px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* ── EQ Row / Panel ────────────────────────────────────────────────── */
+.ap-eq-panel {
+  display: none;
+  flex-direction: row;
+  gap: 2px;
+  width: 100%;
+  background: #141820;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 2px;
+}
+.ap-eq-panel--open { display: flex; }
+.ap-eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: 1px;
+}
+.ap-eq-band-label { font-size: 8px; color: var(--text-faint); letter-spacing: 0.05em; }
+.ap-eq-freq-label { font-size: 7px; color: var(--text-faint); }
+.ap-eq-db { font-size: 8px; color: var(--green); min-width: 36px; text-align: center; }
+.ap-eq-slider {
+  -webkit-appearance: auto;
+  appearance: auto;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 14px;
+  height: 50px;
+  accent-color: var(--green);
+}
+
+/* ── FX Rack ───────────────────────────────────────────────────────── */
+.ap-fx-rack {
+  display: none;
+  flex-direction: column;
+  width: 100%;
+  background: #12161f;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px;
+  gap: 3px;
+}
+.ap-fx-rack--open { display: flex; }
+.ap-fx-add-bar { display: flex; gap: 3px; align-items: center; }
+.ap-fx-sel {
+  flex: 1;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 9px;
+  border-radius: 2px;
+  height: 18px;
+  min-width: 0;
+}
+.ap-fx-add-btn {
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 9px;
+  border-radius: 2px;
+  height: 18px;
+  padding: 0 5px;
+  cursor: pointer;
+}
+.ap-fx-add-btn:hover { background: var(--panel); color: var(--text); }
+.ap-fx-list { display: flex; flex-direction: column; gap: 2px; }
+.ap-fx-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 2px 3px;
+}
+.ap-fx-drag { color: var(--text-faint); cursor: grab; font-size: 10px; }
+.ap-fx-enable { width: 12px; height: 12px; accent-color: var(--accent); }
+.ap-fx-name { flex: 1; font-size: 9px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-fx-params-btn, .ap-fx-del-btn {
+  background: none; border: none; cursor: pointer; font-size: 10px; padding: 0 2px; border-radius: 2px;
+}
+.ap-fx-params-btn { color: var(--text-faint); }
+.ap-fx-params-btn:hover { color: var(--accent-hi); }
+.ap-fx-del-btn { color: var(--text-faint); }
+.ap-fx-del-btn:hover { color: var(--red); background: rgba(224,108,117,0.1); }
+.ap-fx-params {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  background: #0d0f18;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 5px 6px;
+  margin-top: 2px;
+  box-sizing: border-box;
+}
+.ap-fx-param-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.ap-fx-param-label {
+  font-size: 8px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.ap-fx-param-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ap-fx-param-slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent-2);
+  height: 12px;
+  cursor: pointer;
+}
+.ap-fx-param-val {
+  font-size: 8px;
+  color: var(--accent-hi);
+  min-width: 30px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ── Inline Rename ─────────────────────────────────────────────────── */
+.ap-inline-rename {
+  width: 100%;
+  background: var(--panel-3);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 2px;
+  font-size: 10px;
+  padding: 1px 3px;
+  height: 18px;
+}
+
+/* ── Detail Panel (right) ──────────────────────────────────────────── */
+.ap-detail-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 180px;
+}
+
+.ap-clip-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ap-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  padding: 5px 8px 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+  flex-shrink: 0;
+}
+
+.ap-asset-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px;
+}
+.ap-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  cursor: grab;
+  user-select: none;
+  border: 1px solid transparent;
+}
+.ap-asset-row:hover { background: var(--panel-3); border-color: var(--border); }
+.ap-asset-icon { color: var(--orange); font-size: 11px; flex-shrink: 0; }
+.ap-asset-name { font-size: 10px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ap-clip-add-bar { padding: 4px 6px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+.ap-clip-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: background 0.1s;
+}
+.ap-clip-list.ap-drop-active { background: rgba(71,140,191,0.08); outline: 1px dashed var(--accent); outline-offset: -2px; border-radius: 3px; }
+.ap-clip-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--panel-2);
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.ap-clip-row:hover { border-color: var(--border-hi); }
+
+/* Top line: icon | name | bus | checks | reset | del */
+.ap-clip-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Bottom line: vol slider | pitch slider — each fills half the row */
+.ap-clip-sliders-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.ap-clip-name {
+  font-size: 10px; color: var(--text); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ap-clip-prop-label { font-size: 9px; color: var(--text-faint); flex-shrink: 0; white-space: nowrap; }
+.ap-clip-prop-val { font-size: 9px; color: var(--accent-hi); min-width: 30px; text-align: right; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.ap-clip-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.ap-clip-slider {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+.ap-clip-checks { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.ap-clip-cb { cursor: pointer; accent-color: var(--accent); width: 12px; height: 12px; flex-shrink: 0; }
+
+.ap-clip-reset {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+  width: 20px; height: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.1s, border-color 0.1s;
+}
+.ap-clip-reset:hover { color: var(--accent-hi); border-color: var(--accent); }
+
+.ap-preview-btn {
+  flex-shrink: 0;
+  width: 22px; height: 22px;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 9px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  padding: 0;
+}
+.ap-preview-btn:hover { background: rgba(71,140,191,0.15); border-color: var(--accent); }
+.ap-preview-btn--playing { background: rgba(71,140,191,0.25); border-color: var(--accent-hi); color: var(--accent-hi); }
+.ap-clip-del { background: none; border: none; color: var(--text-faint); font-size: 10px; cursor: pointer; padding: 0 2px; border-radius: 2px; flex-shrink: 0; }
+.ap-clip-del:hover { color: var(--red); }
+
+
+.ap-clip-bus-sel {
+  font-size: 9px;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 2px;
+  height: 18px;
+  padding: 0 2px;
+  max-width: 70px;
+  cursor: pointer;
+}
+.ap-clip-bus-sel:focus { border-color: var(--accent); outline: none; }
+
+
+  font-size: 10px;
+  color: var(--text-faint);
+  padding: 8px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Legacy compat — existing code referencing these classes still works */
+.audio-mixer-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; min-height: 30px; border-radius: 4px; }
+.audio-mixer-row:hover { background: rgba(255,255,255,.05); }
+.audio-mixer-actions { display: flex; gap: 4px; }
+.audio-inline-rename { width: 100%; background: #1b1f29; color: #fff; border: 1px solid rgba(120,120,120,.45); }

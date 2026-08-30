@@ -1,0 +1,38 @@
+
+.ui-preview-wrap,
+.ui-preview-canvas,
+.ui-preview-host,
+.ui-screen-preview-root {
+  position: relative;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  flex: 1 1 auto !important;
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.ui-preview-canvas canvas,
+.ui-screen-preview-root canvas {
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1 1 auto !important;
+  display: block;
+}
+
+.dock-content .ui-preview-wrap,
+.panel-content .ui-preview-wrap {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.dock-content,
+.panel-content,
+.editor-section {
+  min-height: 0 !important;
+}

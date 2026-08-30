@@ -1,0 +1,23 @@
+globalThis.RGE_ROOT = globalThis.RGE_ROOT || ((typeof window !== 'undefined') ? window : globalThis);
+var RGE_ROOT = globalThis.RGE_ROOT;
+
+export class MaterialSystem {
+  constructor() {
+    this.materials = new Map();
+  }
+
+  register(name, material) {
+    this.materials.set(name, material);
+  }
+
+  get(name) {
+    return this.materials.get(name);
+  }
+}
+
+
+/* V145 Renderer Consolidation */
+RGE_ROOT.RGEFrameBudget = RGE_ROOT.RGEFrameBudget || {
+    maxDrawCalls: 500,
+    maxBatches: 100
+};

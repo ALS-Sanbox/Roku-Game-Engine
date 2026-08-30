@@ -1,0 +1,244 @@
+/* ── Camera Preview Panel — Phase 2 Complete ────────────────────────────── */
+
+.camera-preview-panel {
+  display: flex;
+  flex-direction: column;
+  background: #13161f;
+  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+}
+
+.camera-preview-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #1c2133;
+  border-bottom: 1px solid #2a3050;
+  flex-shrink: 0;
+  min-height: 32px;
+}
+
+.camera-preview-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c8d6ea;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.camera-preview-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.camera-preview-label {
+  font-size: 11px;
+  color: #7a8fad;
+  white-space: nowrap;
+}
+
+.camera-preview-selector {
+  font-size: 11px;
+  background: #242838;
+  color: #c8d6ea;
+  border: 1px solid #3a4a6a;
+  border-radius: 3px;
+  padding: 2px 4px;
+  height: 22px;
+  min-width: 100px;
+  max-width: 180px;
+  cursor: pointer;
+  outline: none;
+}
+.camera-preview-selector:focus { border-color: #00d4ff; }
+
+.camera-preview-btn {
+  background: #1c2133;
+  color: #c8d6ea;
+  border: 1px solid #3a4a6a;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 13px;
+  height: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s, border-color 0.1s;
+}
+.camera-preview-btn:hover { background: #2a3555; border-color: #00d4ff; color: #00d4ff; }
+
+.camera-preview-viewport-wrap {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 80px;
+  overflow: hidden;
+  background: #151821;
+}
+
+.camera-preview-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.camera-preview-overlay-info {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  font-family: monospace;
+  font-size: 10px;
+  color: rgba(0,212,255,0.85);
+  background: rgba(0,0,0,0.55);
+  padding: 2px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+
+.camera-preview-no-cam {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.2);
+  font-size: 13px;
+  font-family: monospace;
+  pointer-events: none;
+}
+
+/* ── Camera Diagnostics Section ───────────────────────────────────────── */
+.camera-diagnostics {
+  flex-shrink: 0;
+  border-top: 1px solid #2a3050;
+  background: #161a27;
+  padding: 6px 8px;
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.camera-diag-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #7a8fad;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+.camera-diag-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+}
+
+.diag-label {
+  color: #5a7090;
+  white-space: nowrap;
+}
+
+.diag-value {
+  color: #c8d6ea;
+  text-align: right;
+}
+
+/* ── Camera overlay toolbar menu ──────────────────────────────────────── */
+#camera-overlays-menu {
+  position: relative;
+}
+
+#camera-overlays-dropdown {
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.camera-overlay-section-label {
+  font-size: 10px;
+  color: #5a7090;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 12px 2px;
+  font-weight: 600;
+}
+
+.camera-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.camera-toggle-item input[type="checkbox"] {
+  accent-color: #00d4ff;
+  cursor: pointer;
+}
+
+/* ── Context menu camera items ────────────────────────────────────────── */
+.scene-context-menu-item.camera-action { color: #00d4ff; }
+.scene-context-menu-item.camera-action:hover { background: rgba(0,212,255,0.12); }
+
+/* ── Toolbar button ───────────────────────────────────────────────────── */
+#btn-camera-overlays {
+  color: #00d4ff;
+}
+#btn-camera-overlays:hover,
+#btn-camera-overlays[aria-expanded="true"] {
+  background: #2a3555;
+  border-color: #00d4ff;
+  color: #00d4ff;
+}
+
+/* ── Preview zoom/pause bar ───────────────────────────────────────────── */
+.camera-preview-zoom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 26px;
+  background: rgba(22,26,39,0.92);
+  border-top: 1px solid #2a3050;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px;
+  pointer-events: all;
+}
+
+.camera-preview-zoom-btn {
+  background: transparent;
+  color: #7a8fad;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 10px;
+  cursor: pointer;
+  height: 20px;
+  min-width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.camera-preview-zoom-btn:hover {
+  background: #2a3555;
+  color: #c8d6ea;
+  border-color: #3a4a6a;
+}
+.camera-preview-zoom-sep {
+  flex: 1;
+}
