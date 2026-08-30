@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; img-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self' file:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RokuEngine Project Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="project_manager.css" />
+</head>
+<body>
+  <main class="pm-shell">
+    <header class="pm-header">
+      <div class="pm-brand">
+        <div class="pm-logo">◆</div>
+        <div>
+          <div class="pm-title" id="engine-title">RokuEngine</div>
+          <div class="pm-version" id="engine-version">v24</div>
+        </div>
+      </div>
+      <button class="pm-settings-btn" id="pm-settings-btn" type="button">Settings</button>
+    </header>
+
+    <nav class="pm-toolbar">
+      <div class="pm-toolbar-left">
+        <button class="pm-btn pm-btn-primary" id="pm-create-btn" type="button">Create</button>
+        <button class="pm-btn" id="pm-import-btn" type="button">Import</button>
+        <button class="pm-btn" id="pm-scan-btn" type="button">Scan Folder Projects</button>
+      </div>
+      <div class="pm-toolbar-right">
+        <label class="pm-sort">
+          <span>Sort</span>
+          <select id="pm-sort-select">
+            <option value="lastEdited">Last Edited</option>
+            <option value="name">Name</option>
+            <option value="path">Path</option>
+          </select>
+        </label>
+      </div>
+    </nav>
+
+    <section class="pm-list-wrap">
+      <div class="pm-list-header">
+        <div>Projects</div>
+        <div class="pm-count" id="pm-project-count">0 projects</div>
+      </div>
+
+      <div class="pm-content-grid" id="pm-content-grid">
+        <div class="pm-list-column">
+          <div class="pm-list" id="pm-project-list"></div>
+          <div class="pm-empty hidden" id="pm-empty-state">
+            <div class="pm-empty-title">No projects found yet.</div>
+            <div class="pm-empty-copy">Create a new project, import an existing one, or scan a folder that contains RokuEngine projects.</div>
+          </div>
+        </div>
+
+        <aside class="pm-side-panel" id="pm-side-panel">
+          <div class="pm-side-empty" id="pm-side-empty">Select a project to view actions.</div>
+          <div class="pm-side-content hidden" id="pm-side-content">
+            <div class="pm-side-label">Selected Project</div>
+            <div class="pm-side-name" id="pm-selected-name">Untitled Project</div>
+            <div class="pm-side-path" id="pm-selected-path"></div>
+            <div class="pm-side-facts" id="pm-selected-facts"></div>
+            <div class="pm-side-tags" id="pm-selected-tags"></div>
+            <div class="pm-side-actions">
+              <button class="pm-action-btn pm-edit" data-panel-action="edit" type="button">Edit</button>
+              <button class="pm-action-btn" data-panel-action="export" type="button">Export</button>
+              <button class="pm-action-btn" data-panel-action="rename" type="button">Rename</button>
+              <button class="pm-action-btn" data-panel-action="duplicate" type="button">Duplicate</button>
+              <button class="pm-action-btn" data-panel-action="tags" type="button">Manage Tags</button>
+              <button class="pm-action-btn pm-danger" data-panel-action="remove" type="button">Remove</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="pm-status" id="pm-status">Ready.</footer>
+  </main>
+  <script src="project_manager.js"></script>
+</body>
+</html>

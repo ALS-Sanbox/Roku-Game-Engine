@@ -1,0 +1,23 @@
+{
+  "projectName": "RokuEngine Game",
+  "input": {
+    "movement": "standard",
+    "action": "ok",
+    "pause": "play",
+    "actionMap": {
+      "move_up": "up",
+      "move_down": "down",
+      "move_left": "left",
+      "move_right": "right",
+      "action": "ok",
+      "pause": "play",
+      "back": "back"
+    }
+  },
+  "screen": {
+    "width": 1280,
+    "height": 720,
+    "mode": "720p",
+    "fullscreen": true
+  }
+}

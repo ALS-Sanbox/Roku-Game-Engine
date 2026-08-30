@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Settings</title>
+  <style>
+    :root {
+      --bg:#1c1e26; --panel:#252830; --panel2:#2a2d38; --border:#3a3f52; --text:#dde3f0; --dim:#8a93b0; --accent:#478cbf;
+      font-family: "Noto Sans", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font: 14px/1.4 var(--font, inherit); }
+    .wrap { display:flex; flex-direction:column; min-height:100vh; }
+    .header { padding:16px 18px; border-bottom:1px solid var(--border); background:var(--panel); }
+    .title { font-size:18px; font-weight:700; }
+    .subtitle { color:var(--dim); margin-top:4px; }
+    .tabs { display:flex; gap:6px; padding:14px 18px 0; }
+    .tab { border:1px solid var(--border); background:var(--panel2); color:var(--text); border-radius:6px 6px 0 0; padding:8px 12px; cursor:pointer; }
+    .tab.active { background:#233a59; border-color:var(--accent); }
+    .panel { display:none; padding:18px; background:var(--panel); border-top:1px solid var(--border); flex:1; }
+    .panel.active { display:block; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .field { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+    .field label { color:var(--dim); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    input, select { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:10px 12px; }
+    .check { display:flex; align-items:center; gap:10px; margin-top:8px; }
+    .check input { width:auto; }
+    .footer { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-top:1px solid var(--border); background:var(--panel); }
+    .status { color:var(--dim); }
+    .actions { display:flex; gap:8px; }
+    button.action { border:1px solid var(--border); background:var(--panel2); color:var(--text); border-radius:6px; padding:10px 14px; cursor:pointer; }
+    button.primary { background:#1f4068; border-color:var(--accent); }
+    .hint { color:var(--dim); font-size:12px; margin-top:4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">Project Settings</div>
+      <div class="subtitle">Configure project name, action-mapped input, and screen settings.</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="project">Project Name</button>
+      <button class="tab" data-tab="input">Input</button>
+      <button class="tab" data-tab="screen">Screen</button>
+    </div>
+
+    <section class="panel active" data-panel="project">
+      <div class="field">
+        <label for="project-name">Project Name</label>
+        <input id="project-name" type="text" placeholder="RokuEngine Game" />
+        <div class="hint">This name is saved to project.settings.json and written into source/main.brs.</div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="input">
+      <div class="grid">
+        <div class="field">
+          <label for="input-movement">Movement Profile</label>
+          <select id="input-movement">
+            <option value="standard">Standard D-Pad</option>
+            <option value="platformer">Platformer</option>
+            <option value="twin-stick">Twin Stick Style</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="input-action">Primary Action</label>
+          <select id="input-action">
+            <option value="ok">OK</option>
+            <option value="play">Play/Pause</option>
+            <option value="options">Options</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="input-pause">Pause Button</label>
+          <select id="input-pause">
+            <option value="play">Play/Pause</option>
+            <option value="back">Back</option>
+            <option value="options">Options</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint">Action map used by the BrightScript runtime.</div>
+      <div class="grid">
+        <div class="field"><label for="action-move-up">Move Up</label><select id="action-move-up"><option value="up">Up</option><option value="ok">OK</option><option value="play">Play/Pause</option><option value="options">Options</option></select></div>
+        <div class="field"><label for="action-move-down">Move Down</label><select id="action-move-down"><option value="down">Down</option><option value="ok">OK</option><option value="play">Play/Pause</option><option value="options">Options</option></select></div>
+        <div class="field"><label for="action-move-left">Move Left</label><select id="action-move-left"><option value="left">Left</option><option value="ok">OK</option><option value="play">Play/Pause</option><option value="options">Options</option></select></div>
+        <div class="field"><label for="action-move-right">Move Right</label><select id="action-move-right"><option value="right">Right</option><option value="ok">OK</option><option value="play">Play/Pause</option><option value="options">Options</option></select></div>
+        <div class="field"><label for="action-back">Back</label><select id="action-back"><option value="back">Back</option><option value="options">Options</option><option value="play">Play/Pause</option></select></div>
+      </div>
+    </section>
+
+    <section class="panel" data-panel="screen">
+      <div class="grid">
+        <div class="field">
+          <label for="screen-mode">Screen Mode</label>
+          <select id="screen-mode">
+            <option value="720p">720p</option>
+            <option value="1080p">1080p</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="screen-width">Width</label>
+          <input id="screen-width" type="number" min="1" step="1" />
+        </div>
+        <div class="field">
+          <label for="screen-height">Height</label>
+          <input id="screen-height" type="number" min="1" step="1" />
+        </div>
+      </div>
+      <label class="check"><input id="screen-fullscreen" type="checkbox" /> Fullscreen</label>
+    </section>
+
+    <div class="footer">
+      <div class="status" id="status">Ready.</div>
+      <div class="actions">
+        <button class="action" id="btn-cancel" type="button">Close</button>
+        <button class="action primary" id="btn-save" type="button">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const els = {
+      projectName: document.getElementById('project-name'),
+      inputMovement: document.getElementById('input-movement'),
+      inputAction: document.getElementById('input-action'),
+      inputPause: document.getElementById('input-pause'),
+      actionMoveUp: document.getElementById('action-move-up'),
+      actionMoveDown: document.getElementById('action-move-down'),
+      actionMoveLeft: document.getElementById('action-move-left'),
+      actionMoveRight: document.getElementById('action-move-right'),
+      actionBack: document.getElementById('action-back'),
+      screenMode: document.getElementById('screen-mode'),
+      screenWidth: document.getElementById('screen-width'),
+      screenHeight: document.getElementById('screen-height'),
+      screenFullscreen: document.getElementById('screen-fullscreen'),
+      status: document.getElementById('status')
+    };
+    let projectRoot = '';
+    let settings = null;
+
+    function setStatus(message) { els.status.textContent = message; }
+    function normalizeSettings(raw = {}) {
+      const input = raw && typeof raw.input === 'object' ? raw.input : {};
+      const screen = raw && typeof raw.screen === 'object' ? raw.screen : {};
+      return {
+        projectName: String(raw.projectName || '').trim() || 'RokuEngine Game',
+        input: {
+          movement: String(input.movement || 'standard'),
+          action: String(input.action || 'ok'),
+          pause: String(input.pause || 'play'),
+          actionMap: {
+            move_up: String((input.actionMap && input.actionMap.move_up) || 'up'),
+            move_down: String((input.actionMap && input.actionMap.move_down) || 'down'),
+            move_left: String((input.actionMap && input.actionMap.move_left) || 'left'),
+            move_right: String((input.actionMap && input.actionMap.move_right) || 'right'),
+            action: String((input.actionMap && input.actionMap.action) || input.action || 'ok'),
+            pause: String((input.actionMap && input.actionMap.pause) || input.pause || 'play'),
+            back: String((input.actionMap && input.actionMap.back) || 'back')
+          }
+        },
+        screen: {
+          width: Math.max(1, Number(screen.width) || 1280),
+          height: Math.max(1, Number(screen.height) || 720),
+          mode: String(screen.mode || '720p'),
+          fullscreen: screen.fullscreen !== false
+        }
+      };
+    }
+    function render() {
+      const s = settings || normalizeSettings();
+      els.projectName.value = s.projectName;
+      els.inputMovement.value = s.input.movement;
+      els.inputAction.value = s.input.action;
+      els.inputPause.value = s.input.pause;
+      els.actionMoveUp.value = s.input.actionMap.move_up;
+      els.actionMoveDown.value = s.input.actionMap.move_down;
+      els.actionMoveLeft.value = s.input.actionMap.move_left;
+      els.actionMoveRight.value = s.input.actionMap.move_right;
+      els.actionBack.value = s.input.actionMap.back;
+      els.screenMode.value = s.screen.mode;
+      els.screenWidth.value = s.screen.width;
+      els.screenHeight.value = s.screen.height;
+      els.screenFullscreen.checked = !!s.screen.fullscreen;
+    }
+    function collect() {
+      return normalizeSettings({
+        projectName: els.projectName.value,
+        input: {
+          movement: els.inputMovement.value,
+          action: els.inputAction.value,
+          pause: els.inputPause.value,
+          actionMap: {
+            move_up: els.actionMoveUp.value,
+            move_down: els.actionMoveDown.value,
+            move_left: els.actionMoveLeft.value,
+            move_right: els.actionMoveRight.value,
+            action: els.inputAction.value,
+            pause: els.inputPause.value,
+            back: els.actionBack.value
+          }
+        },
+        screen: {
+          width: els.screenWidth.value,
+          height: els.screenHeight.value,
+          mode: els.screenMode.value,
+          fullscreen: els.screenFullscreen.checked
+        }
+      });
+    }
+    async function load() {
+      const startup = await window.electronAPI.getProjectSettings('');
+      if (!startup?.success) {
+        setStatus('Could not load project settings.');
+        return;
+      }
+      projectRoot = startup.projectRoot || '';
+      settings = normalizeSettings(startup.settings || {});
+      render();
+      setStatus(`Loaded settings for ${settings.projectName}.`);
+    }
+    async function save() {
+      const next = collect();
+      const result = await window.electronAPI.saveProjectSettings({ projectRoot, settings: next });
+      if (!result?.success) {
+        setStatus(`Save failed: ${result?.reason || 'Unknown error'}`);
+        return;
+      }
+      settings = normalizeSettings(result.settings || next);
+      render();
+      setStatus(`Saved settings for ${settings.projectName}.`);
+    }
+    document.querySelectorAll('.tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((node) => node.classList.toggle('active', node === tab));
+        document.querySelectorAll('.panel').forEach((panel) => panel.classList.toggle('active', panel.dataset.panel === tab.dataset.tab));
+      });
+    });
+    document.getElementById('btn-save').addEventListener('click', save);
+    document.getElementById('btn-cancel').addEventListener('click', () => window.close());
+    window.electronAPI.onProjectSettingsUpdated((payload) => {
+      projectRoot = payload?.projectRoot || projectRoot;
+      settings = normalizeSettings(payload?.settings || settings || {});
+      render();
+      setStatus(`Updated settings for ${settings.projectName}.`);
+    });
+    load();
+  </script>
+</body>
+</html>

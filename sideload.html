@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sideload to Roku</title>
+  <style>
+    :root {
+      --bg:     #1c1e26;
+      --panel:  #252830;
+      --panel2: #2a2d38;
+      --border: #3a3f52;
+      --text:   #dde3f0;
+      --dim:    #8a93b0;
+      --accent: #478cbf;
+      --green:  #4caf7d;
+      --red:    #e05555;
+      --yellow: #e0a030;
+      font-family: "Noto Sans", "Segoe UI", system-ui, sans-serif;
+      font-size: 13px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 10px 14px 9px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+    .header-icon  { font-size: 17px; line-height: 1; }
+    .header-title { font-size: 14px; font-weight: 700; }
+    .header-sub   { color: var(--dim); font-size: 11px; margin-top: 1px; }
+
+    /* ── Two-column body ── */
+    .body {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr auto;  /* top row fills, progress row auto */
+      gap: 0;
+      overflow: hidden;
+    }
+
+    /* Left column: device + credentials stacked, scrollable */
+    .col-left {
+      grid-row: 1 / 3;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Right top: build options */
+    .col-right-top {
+      padding: 12px 12px 6px;
+      border-bottom: 1px solid var(--border);
+      overflow-y: auto;
+    }
+
+    /* Right bottom: progress + log — flex to fill remaining height */
+    .col-right-bottom {
+      padding: 8px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-height: 0;
+    }
+
+    /* ── Section cards ── */
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .section-head {
+      padding: 7px 12px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-body {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── Form fields ── */
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      color: var(--dim);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .fg { display: grid; gap: 8px; }
+    .fg.c2 { grid-template-columns: 1fr 1fr; }
+    .fg.c3 { grid-template-columns: 2fr 1fr 1fr; }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 6px 9px;
+      font-size: 12px;
+      font-family: inherit;
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--dim); opacity: .65; }
+    input:disabled { opacity: .4; }
+
+    .hint {
+      color: var(--dim);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .row input[type="text"] { flex: 1; }
+
+    /* ── Ping dot ── */
+    .ping-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--dim); flex-shrink: 0;
+      transition: background .2s;
+    }
+    .ping-dot.ok   { background: var(--green); }
+    .ping-dot.err  { background: var(--red); }
+    .ping-dot.busy { background: var(--yellow); animation: pulse .8s ease-in-out infinite alternate; }
+    @keyframes pulse { from { opacity: .35; } to { opacity: 1; } }
+    .ping-label { font-size: 10px; color: var(--dim); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Devices ── */
+    .device-list { display: flex; flex-direction: column; gap: 3px; }
+    .device-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background .1s, border-color .1s;
+    }
+    .device-item:hover  { background: var(--panel2); border-color: var(--accent); }
+    .device-item.active { background: #1f3550; border-color: var(--accent); }
+    .device-item-name   { flex: 1; font-size: 12px; }
+    .device-item-ip     { font-size: 10px; color: var(--dim); font-family: monospace; }
+    .device-del {
+      background: none; border: none; color: var(--dim);
+      cursor: pointer; font-size: 13px; padding: 0 2px; line-height: 1;
+      opacity: .45; transition: opacity .1s;
+    }
+    .device-del:hover { opacity: 1; color: var(--red); }
+    .no-devices { color: var(--dim); font-size: 11px; text-align: center; padding: 7px 0; }
+
+    /* ── Checkbox row ── */
+    .chk-row {
+      display: flex; align-items: center; gap: 7px;
+    }
+    .chk-row input[type="checkbox"] { width: auto; flex-shrink: 0; accent-color: var(--accent); }
+    .chk-row label { color: var(--dim); font-size: 11px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+
+    /* ── Progress ── */
+    .prog-wrap { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+    .prog-track {
+      height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .prog-fill {
+      height: 100%; width: 0%; background: var(--accent);
+      border-radius: 3px; transition: width .2s ease, background .3s;
+    }
+    .prog-fill.done          { background: var(--green); }
+    .prog-fill.failed        { background: var(--red); }
+    .prog-fill.indeterminate { width: 35% !important; animation: slide 1.2s ease-in-out infinite alternate; }
+    @keyframes slide { from { margin-left: 0; } to { margin-left: 65%; } }
+    .prog-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .prog-label { font-size: 11px; color: var(--dim); }
+    .prog-pct   { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+    /* ── Log ── */
+    .output-log {
+      flex: 1;
+      min-height: 60px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 8px;
+      font-family: "Consolas", "Fira Mono", monospace;
+      font-size: 10.5px;
+      line-height: 1.55;
+      overflow-y: auto;
+      color: #9aa5c0;
+    }
+    .log-line            { white-space: pre-wrap; word-break: break-all; }
+    .log-line.info       { color: #9aa5c0; }
+    .log-line.ok         { color: var(--green); }
+    .log-line.warn       { color: var(--yellow); }
+    .log-line.error      { color: var(--red); }
+    .log-line.bold       { color: var(--text); font-weight: 600; }
+
+    /* ── Step badge ── */
+    .step-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      font-size: 9px; font-weight: 700; flex-shrink: 0;
+      background: var(--panel2); border: 1px solid var(--border); color: var(--dim);
+    }
+    .step-badge.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .step-badge.done   { background: var(--green);  border-color: var(--green);  color: #fff; }
+    .step-badge.error  { background: var(--red);    border-color: var(--red);    color: #fff; }
+
+    .sep { height: 1px; background: var(--border); margin: 2px 0; }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .footer-status { font-size: 11px; color: var(--dim); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .footer-actions { display: flex; gap: 6px; }
+
+    /* ── Buttons ── */
+    button.btn {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 5px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .1s, border-color .1s;
+      white-space: nowrap;
+    }
+    button.btn:hover:not(:disabled) { background: #333748; border-color: var(--accent); }
+    button.btn:disabled { opacity: .4; cursor: not-allowed; }
+    button.btn.primary  { background: #1f4068; border-color: var(--accent); font-weight: 600; }
+    button.btn.primary:hover:not(:disabled) { background: #245080; }
+    button.btn.sm       { padding: 5px 9px; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<div class="header">
+  <span class="header-icon">⬆</span>
+  <div>
+    <div class="header-title">Sideload to Roku</div>
+    <div class="header-sub">Build, package, and deploy over your local network</div>
+  </div>
+</div>
+
+<!-- ── Two-column body ────────────────────────────────────────────────────── -->
+<div class="body">
+
+  <!-- LEFT: device + credentials -->
+  <div class="col-left">
+
+    <!-- Device selection -->
+    <div class="section">
+      <div class="section-head">
+        <span class="step-badge" id="step1-badge">1</span>
+        Roku Device
+      </div>
+      <div class="section-body">
+        <div class="field">
+          <label>Saved devices</label>
+          <div class="device-list" id="device-list">
+            <div class="no-devices" id="no-devices-msg">No saved devices — add one below</div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="field">
+          <label>IP address</label>
+          <div class="fg c3">
+            <input type="text" id="inp-ip" placeholder="192.168.1.x" autocomplete="off" spellcheck="false" />
+            <input type="text" id="inp-name" placeholder="Label" autocomplete="off" />
+            <button class="btn sm" id="btn-ping">Ping</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="ping-dot" id="ping-dot"></div>
+          <span class="ping-label" id="ping-label">Enter an IP to test connectivity</span>
+          <button class="btn sm" id="btn-save-device" disabled>Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Credentials -->
+    <div class="section">
+      <div class="section-head">
+        <span class="step-badge" id="step2-badge">2</span>
+        Developer Credentials
+      </div>
+      <div class="section-body">
+        <div class="hint">Enable Dev Mode: Settings → System → Advanced → Developer Mode. Default user: <strong>rokudev</strong>.</div>
+        <div class="fg c2">
+          <div class="field">
+            <label>Username</label>
+            <input type="text" id="inp-user" value="rokudev" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="inp-pass" placeholder="••••••••" autocomplete="off" />
+          </div>
+        </div>
+        <div class="chk-row">
+          <input type="checkbox" id="chk-save-creds" />
+          <label for="chk-save-creds">Remember credentials for this device</label>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /col-left -->
+
+  <!-- RIGHT TOP: build options -->
+  <div class="col-right-top">
+    <div class="section">
+      <div class="section-head">
+        <span class="step-badge" id="step3-badge">3</span>
+        Build Options
+      </div>
+      <div class="section-body">
+        <div class="fg c2">
+          <div class="field">
+            <label>Major version</label>
+            <input type="number" id="inp-major" value="1" min="0" max="99" />
+          </div>
+          <div class="field">
+            <label>Minor version</label>
+            <input type="number" id="inp-minor" value="0" min="0" max="99" />
+          </div>
+        </div>
+        <div class="chk-row">
+          <input type="checkbox" id="chk-bake-terrain" checked />
+          <label for="chk-bake-terrain">Bake terrain collision at export</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT BOTTOM: progress + log -->
+  <div class="col-right-bottom">
+    <div class="section-head" style="border-radius:6px 6px 0 0; border:1px solid var(--border); border-bottom:none; margin-bottom:-1px;">
+      <span class="step-badge" id="step4-badge">4</span>
+      Progress
+    </div>
+
+    <div class="prog-wrap">
+      <div class="prog-row">
+        <span class="prog-label" id="prog-label">Ready to sideload</span>
+        <span class="prog-pct"   id="prog-pct"></span>
+      </div>
+      <div class="prog-track">
+        <div class="prog-fill" id="prog-bar"></div>
+      </div>
+    </div>
+
+    <div class="output-log" id="output-log">
+      <div class="log-line info">— Sideloader ready. Configure a device and click Sideload. —</div>
+    </div>
+  </div>
+
+</div><!-- /body -->
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<div class="footer">
+  <span class="footer-status" id="footer-status">No device selected</span>
+  <div class="footer-actions">
+    <button class="btn" id="btn-cancel-sideload" disabled>Cancel</button>
+    <button class="btn" id="btn-close">Close</button>
+    <button class="btn primary" id="btn-sideload" disabled>⬆ Sideload</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const STORAGE_KEY_DEVICES = 'rge-sideload-devices';
+const STORAGE_KEY_CREDS   = 'rge-sideload-creds';
+const STORAGE_KEY_OPTIONS  = 'rge-sideload-options';
+
+let devices    = [];
+let selectedId = null;
+let sideloading = false;
+let abortCtrl  = null;
+let pingTimeout = null;
+
+const inpIp       = document.getElementById('inp-ip');
+const inpName     = document.getElementById('inp-name');
+const inpUser     = document.getElementById('inp-user');
+const inpPass     = document.getElementById('inp-pass');
+const inpMajor    = document.getElementById('inp-major');
+const inpMinor    = document.getElementById('inp-minor');
+const chkBake     = document.getElementById('chk-bake-terrain');
+const chkCreds    = document.getElementById('chk-save-creds');
+const pingDot     = document.getElementById('ping-dot');
+const pingLabel   = document.getElementById('ping-label');
+const btnPing     = document.getElementById('btn-ping');
+const btnSaveDev  = document.getElementById('btn-save-device');
+const btnSideload = document.getElementById('btn-sideload');
+const btnCancel   = document.getElementById('btn-cancel-sideload');
+const btnClose    = document.getElementById('btn-close');
+const devList     = document.getElementById('device-list');
+const noDevMsg    = document.getElementById('no-devices-msg');
+const progBar     = document.getElementById('prog-bar');
+const progLabel   = document.getElementById('prog-label');
+const progPct     = document.getElementById('prog-pct');
+const outputLog   = document.getElementById('output-log');
+const footerStatus= document.getElementById('footer-status');
+const step1Badge  = document.getElementById('step1-badge');
+const step4Badge  = document.getElementById('step4-badge');
+
+// ── Logging ───────────────────────────────────────────────────────────────────
+function log(text, type = 'info') {
+  const now = new Date();
+  const ts = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.textContent = `[${ts}] ${text}`;
+  outputLog.appendChild(line);
+  outputLog.scrollTop = outputLog.scrollHeight;
+}
+function logOk(t)   { log(t, 'ok'); }
+function logWarn(t) { log(t, 'warn'); }
+function logErr(t)  { log(t, 'error'); }
+function logBold(t) { log(t, 'bold'); }
+
+// ── Progress ──────────────────────────────────────────────────────────────────
+function setProgress(pct, label, state = 'normal') {
+  progBar.style.width = (pct == null ? '0%' : pct + '%');
+  progBar.classList.remove('done', 'failed', 'indeterminate');
+  if (state === 'done')            progBar.classList.add('done');
+  else if (state === 'failed')     progBar.classList.add('failed');
+  else if (state === 'indeterminate') { progBar.classList.add('indeterminate'); progBar.style.width = ''; }
+  progLabel.textContent = label || '';
+  progPct.textContent   = (pct != null && state !== 'indeterminate') ? pct + '%' : '';
+}
+function resetProgress() { setProgress(0, 'Ready to sideload'); }
+
+function badgeState(el, state) {
+  el.classList.remove('active', 'done', 'error');
+  if (state) el.classList.add(state);
+}
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+function saveDevices() {
+  try { localStorage.setItem(STORAGE_KEY_DEVICES, JSON.stringify(devices)); } catch (_) {}
+}
+function loadDevices() {
+  try { devices = JSON.parse(localStorage.getItem(STORAGE_KEY_DEVICES) || '[]'); } catch (_) { devices = []; }
+}
+function saveCreds(ip) {
+  if (!chkCreds.checked) return;
+  const store = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDS) || '{}');
+  store[ip] = { user: inpUser.value.trim(), pass: inpPass.value };
+  try { localStorage.setItem(STORAGE_KEY_CREDS, JSON.stringify(store)); } catch (_) {}
+}
+function loadCreds(ip) {
+  try {
+    const store = JSON.parse(localStorage.getItem(STORAGE_KEY_CREDS) || '{}');
+    if (store[ip]) { inpUser.value = store[ip].user || 'rokudev'; inpPass.value = store[ip].pass || ''; chkCreds.checked = true; }
+  } catch (_) {}
+}
+function saveOptions() {
+  try { localStorage.setItem(STORAGE_KEY_OPTIONS, JSON.stringify({ major: inpMajor.value, minor: inpMinor.value, bakeTerrain: chkBake.checked })); } catch (_) {}
+}
+function loadOptions() {
+  try {
+    const o = JSON.parse(localStorage.getItem(STORAGE_KEY_OPTIONS) || '{}');
+    if (o.major != null) inpMajor.value = o.major;
+    if (o.minor != null) inpMinor.value = o.minor;
+    if (o.bakeTerrain != null) chkBake.checked = o.bakeTerrain;
+  } catch (_) {}
+}
+
+// ── Device list ───────────────────────────────────────────────────────────────
+function renderDeviceList() {
+  [...devList.querySelectorAll('.device-item')].forEach(el => el.remove());
+  noDevMsg.style.display = devices.length ? 'none' : '';
+  devices.forEach(d => {
+    const item = document.createElement('div');
+    item.className = 'device-item' + (d.id === selectedId ? ' active' : '');
+    item.dataset.id = d.id;
+    item.innerHTML = `
+      <span class="device-item-name">${escHtml(d.name || d.ip)}</span>
+      <span class="device-item-ip">${escHtml(d.ip)}</span>
+      <button class="device-del" data-id="${d.id}" title="Remove">✕</button>`;
+    item.addEventListener('click', (e) => { if (e.target.classList.contains('device-del')) return; selectDevice(d.id); });
+    item.querySelector('.device-del').addEventListener('click', () => removeDevice(d.id));
+    devList.insertBefore(item, noDevMsg);
+  });
+  updateSideloadBtn();
+}
+
+function selectDevice(id) {
+  selectedId = id;
+  const d = devices.find(x => x.id === id);
+  if (d) {
+    inpIp.value = d.ip;
+    inpName.value = d.name || '';
+    loadCreds(d.ip);
+    footerStatus.textContent = `Selected: ${d.name || d.ip}`;
+    badgeState(step1Badge, 'done');
+  }
+  renderDeviceList();
+}
+
+function removeDevice(id) {
+  devices = devices.filter(d => d.id !== id);
+  if (selectedId === id) { selectedId = null; footerStatus.textContent = 'No device selected'; badgeState(step1Badge, ''); }
+  saveDevices();
+  renderDeviceList();
+}
+
+function addDevice(ip, name) {
+  const existing = devices.find(d => d.ip === ip);
+  if (existing) { selectDevice(existing.id); return; }
+  const id = 'dev_' + Date.now();
+  devices.push({ id, ip, name: name || ip });
+  saveDevices();
+  renderDeviceList();
+  selectDevice(id);
+}
+
+function updateSideloadBtn() {
+  btnSideload.disabled = !inpIp.value.trim() || !inpPass.value.trim() || sideloading;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Ping ──────────────────────────────────────────────────────────────────────
+btnPing.addEventListener('click', () => doPing(inpIp.value.trim()));
+
+async function doPing(ip) {
+  if (!ip) { setPingState('err', 'Enter an IP address first'); return; }
+  if (pingTimeout) clearTimeout(pingTimeout);
+  setPingState('busy', `Pinging ${ip}…`);
+  log(`Pinging ${ip}…`);
+  try {
+    const result = await window.electronAPI.sideloadPing({ ip });
+    if (result.success) {
+      setPingState('ok', `${ip} reachable (${result.ms}ms)`);
+      logOk(`Ping OK — ${ip} responded in ${result.ms}ms`);
+      btnSaveDev.disabled = false;
+    } else {
+      setPingState('err', `Not reachable: ${result.reason || 'no response'}`);
+      logErr(`Ping failed: ${result.reason || 'no response'}`);
+      btnSaveDev.disabled = true;
+    }
+  } catch (e) {
+    setPingState('err', 'Error: ' + e.message);
+    logErr('Ping error: ' + e.message);
+    btnSaveDev.disabled = true;
+  }
+}
+
+function setPingState(state, text) {
+  pingDot.className = 'ping-dot' + (state ? ' ' + state : '');
+  pingLabel.textContent = text;
+}
+
+btnSaveDev.addEventListener('click', () => {
+  const ip = inpIp.value.trim();
+  if (!ip) return;
+  addDevice(ip, inpName.value.trim() || ip);
+  log(`Saved device: ${inpName.value.trim() || ip} (${ip})`);
+});
+
+// ── Close / cancel ────────────────────────────────────────────────────────────
+btnClose.addEventListener('click', () => {
+  if (window.electronAPI?.closeWindow) window.electronAPI.closeWindow();
+  else window.close();
+});
+
+btnCancel.addEventListener('click', () => {
+  if (abortCtrl) abortCtrl.abort();
+  logWarn('Sideload cancelled by user.');
+  setSideloading(false);
+  setProgress(0, 'Cancelled', 'failed');
+});
+
+inpIp.addEventListener('input', () => { setPingState('', 'Enter an IP to test connectivity'); btnSaveDev.disabled = true; updateSideloadBtn(); });
+inpPass.addEventListener('input', updateSideloadBtn);
+
+// ── Sideload ──────────────────────────────────────────────────────────────────
+btnSideload.addEventListener('click', doSideload);
+
+function setSideloading(on) {
+  sideloading = on;
+  btnSideload.disabled = on;
+  btnCancel.disabled   = !on;
+  btnClose.disabled    = on;
+  [inpIp, inpUser, inpPass, inpMajor, inpMinor, chkBake].forEach(el => { el.disabled = on; });
+  [...devList.querySelectorAll('.device-item')].forEach(el => { el.style.pointerEvents = on ? 'none' : ''; });
+}
+
+async function doSideload() {
+  const ip   = inpIp.value.trim();
+  const user = inpUser.value.trim() || 'rokudev';
+  const pass = inpPass.value;
+  if (!ip || !pass) { logErr('IP address and password are required.'); return; }
+
+  setSideloading(true);
+  abortCtrl = new AbortController();
+  saveOptions();
+  if (chkCreds.checked) saveCreds(ip);
+  outputLog.innerHTML = '';
+  resetProgress();
+  badgeState(step4Badge, 'active');
+
+  try {
+    setProgress(null, 'Building project…', 'indeterminate');
+    logBold('Step 1/4 — Building Roku project bundle…');
+    log('Collecting scenes and assets…');
+
+    const buildResult = await window.electronAPI.sideloadBuild({
+      majorVersion: parseInt(inpMajor.value, 10) || 1,
+      minorVersion: parseInt(inpMinor.value, 10) || 0,
+      bakeTerrain: chkBake.checked
+    });
+    if (!buildResult.success) throw new Error('Build failed: ' + (buildResult.reason || 'unknown'));
+    logOk(`Build complete — ${buildResult.scenes?.length || 0} scene(s), ${buildResult.scriptCount || 0} script(s)`);
+    if (buildResult.warnings?.length) {
+      buildResult.warnings.slice(0, 5).forEach(w => logWarn('  ⚠ ' + w));
+      if (buildResult.warnings.length > 5) logWarn(`  … and ${buildResult.warnings.length - 5} more`);
+    }
+    log(`Zip: ${buildResult.zipPath}`);
+
+    setProgress(25, 'Connecting to Roku…');
+    logBold('Step 2/4 — Connecting to device…');
+    const pingResult = await window.electronAPI.sideloadPing({ ip });
+    if (!pingResult.success) throw new Error(`Cannot reach Roku at ${ip} — Developer Mode enabled? (${pingResult.reason})`);
+    logOk(`Connected to ${ip} (${pingResult.ms}ms)`);
+
+    setProgress(40, 'Removing existing channel…');
+    logBold('Step 3/4 — Removing existing sideloaded channel…');
+    const delResult = await window.electronAPI.sideloadDelete({ ip, user, pass });
+    if (delResult.success) logOk('Existing channel removed');
+    else logWarn('Delete: ' + (delResult.reason || 'no existing channel'));
+
+    setProgress(55, 'Uploading to Roku…');
+    logBold('Step 4/4 — Uploading channel package…');
+    log(`Uploading ${buildResult.zipPath}…`);
+
+    const unsubProgress = window.electronAPI.onSideloadProgress((update) => {
+      const pct = 55 + Math.round((update.percent || 0) * 0.40);
+      setProgress(pct, `Uploading… ${update.transferred || ''}`);
+    });
+
+    const uploadResult = await window.electronAPI.sideloadUpload({ ip, user, pass, zipPath: buildResult.zipPath });
+    if (typeof unsubProgress === 'function') unsubProgress();
+    if (!uploadResult.success) throw new Error('Upload failed: ' + (uploadResult.reason || 'unknown'));
+
+    logOk(`Upload complete — ${uploadResult.bytes ? formatBytes(uploadResult.bytes) : ''}`);
+    logOk(`Roku responded: ${uploadResult.status || 'OK'}`);
+    setProgress(100, 'Sideload complete!', 'done');
+    logBold('✓ Sideload successful — your game is running on the Roku.');
+    badgeState(step4Badge, 'done');
+    footerStatus.textContent = `Sideloaded to ${ip}`;
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      setProgress(0, 'Cancelled', 'failed');
+    } else {
+      logErr(err.message);
+      setProgress(0, 'Sideload failed — see log', 'failed');
+      footerStatus.textContent = 'Sideload failed';
+    }
+    badgeState(step4Badge, 'error');
+  } finally {
+    setSideloading(false);
+    abortCtrl = null;
+  }
+}
+
+function formatBytes(b) {
+  if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
+  if (b >= 1024)    return Math.round(b / 1024) + ' KB';
+  return b + ' B';
+}
+
+loadDevices();
+loadOptions();
+renderDeviceList();
+updateSideloadBtn();
+</script>
+</body>
+</html>

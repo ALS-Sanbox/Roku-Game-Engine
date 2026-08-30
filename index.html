@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; img-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self' file:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RokuEngine Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="editor/styles/audio_panel.css" />
+  <link rel="stylesheet" href="editor/styles/camera_preview_panel.css" />
+</head>
+<body>
+
+<!-- ── Title bar ─────────────────────────────────────────────────────── -->
+<header class="titlebar">
+  <div class="titlebar-drag">
+    <span class="app-logo">◆</span>
+    <span class="app-name">RokuEngine Editor</span>
+    <span class="app-subtitle">2D / Konva</span>
+  </div>
+  <div class="titlebar-controls">
+    <button class="wc" id="btn-minimize">─</button>
+    <button class="wc" id="btn-maximize">□</button>
+    <button class="wc wc-close" id="btn-close">✕</button>
+  </div>
+</header>
+
+<!-- ── Toolbar ───────────────────────────────────────────────────────── -->
+<nav class="toolbar">
+  <div class="toolbar-group menu-group">
+    <div class="toolbar-menu" id="file-menu">
+      <button class="tool-btn toolbar-menu-trigger" id="btn-file-menu" type="button" aria-haspopup="true" aria-expanded="false">File ▾</button>
+      <div class="toolbar-menu-dropdown hidden" id="file-menu-dropdown" role="menu" aria-label="File menu">
+        <button class="toolbar-menu-item" id="menu-create-project" type="button" role="menuitem">Create Project</button>
+        <button class="toolbar-menu-item" id="menu-open-project" type="button" role="menuitem">Open Project</button>
+        <button class="toolbar-menu-item" id="menu-back-to-manager" type="button" role="menuitem">Back to Manager</button>
+        <button class="toolbar-menu-item" id="menu-save-project" type="button" role="menuitem">Save Project</button>
+        <button class="toolbar-menu-item" id="menu-save-project-as" type="button" role="menuitem">Save As</button>
+        <button class="toolbar-menu-item" id="menu-export-game" type="button" role="menuitem">Export Game</button>
+        <button class="toolbar-menu-item" id="menu-sideload" type="button" role="menuitem">Sideload to Roku ▸</button>
+        <button class="toolbar-menu-item" id="menu-settings" type="button" role="menuitem">Settings</button>
+        <button class="toolbar-menu-item" id="menu-quit" type="button" role="menuitem">Quit</button>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar-group menu-group">
+    <div class="toolbar-menu" id="scene-menu">
+      <button class="tool-btn toolbar-menu-trigger" id="btn-scene-menu" type="button" aria-haspopup="true" aria-expanded="false">Scene ▾</button>
+      <div class="toolbar-menu-dropdown hidden" id="scene-menu-dropdown" role="menu" aria-label="Scene menu">
+        <button class="toolbar-menu-item" id="menu-new-scene" type="button" role="menuitem">New Scene</button>
+        <button class="toolbar-menu-item" id="menu-new-inherited-scene" type="button" role="menuitem">New Inherited Scene</button>
+        <button class="toolbar-menu-item" id="menu-rename-scene" type="button" role="menuitem">Rename Scene</button>
+        <button class="toolbar-menu-item" id="menu-open-scene" type="button" role="menuitem">Open Scene</button>
+        <button class="toolbar-menu-item" id="menu-save-scene" type="button" role="menuitem">Save Scene</button>
+        <button class="toolbar-menu-item" id="menu-save-scene-as" type="button" role="menuitem">Save Scene As</button>
+        <button class="toolbar-menu-item" id="menu-reload-saved-scene" type="button" role="menuitem">Reload Saved Scene</button>
+        <button class="toolbar-menu-item" id="menu-rebase-inherited-scene" type="button" role="menuitem">Rebase Inherited Scene</button>
+        <button class="toolbar-menu-item" id="menu-revert-inherited-scene" type="button" role="menuitem">Revert Inherited To Base</button>
+        <button class="toolbar-menu-item" id="menu-close-scene" type="button" role="menuitem">Close Scene</button>
+        <button class="toolbar-menu-item" id="menu-close-all-scenes" type="button" role="menuitem">Close All Scenes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar-group menu-group">
+    <div class="toolbar-menu" id="tabs-menu">
+      <button class="tool-btn toolbar-menu-trigger" id="btn-tabs-menu" type="button" aria-haspopup="true" aria-expanded="false">Tabs ▾</button>
+      <div class="toolbar-menu-dropdown tabs-menu-dropdown hidden" id="tabs-menu-dropdown" role="menu" aria-label="Tabs menu">
+        <div class="tabs-menu-header"><div class="tabs-menu-title">Dockable Tabs</div><button class="mini-btn tabs-menu-default" id="tabs-menu-default" type="button">Default</button></div>
+        <div id="tabs-menu-list" class="tabs-menu-list"></div>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar-sep"></div>
+  <div class="toolbar-group">
+    <button class="tool-btn active" data-tool="select">⬡ Select</button>
+    <button class="tool-btn" data-tool="pan">✥ Pan</button>
+    <button class="tool-btn" data-tool="camera-path" id="btn-edit-camera-path" title="Edit CameraPath2D points">Edit Camera Path</button>
+  </div>
+  <div class="toolbar-sep"></div>
+  <div class="toolbar-group">
+    <button class="tool-btn" id="btn-undo">↩ Undo</button>
+    <button class="tool-btn" id="btn-redo">↪ Redo</button>
+    <button class="tool-btn" id="btn-frame">⊡ Frame</button>
+    <button class="tool-btn" id="btn-grid">⊞ Grid</button>
+    <button class="tool-btn" id="btn-snap">⊹ Snap</button>
+    <div class="toolbar-menu" id="camera-overlays-menu">
+      <button class="tool-btn toolbar-menu-trigger" id="btn-camera-overlays" type="button" aria-haspopup="true" aria-expanded="false">📷 Camera ▾</button>
+      <div class="toolbar-menu-dropdown hidden" id="camera-overlays-dropdown" role="menu" aria-label="Camera overlay options">
+        <div class="camera-overlay-section-label">Overlay Visibility</div>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-frame"    checked> Show Camera Frame</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-deadzone" checked> Show Dead Zone</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-lookahead"checked> Show Look Ahead</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-bounds"   checked> Show Bounds</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-labels"   checked> Show Labels</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-zones"    checked> Show Camera Zones</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-paths"    checked> Show Camera Paths</label>
+        <label class="toolbar-menu-item camera-toggle-item"><input type="checkbox" id="cam-toggle-targetgroups" checked> Show Camera Target Grp</label>
+        <div class="toolbar-menu-sep"></div>
+        <div class="camera-overlay-section-label">Camera Tools</div>
+        <button class="toolbar-menu-item" id="cam-tool-focus"  type="button">⊡ Focus Camera</button>
+        <button class="toolbar-menu-item" id="cam-tool-frame"  type="button">⊞ Frame Camera</button>
+        <button class="toolbar-menu-item" id="cam-tool-jump"   type="button">↗ Jump To Camera</button>
+        <div class="toolbar-menu-sep"></div>
+        <button class="toolbar-menu-item" id="btn-camera-preview" type="button">Toggle Preview Panel</button>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar-group toolbar-right">
+    <span class="hud-pill" id="zoom-readout">100%</span>
+  </div>
+</nav>
+
+<!-- ── App shell ─────────────────────────────────────────────────────── -->
+<main class="app-shell" id="app-shell">
+
+  <!-- LEFT DOCK -->
+  <aside class="dock left-dock" id="left-dock" style="width:260px">
+    <div class="dock-zone dock-zone-left-top" id="left-dock-top" data-dock-zone="left-top">
+      <div class="dock-zone-label">Left Top</div>
+      <div class="dock-tabs">
+        <button class="dock-tab active" data-tab="scene">Scene Tab</button>
+        <button class="dock-tab" data-tab="filesystem">FileSystem</button>
+        <button class="dock-tab" data-tab="create">Create</button>
+        <button class="dock-tab" data-tab="sprites">Sprites</button>
+        <button class="dock-tab" data-tab="audio">Audio</button>
+      </div>
+
+    <!-- Scene -->
+    <section class="dock-panel active" data-panel="scene">
+      <div class="panel-topline">
+        <span>Scene</span>
+        <button class="mini-btn" id="btn-add-child">+ New Scene</button>
+      </div>
+      <div class="scene-tree" id="scene-tree"></div>
+    </section>
+
+    <!-- FileSystem -->
+    <section class="dock-panel" data-panel="filesystem">
+      <div class="panel-topline"><span>res://</span></div>
+      <div class="filesystem" id="filesystem">
+        <div class="notice" style="padding:8px;color:var(--text-faint)">No files loaded.</div>
+      </div>
+    </section>
+
+    <!-- Create -->
+    <section class="dock-panel" data-panel="create">
+      <div class="panel-topline"><span>Create Node</span></div>
+      <div class="create-grid" id="create-grid"></div>
+    </section>
+
+    <!-- Sprites / Sheet Editor -->
+    <section class="dock-panel" data-panel="sprites">
+      <div class="panel-topline">
+        <span>Sprite Sheet Editor</span>
+        <button class="mini-btn" id="btn-import-sheet">Upload</button>
+      </div>
+
+      <div class="sheet-form">
+        <label>Tile W <input id="sheet-tile-w" type="number" value="32" min="1"></label>
+        <label>Tile H <input id="sheet-tile-h" type="number" value="32" min="1"></label>
+        <label>Padding <input id="sheet-padding" type="number" value="0" min="0"></label>
+        <label>Offset X <input id="sheet-offset-x" type="number" value="0" step="1"></label>
+        <label>Offset Y <input id="sheet-offset-y" type="number" value="0" step="1"></label>
+      </div>
+
+      <div class="sheet-editor-toolbar">
+        <button class="tool-btn active" id="btn-sheet-grid" type="button">Grid</button>
+      </div>
+
+      <div class="sheet-list-controls">
+        <input id="sheet-search" type="text" placeholder="Search spritesheets" autocomplete="off" />
+        <select id="sheet-sort">
+          <option value="name-asc">Name A–Z</option>
+          <option value="name-desc">Name Z–A</option>
+          <option value="tiles-desc">Largest First</option>
+          <option value="tiles-asc">Smallest First</option>
+        </select>
+        <select id="sheet-category-filter">
+          <option value="">All Categories</option>
+          <option value="player">Player</option>
+          <option value="enemies">Enemies</option>
+          <option value="level">Level</option>
+          <option value="ui">UI</option>
+          <option value="uncategorized">Uncategorized</option>
+        </select>
+      </div>
+
+      <div class="sheet-list" id="sheet-list"></div>
+
+      <div class="sheet-editor" id="sheet-editor">
+        <div class="sheet-canvas-wrap" id="sheet-canvas-wrap">
+          <canvas id="sheet-canvas" width="512" height="512"></canvas>
+        </div>
+        <div class="sheet-selection-meta" id="sheet-selection-meta">No spritesheet loaded.</div>
+      </div>
+
+      <div class="sprite-tile-grid" id="sprite-tile-grid"></div>
+    </section>
+
+    <!-- Audio placeholder -->
+    <section class="dock-panel" data-panel="audio">
+      <div class="panel-topline">
+        <span>Audio</span>
+      </div>
+      <div class="audio-list" id="audio-list">
+        <div class="notice">No audio files found.</div>
+      </div>
+    </section>
+    </div><!-- /left-dock-top -->
+
+    <div class="dock-zone-splitter" aria-hidden="true"></div>
+
+    <div class="dock-zone dock-zone-left-bottom dock-empty" id="left-dock-bottom" data-dock-zone="left-bottom">
+      <div class="dock-zone-label">Left Bottom</div>
+      <div class="dock-tabs" aria-label="Left bottom dock tabs"></div>
+      <div class="dock-empty-hint">Drag a tab here</div>
+    </div>
+  </aside>
+
+  <!-- Resize handle: left ↔ center -->
+  <div class="resize-handle" id="resize-left" title="Drag to resize"></div>
+
+  <!-- CENTER WORKSPACE -->
+  <section class="workspace" id="workspace">
+    <div class="workspace-topbar">
+      <div class="workspace-left">
+        <div class="workspace-tabs workspace-tabs-legacy" aria-hidden="true">
+          <button class="workspace-tab active" data-workspace="game">Main Scene</button>
+          <button class="workspace-tab" data-workspace="ui">UI Screens</button>
+        </div>
+      </div>
+      <div class="workspace-meta" id="workspace-meta">Root scene</div>
+    </div>
+
+    <div class="center-dock dock-zone" id="center-dock" data-dock-zone="center">
+      <div class="dock-zone-label">Middle Dock</div>
+      <div class="dock-tabs center-scene-dock-tabs" aria-label="Middle dock tabs">
+        <div class="scene-tabs-bar" id="scene-tabs" aria-label="Open scene tabs"></div>
+        <button class="dock-tab" data-tab="ui">UI Screens</button>
+      </div>
+      <div class="dock-empty-hint">Drag a tab here to dock it in the middle section</div>
+
+      <div class="viewport-wrap dock-panel active" id="viewport-wrap" data-panel="game">
+        <div class="viewport-stage" id="stage-container"></div>
+      </div>
+
+      <!-- UI EDITOR PANEL (hidden by default) -->
+      <div class="ui-editor-wrap dock-panel" id="ui-editor-wrap" data-panel="ui" style="display:none;">
+      <!-- LEFT SIDEBAR -->
+      <div class="ui-editor-sidebar" id="ui-editor-sidebar">
+
+        <!-- Add Node grid -->
+        <details class="ui-sidebar-details" id="ui-addnode-details" open>
+          <summary class="ui-sidebar-summary">⊕ Add Node</summary>
+          <div class="ui-sidebar-section">
+          <div class="ui-add-buttons" id="ui-add-buttons">
+            <button class="ui-add-btn" data-type="CanvasLayer"      title="Add CanvasLayer">⬡ Layer</button>
+            <button class="ui-add-btn" data-type="Control"          title="Add Control">◻ Control</button>
+            <button class="ui-add-btn" data-type="Panel"            title="Add Panel">▭ Panel</button>
+            <button class="ui-add-btn" data-type="Label"            title="Add Label">T Label</button>
+            <button class="ui-add-btn" data-type="Button"           title="Add Button">⊙ Button</button>
+            <button class="ui-add-btn ui-add-btn--sub" data-type="CircleButton"   title="Add CircleButton">◯ Circle</button>
+            <button class="ui-add-btn ui-add-btn--sub" data-type="TriangleButton" title="Add TriangleButton">△ Triangle</button>
+            <button class="ui-add-btn ui-add-btn--sub" data-type="OvalButton"     title="Add OvalButton">⬭ Oval</button>
+            <button class="ui-add-btn" data-type="TextureRect"      title="Add TextureRect">⬜ Texture</button>
+            <button class="ui-add-btn" data-type="NineSlicePanel"   title="Add NineSlicePanel">⊞ 9Slice</button>
+            <button class="ui-add-btn" data-type="ProgressBar"      title="Add ProgressBar">▬ Progress</button>
+            <button class="ui-add-btn" data-type="MenuList"         title="Add MenuList">≡ MenuList</button>
+            <button class="ui-add-btn" data-type="HBoxContainer"    title="Add HBoxContainer">↔ HBox</button>
+            <button class="ui-add-btn" data-type="VBoxContainer"    title="Add VBoxContainer">↕ VBox</button>
+            <button class="ui-add-btn" data-type="MarginContainer"  title="Add MarginContainer">⊡ Margin</button>
+            <button class="ui-add-btn" data-type="ScrollContainer"  title="Add ScrollContainer">⇕ Scroll</button>
+          </div>
+          </div>
+        </details>
+
+        <!-- Snap + Grid controls (collapsible) -->
+        <details class="ui-sidebar-details" id="ui-snap-details" open>
+          <summary class="ui-sidebar-summary">⊹ Snapping &amp; Grid</summary>
+          <div class="ui-snap-panel" id="ui-snap-panel">
+
+            <div class="ui-snap-row">
+              <label class="ui-snap-check">
+                <input type="checkbox" id="ui-snap-enabled"> Enable Snap
+              </label>
+              <label class="ui-snap-check">
+                <input type="checkbox" id="ui-snap-show-grid"> Show Grid
+              </label>
+            </div>
+
+            <div class="ui-snap-row">
+              <label class="ui-snap-inline">
+                Grid px <input type="number" id="ui-snap-grid-size" value="8" min="1" max="128" step="1">
+              </label>
+              <label class="ui-snap-inline">
+                Tolerance <input type="number" id="ui-snap-tolerance" value="6" min="1" max="32" step="1">
+              </label>
+            </div>
+
+            <div class="ui-snap-modes-title">Snap to:</div>
+            <div class="ui-snap-modes">
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-grid">          Grid</label>
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-parent-edge">   Parent edges</label>
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-parent-center"> Parent center</label>
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-sibling-edge">  Sibling edges</label>
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-sibling-center">Sibling center</label>
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-safe-area">     Safe area</label>
+              <label class="ui-snap-check"><input type="checkbox" id="ui-snap-guides">        Guides</label>
+            </div>
+
+            <div class="ui-snap-row" style="margin-top:4px">
+              <label class="ui-snap-check">
+                <input type="checkbox" id="ui-snap-show-guides"> Show Guides
+              </label>
+              <button class="mini-btn" id="ui-clear-guides" title="Delete all custom guides">Clear Guides</button>
+            </div>
+
+            <div class="ui-snap-row" style="margin-top:4px">
+              <label class="ui-snap-check">
+                <input type="checkbox" id="ui-safe-area-toggle"> Safe-Area Overlay
+              </label>
+            </div>
+
+            <div class="ui-snap-row" style="margin-top:4px">
+              <select id="ui-resolution-select" title="Preview resolution" style="flex:1">
+                <option value="1280x720">1280×720 (720p)</option>
+                <option value="1920x1080">1920×1080 (1080p)</option>
+                <option value="960x540">960×540 (half)</option>
+                <option value="640x360">640×360 (360p)</option>
+              </select>
+            </div>
+
+            <div class="ui-snap-hint">Drag from ruler edge to create a guide. Drag guide off canvas to delete.</div>
+          </div>
+        </details>
+
+        <!-- Node tree -->
+        <details class="ui-sidebar-details" id="ui-tree-details" open>
+          <summary class="ui-sidebar-summary" style="justify-content: space-between;">
+            <span>≡ UI Nodes</span>
+            <button class="mini-btn" id="ui-btn-refresh-canvas" title="Resize canvas to fit container">↺ Refresh</button>
+            <button class="mini-btn" id="ui-btn-delete-node" title="Delete selected node">✕ Delete</button>
+          </summary>
+          <div class="ui-node-tree" id="ui-node-tree"></div>
+        </details>
+
+      </div>
+
+      <!-- CENTER canvas -->
+      <div class="ui-editor-canvas-wrap" id="ui-editor-canvas-wrap">
+        <canvas id="ui-editor-canvas"></canvas>
+      </div>
+    </div>
+    </div>
+
+    <div class="resize-handle-v" id="resize-bottom" title="Drag to resize"></div>
+
+    <!-- BOTTOM DOCK -->
+    <div class="bottom-dock" id="bottom-dock" style="height:220px">
+      <div class="bottom-tabs">
+        <button class="bottom-tab active" data-bottom="output">Output</button>
+        <button class="bottom-tab" data-bottom="node">Node</button>
+        <button class="bottom-tab" data-bottom="spriteframes">SpriteFrames</button>
+        <button class="bottom-tab" data-bottom="tilesets">Tile Sets</button>
+        <button class="bottom-tab" data-bottom="tilemaps">Tile Maps</button>
+        <button class="bottom-tab" data-bottom="nineslice">UI Assets Atlas</button>
+        <button class="bottom-tab" data-bottom="transitions">Transitions</button>
+        <button class="bottom-tab" data-bottom="optscores">Options &amp; Scores</button>
+        <button class="bottom-tab" data-bottom="uitemplates">Screen Templates</button>
+        <button class="dock-tab" data-tab="camera-preview" draggable="true">Camera Preview</button>
+      </div>
+
+      <!-- Output -->
+      <div class="bottom-panel active" data-bottom-panel="output">
+        <div class="log-view" id="log-view">Ready.</div>
+      </div>
+
+      <!-- Node summary -->
+      <div class="bottom-panel" data-bottom-panel="node">
+        <div class="node-summary" id="node-summary">No selection.</div>
+      </div>
+
+      <!-- SpriteFrames editor (Godot-style) -->
+      <div class="bottom-panel sf-panel" data-bottom-panel="spriteframes">
+        <div class="sf-layout">
+
+          <!-- LEFT: animation list sidebar -->
+          <div class="sf-anim-sidebar">
+            <div class="sf-sidebar-header">Animations</div>
+            <div class="sf-sidebar-toolbar">
+              <button class="tool-btn" id="sf-btn-add-anim" title="Add animation">+ Add</button>
+              <button class="tool-btn" id="sf-btn-rename-anim" title="Rename selected animation">✎</button>
+              <button class="tool-btn sf-del-btn" id="sf-btn-del-anim" title="Delete selected animation">✕</button>
+            </div>
+            <div id="sf-anim-items" class="sf-anim-items">
+              <div class="sf-empty-notice">Select an AnimatedSprite2D node.</div>
+            </div>
+          </div>
+
+          <!-- RIGHT: frame editor -->
+          <div class="sf-frames-area">
+            <div class="sf-frames-toolbar">
+              <button class="tool-btn sf-play-btn" id="sf-btn-play" title="Play preview">▶</button>
+              <button class="tool-btn sf-stop-btn" id="sf-btn-stop" title="Stop preview">■</button>
+              <div class="sf-toolbar-sep"></div>
+              <label class="sf-label">Speed (FPS)
+                <input id="sf-fps" type="number" value="8" min="1" max="120">
+              </label>
+              <label class="sf-label">Playback
+                <select id="sf-playback-mode">
+                  <option value="loop">Loop</option>
+                  <option value="once">Once</option>
+                  <option value="pingpong">Ping-Pong</option>
+                </select>
+              </label>
+              <div class="sf-toolbar-sep"></div>
+              <button class="tool-btn" id="sf-btn-add-frames" title="Add selected tile from Sprites panel as a frame">+ Frame</button>
+              <button class="tool-btn" id="sf-btn-del-frame" title="Remove selected frame">− Frame</button>
+              <button class="tool-btn" id="sf-btn-clear-frames" title="Clear all frames from clip">Clear All</button>
+              <div class="sf-toolbar-sep"></div>
+              <canvas id="sf-preview-canvas" width="64" height="64" class="sf-preview-canvas"></canvas>
+              <span id="sf-preview-meta" class="sf-preview-meta">No animation.</span>
+            </div>
+            <div class="sf-timeline-toolbar">
+              <span id="sf-timeline-current" class="sf-timeline-current">0 / 0</span>
+              <input id="sf-timeline" class="sf-timeline" type="range" min="0" max="0" value="0" step="1" disabled>
+            </div>
+            <div id="sf-frame-strip" class="sf-frame-strip">
+              <div class="sf-empty-notice">Select an AnimatedSprite2D node to edit its SpriteFrames.</div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /sf-panel -->
+
+      <div class="bottom-panel tiles-panel" data-bottom-panel="tilesets">
+        <div class="tiles-layout">
+          <aside class="tiles-sidebar">
+            <div class="tiles-toolbar">
+              <button class="tool-btn" id="ts-btn-create" type="button">+ Create</button>
+            </div>
+            <div class="sheet-list tiles-sidebar-list" id="ts-items"></div>
+          </aside>
+          <section class="tiles-main tilesets-main">
+            <div class="ts-palette-toolbar" id="ts-palette-toolbar">
+              <span class="ts-palette-toolbar-label">Palette</span>
+              <div class="ts-palette-toolbar-sep"></div>
+              <button class="tool-btn ts-overlay-btn" id="ts-overlay-rules" title="Show terrain rule indicators on tiles" type="button">Rules</button>
+              <button class="tool-btn ts-overlay-btn" id="ts-overlay-collision" title="Show collision indicators on tiles" type="button">Collision</button>
+              <div class="ts-palette-toolbar-sep"></div>
+              <button class="tool-btn" id="ts-select-rules-all" title="Group-select all tiles that have terrain rules" type="button">Select w/ Rules</button>
+              <button class="tool-btn" id="ts-select-clear" title="Clear tile selection" type="button">Clear Selection</button>
+            </div>
+            <div class="tile-meta tile-palette-hint">Click = select · Ctrl/Cmd+Click = add/remove · Shift+Click = range · Drag = box select group</div>
+            <div class="sprite-tile-grid tile-palette-grid tileset-palette-grid" id="ts-palette-grid"></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="bottom-panel tiles-panel" data-bottom-panel="tilemaps">
+        <div class="tiles-layout">
+          <aside class="tiles-sidebar">
+            <div class="sheet-form tile-form-grid">
+              <label>Tileset
+                <select id="tm-tileset-select"></select>
+              </label>
+              <label>Tile W <input id="tm-tile-w" type="number" min="1" value="32"></label>
+              <label>Tile H <input id="tm-tile-h" type="number" min="1" value="32"></label>
+              <label class="checkbox-row"><input id="tm-show-grid" type="checkbox" checked> Show Grid</label>
+            </div>
+            <div class="tiles-toolbar compact">
+              <button class="tool-btn" id="tm-btn-resize" type="button">Sync Screen</button>
+              <button class="tool-btn" id="tm-btn-clear" type="button">Clear</button>
+            </div>
+            <div class="tiles-section-title">Layers</div>
+            <div class="tiles-toolbar compact">
+              <button class="tool-btn" id="tm-btn-layer-add" type="button">+ Layer</button>
+            </div>
+            <div class="sheet-list tiles-sidebar-list" id="tm-layer-list"></div>
+            <div class="tile-meta" id="tm-meta">Select a TileMap node to edit its tiles.</div>
+          </aside>
+          <section class="tiles-main">
+            <div class="tiles-toolbar wrap">
+              <button class="tool-btn tm-brush-btn active" id="tm-tool-paint" type="button">Paint</button>
+              <button class="tool-btn tm-brush-btn" id="tm-tool-rectangle" type="button">Rect</button>
+              <button class="tool-btn tm-brush-btn" id="tm-tool-line" type="button">Line</button>
+              <button class="tool-btn tm-brush-btn" id="tm-tool-erase" type="button">Erase</button>
+              <button class="tool-btn tm-brush-btn" id="tm-tool-fill" type="button">Fill</button>
+              <button class="tool-btn tm-brush-btn" id="tm-tool-pick" type="button">Pick</button>
+              <span class="toolbar-sep"></span>
+              <button class="tool-btn active" id="tm-mode-tile" type="button">Tiles</button>
+              <button class="tool-btn" id="tm-mode-terrain" type="button">Terrain</button>
+              <button class="tool-btn" id="tm-mode-collision" type="button">Collision</button>
+              <label class="checkbox-row inline-control"><input id="tm-overlay-collision" type="checkbox" checked> Collision Overlay</label>
+            </div>
+            <div class="tm-palette-terrain-wrap">
+              <div class="tm-palette-main-row">
+                <div class="tm-panel-full" id="tm-palette-panel">
+                  <div class="tiles-section-title">Brush Palette</div>
+                  <div class="sprite-tile-grid tile-palette-grid" id="tm-palette-grid"></div>
+                </div>
+                <div class="tm-saved-brushes-sidebar" id="tm-saved-brushes-sidebar">
+                  <div class="tm-saved-brushes-sidebar-header">Saved Brushes</div>
+                  <div class="tm-saved-brushes-sidebar-list" id="tm-saved-brushes-sidebar-list"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Nine-Slice Editor Panel -->
+      <div class="bottom-panel nse-panel" data-bottom-panel="nineslice">
+        <div class="nse-layout">
+
+          <!-- Style list sidebar -->
+          <aside class="nse-sidebar">
+            <div class="nse-sidebar-header">
+              <span>Nine-Slice Styles</span>
+              <button class="mini-btn" id="nse-btn-add" title="New style">+</button>
+            </div>
+            <div class="nse-style-list" id="nse-style-list"></div>
+          </aside>
+
+          <!-- Canvas + controls -->
+          <div class="nse-main" id="nse-main">
+            <div class="nse-toolbar">
+              <!-- Image picker -->
+              <button class="tool-btn" id="nse-btn-pick-image" type="button">Pick Image</button>
+              <span class="nse-img-path" id="nse-img-path">No image</span>
+              <div style="flex:1"></div>
+
+              <!-- Preview mode -->
+              <label class="nse-toolbar-label">Preview:</label>
+              <select id="nse-preview-mode" class="nse-select">
+                <option value="original">Original</option>
+                <option value="stretched">Stretched</option>
+                <option value="button">Button</option>
+                <option value="panel">Panel</option>
+              </select>
+
+              <!-- Stretch modes -->
+              <label class="nse-toolbar-label">Center:</label>
+              <select id="nse-center-mode" class="nse-select">
+                <option value="stretch">Stretch</option>
+                <option value="tile">Tile</option>
+              </select>
+
+              <label class="nse-toolbar-label">Edges:</label>
+              <select id="nse-edge-mode" class="nse-select">
+                <option value="stretch">Stretch</option>
+                <option value="tile">Tile</option>
+              </select>
+
+              <button class="tool-btn accent" id="nse-btn-save" type="button">Save Style</button>
+              <button class="tool-btn" id="nse-btn-delete" type="button" title="Delete this style" style="color:#ff7070">Delete</button>
+            </div>
+
+            <!-- Name + numeric inputs -->
+            <div class="nse-controls-row">
+              <label class="nse-ctrl">Name <input type="text" id="nse-name" placeholder="Style name"></label>
+              <label class="nse-ctrl">Left  <input type="number" id="nse-slice-left"   min="0" step="1" value="16"></label>
+              <label class="nse-ctrl">Top   <input type="number" id="nse-slice-top"    min="0" step="1" value="16"></label>
+              <label class="nse-ctrl">Right <input type="number" id="nse-slice-right"  min="0" step="1" value="16"></label>
+              <label class="nse-ctrl">Bottom<input type="number" id="nse-slice-bottom" min="0" step="1" value="16"></label>
+            </div>
+
+            <!-- Canvas -->
+            <div class="nse-canvas-area" id="nse-canvas-area">
+              <canvas id="nse-canvas"></canvas>
+              <div class="nse-empty-notice" id="nse-empty-notice">
+                Pick an image to start editing a nine-slice style.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Transition Preset Editor Panel -->
+      <div class="bottom-panel te-panel" data-bottom-panel="transitions">
+        <div class="te-layout">
+
+          <!-- Preset list sidebar -->
+          <aside class="te-sidebar">
+            <div class="te-sidebar-header">
+              <span>Transition Presets</span>
+              <button class="mini-btn" id="te-btn-add" title="New preset">+</button>
+            </div>
+            <div class="te-preset-list" id="te-preset-list"></div>
+          </aside>
+
+          <!-- Controls -->
+          <div class="te-controls">
+            <div class="te-controls-toolbar">
+              <button class="tool-btn accent" id="te-btn-preview" type="button">▶ Preview</button>
+              <button class="tool-btn" id="te-btn-dupe" type="button">Duplicate</button>
+              <button class="tool-btn" id="te-btn-delete" type="button" style="color:#ff7070">Delete</button>
+            </div>
+
+            <div class="te-fields">
+              <label class="te-field">Name <input type="text" id="te-name" placeholder="Preset name"></label>
+              <label class="te-field">Type
+                <select id="te-type">
+                  <option value="fade">Fade</option>
+                  <option value="slide_left">Slide Left</option>
+                  <option value="slide_right">Slide Right</option>
+                  <option value="slide_up">Slide Up</option>
+                  <option value="slide_down">Slide Down</option>
+                  <option value="wipe">Wipe</option>
+                  <option value="instant">Instant</option>
+                </select>
+              </label>
+              <label class="te-field">Duration (s) <input type="number" id="te-duration" min="0" step="0.05" value="0.35"></label>
+              <label class="te-field">Easing
+                <select id="te-easing">
+                  <option value="ease_in_out">Ease In-Out</option>
+                  <option value="ease_in">Ease In</option>
+                  <option value="ease_out">Ease Out</option>
+                  <option value="linear">Linear</option>
+                  <option value="elastic_out">Elastic Out</option>
+                </select>
+              </label>
+              <label class="te-field">Color <input type="color" id="te-color" value="#000000"></label>
+              <label class="te-field te-check"><input type="checkbox" id="te-block-input" checked> Block Input</label>
+              <label class="te-field te-check"><input type="checkbox" id="te-wait-load"> Wait For Load</label>
+            </div>
+
+            <!-- Loading screen section (shown when Wait For Load is on) -->
+            <div class="te-load-section" id="te-load-section" style="display:none">
+              <div class="te-section-title">Loading Screen</div>
+              <div class="te-fields">
+                <label class="te-field">Label <input type="text" id="te-loading-label" placeholder="Loading..." value="Loading..."></label>
+                <label class="te-field te-check"><input type="checkbox" id="te-show-progress" checked> Show Progress Bar</label>
+                <label class="te-field te-check"><input type="checkbox" id="te-fake-progress"> Fake Progress</label>
+                <label class="te-field">Fake Rate (/s) <input type="number" id="te-fake-rate" min="0.01" step="0.05" value="0.6"></label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview canvas -->
+          <div class="te-canvas-wrap">
+            <canvas id="te-canvas"></canvas>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Options & High Scores Editor Panel -->
+      <div class="bottom-panel oe-panel" data-bottom-panel="optscores">
+        <div class="oe-layout">
+
+          <!-- Sub-tabs -->
+          <div class="oe-subtabs">
+            <button class="oe-subtab active" id="oe-tab-options">⚙ Options</button>
+            <button class="oe-subtab" id="oe-tab-highscores">🏆 High Scores</button>
+          </div>
+
+          <!-- OPTIONS PANE -->
+          <div class="oe-pane" id="oe-options-pane" style="display:flex">
+            <aside class="oe-sidebar">
+              <div class="oe-sidebar-header">
+                <span>Options</span>
+                <div style="display:flex;gap:3px">
+                  <button class="mini-btn" id="oe-btn-add-builtin" title="Add all built-in options (volume, difficulty…)">★</button>
+                  <button class="mini-btn" id="oe-btn-add-opt" title="New custom option">+</button>
+                  <button class="mini-btn" id="oe-btn-del-opt" title="Delete selected" style="color:#ff7070">✕</button>
+                </div>
+              </div>
+              <div class="oe-list" id="oe-opt-list"></div>
+            </aside>
+            <div class="oe-editor-pane" id="oe-opt-editor"></div>
+          </div>
+
+          <!-- HIGH SCORES PANE -->
+          <div class="oe-pane" id="oe-highscores-pane" style="display:none">
+            <aside class="oe-sidebar">
+              <div class="oe-sidebar-header">
+                <span>Tables</span>
+                <div style="display:flex;gap:3px">
+                  <button class="mini-btn" id="oe-btn-add-hs" title="New score table">+</button>
+                  <button class="mini-btn" id="oe-btn-del-hs" title="Delete selected" style="color:#ff7070">✕</button>
+                </div>
+              </div>
+              <div class="oe-list" id="oe-hs-list"></div>
+            </aside>
+            <div class="oe-editor-pane" id="oe-hs-editor"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Screen Templates Panel ─────────────────────────────────────────── -->
+      <div class="bottom-panel tpl-panel" data-bottom-panel="uitemplates">
+        <div class="tpl-layout">
+
+          <!-- Template list -->
+          <aside class="tpl-sidebar">
+            <div class="tpl-sidebar-header">Screen Templates</div>
+            <div class="tpl-list" id="tpl-list"></div>
+          </aside>
+
+          <!-- Detail + preview -->
+          <div class="tpl-main">
+            <div class="tpl-detail">
+              <div class="tpl-detail-name" id="tpl-detail-name"></div>
+              <div class="tpl-detail-desc"  id="tpl-detail-desc"></div>
+              <div class="tpl-detail-type"  id="tpl-detail-type"></div>
+              <div class="tpl-detail-extras" id="tpl-detail-extras"></div>
+              <div class="tpl-startup-row" id="tpl-startup-row" style="display:none">
+                <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);">
+                  <input type="checkbox" id="tpl-startup-cb" checked>
+                  Set as startup screen
+                </label>
+              </div>
+              <button class="tool-btn accent" id="tpl-btn-create" type="button">
+                ✦ Create in Project
+              </button>
+            </div>
+            <div class="tpl-preview-wrap" id="tpl-preview-wrap">
+              <canvas id="tpl-preview-canvas"></canvas>
+              <div class="tpl-preview-label">Preview</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Camera Preview Panel (dockable) — tab close provided by dock system (.dock-tab-close) -->
+      <section class="dock-panel camera-preview-panel" id="dock-panel-camera-preview" data-panel="camera-preview" style="height:100%;min-height:0;">
+        <div class="panel-topline camera-preview-topline">
+          <span class="camera-preview-title">Camera Preview</span>
+          <div class="camera-preview-controls">
+            <label class="camera-preview-label" for="camera-preview-selector">Camera:</label>
+            <select id="camera-preview-selector" class="camera-preview-selector" title="Select camera to preview"></select>
+            <button class="camera-preview-btn" id="camera-preview-focus" title="Focus viewport on this camera">⊡</button>
+            <button class="camera-preview-btn" id="camera-preview-frame" title="Frame camera in viewport">⊞</button>
+            <button class="camera-preview-btn" id="camera-preview-reset" title="Reset preview">↺</button>
+            <button class="camera-preview-btn" id="camera-path-play" title="Play selected CameraPath2D">Play Path</button>
+            <button class="camera-preview-btn" id="camera-path-stop" title="Stop path playback">Stop</button>
+            <label class="camera-preview-label" for="camera-path-speed">Speed:</label>
+            <input id="camera-path-speed" class="camera-preview-selector" type="number" value="160" min="1" step="10" title="Path playback speed in pixels per second" style="width:72px">
+          </div>
+        </div>
+        <div class="camera-preview-viewport-wrap" id="camera-preview-viewport-wrap">
+          <canvas id="camera-preview-canvas" class="camera-preview-canvas"></canvas>
+          <div class="camera-preview-overlay-info" id="camera-preview-overlay-info"></div>
+          <div class="camera-preview-no-cam" id="camera-preview-no-cam">No Camera2D in scene</div>
+          <div class="camera-preview-zoom-bar">
+            <button class="camera-preview-zoom-btn" id="cpv-zoom-fit"  title="Fit to panel">Fit</button>
+            <button class="camera-preview-zoom-btn" id="cpv-zoom-100"  title="100%">100%</button>
+            <button class="camera-preview-zoom-btn" id="cpv-zoom-200"  title="200%">200%</button>
+            <button class="camera-preview-zoom-btn" id="cpv-zoom-400"  title="400%">400%</button>
+            <span class="camera-preview-zoom-sep"></span>
+            <button class="camera-preview-zoom-btn" id="cpv-pause"     title="Pause/Resume preview">⏸</button>
+            <button class="camera-preview-zoom-btn" id="cpv-refresh"   title="Refresh preview">↺</button>
+          </div>
+        </div>
+        <div class="camera-diagnostics" id="camera-diagnostics">
+          <div class="camera-diag-title">Camera Diagnostics</div>
+          <div class="camera-diag-grid" id="camera-diag-grid">
+            <span class="diag-label">Position</span><span class="diag-value" id="diag-position">—</span>
+            <span class="diag-label">Zoom</span><span class="diag-value" id="diag-zoom">—</span>
+            <span class="diag-label">Visible Area</span><span class="diag-value" id="diag-visible-area">—</span>
+            <span class="diag-label">Dead Zone</span><span class="diag-value" id="diag-deadzone">—</span>
+            <span class="diag-label">Look Ahead</span><span class="diag-value" id="diag-lookahead">—</span>
+            <span class="diag-label">Bounds</span><span class="diag-value" id="diag-bounds">—</span>
+            <span class="diag-label">Preset</span><span class="diag-value" id="diag-preset">—</span>
+            <span class="diag-label">Active Zones</span><span class="diag-value" id="diag-zones">—</span>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /bottom-dock -->
+  </section>
+
+  <!-- Resize handle: center ↔ right -->
+  <div class="resize-handle" id="resize-right" title="Drag to resize"></div>
+
+  <!-- RIGHT DOCK / INSPECTOR -->
+  <aside class="dock right-dock" id="right-dock" style="width:300px">
+    <div class="dock-tabs">
+      <button class="dock-tab active" data-tab="inspector">Inspector</button>
+      <button class="dock-tab" data-tab="node-info">Tile Opts</button>
+    </div>
+
+    <!-- Inspector panel -->
+    <section class="dock-panel active" data-panel="inspector" style="display:flex;flex-direction:column;overflow:hidden;">
+      <div class="inspector-search-row">
+        <input id="inspector-search" placeholder="🔍 Search properties" />
+      </div>
+      <div id="inspector-empty" class="inspector-empty">Select a node to edit its properties.</div>
+      <div id="inspector" class="inspector hidden"></div>
+    </section>
+
+    <!-- Node info panel -->
+    <section class="dock-panel" data-panel="node-info" style="display:none;overflow-y:auto;">
+
+      <!-- Tileset Properties -->
+      <details class="node-collapsible" id="nc-tileset-props" open>
+        <summary class="node-collapsible-title">Tileset Properties</summary>
+        <div class="node-collapsible-body">
+          <div class="sheet-form tile-form-grid">
+            <label>Sheet
+              <select id="ts-sheet-select"></select>
+            </label>
+            <label>Tile W <input id="ts-tile-w" type="number" min="1" value="32"></label>
+            <label>Tile H <input id="ts-tile-h" type="number" min="1" value="32"></label>
+            <label>Padding <input id="ts-padding" type="number" min="0" value="0"></label>
+          </div>
+          <div class="tiles-toolbar compact">
+            <button class="tool-btn" id="ts-btn-sync-sheet" type="button">Sync From Sheet</button>
+          </div>
+          <div class="tile-meta" id="ts-meta">Select a tileset.</div>
+        </div>
+      </details>
+
+      <!-- Selected Tile Settings -->
+      <details class="node-collapsible" id="nc-tile-settings" open>
+        <summary class="node-collapsible-title">Selected Tile Settings</summary>
+        <div class="node-collapsible-body">
+          <div class="sheet-form tile-form-grid tile-meta-grid">
+            <label>Atlas X <input id="ts-meta-atlas-x" type="number" step="1"></label>
+            <label>Atlas Y <input id="ts-meta-atlas-y" type="number" step="1"></label>
+            <label>Atlas W <input id="ts-meta-atlas-w" type="number" step="1"></label>
+            <label>Atlas H <input id="ts-meta-atlas-h" type="number" step="1"></label>
+            <label class="checkbox-row"><input id="ts-meta-collision" type="checkbox"> Collision</label>
+          </div>
+          <div class="tile-meta" id="ts-meta-detail">Choose a tile to edit collision and atlas overrides. Terrain rules are authored in the Terrain Sets section.</div>
+        </div>
+      </details>
+
+      <!-- Collision Shapes -->
+      <details class="node-collapsible" id="nc-collision-shapes" open>
+        <summary class="node-collapsible-title">Collision Shapes</summary>
+        <div class="node-collapsible-body tcs-body">
+          <div class="tcs-toolbar">
+            <button class="tool-btn tcs-tool-btn active" id="tcs-tool-rect"    type="button" title="Draw rectangle">▭ Rect</button>
+            <button class="tool-btn tcs-tool-btn"        id="tcs-tool-polygon" type="button" title="Draw polygon (click points, double-click to close)">⬠ Poly</button>
+            <div class="tcs-toolbar-sep"></div>
+            <button class="tool-btn tcs-tool-btn"        id="tcs-tool-select"  type="button" title="Select / move shapes">↖ Select</button>
+            <button class="tool-btn"                     id="tcs-preset-full"  type="button" title="Add full-tile collision box">Full Tile</button>
+          </div>
+          <div class="tcs-canvas-wrap">
+            <canvas id="tcs-canvas" class="tcs-canvas"></canvas>
+            <div class="tcs-canvas-hint" id="tcs-canvas-hint">Select a tile to edit its collision shapes.</div>
+          </div>
+          <div class="tcs-shape-list-header">
+            <span id="tcs-shape-count">0 shapes</span>
+            <button class="tool-btn danger" id="tcs-clear-all" type="button">Clear All</button>
+          </div>
+          <div class="tcs-shape-list" id="tcs-shape-list"></div>
+        </div>
+      </details>
+
+      <!-- Physics Shapes -->
+      <details class="node-collapsible" id="nc-physics-shapes" open>
+        <summary class="node-collapsible-title">Physics Shapes</summary>
+        <div class="node-collapsible-body tcs-body">
+          <div class="tcs-toolbar">
+            <button class="tool-btn tcs-tool-btn active" id="tps-tool-rect"    type="button" title="Draw rectangle">▭ Rect</button>
+            <button class="tool-btn tcs-tool-btn"        id="tps-tool-polygon" type="button" title="Draw polygon (click points, double-click to close)">⬠ Poly</button>
+            <div class="tcs-toolbar-sep"></div>
+            <button class="tool-btn tcs-tool-btn"        id="tps-tool-select"  type="button" title="Select / move shapes">↖ Select</button>
+            <button class="tool-btn"                     id="tps-preset-full"  type="button" title="Add full-tile physics box">Full Tile</button>
+          </div>
+          <div class="tcs-canvas-wrap">
+            <canvas id="tps-canvas" class="tcs-canvas"></canvas>
+            <div class="tcs-canvas-hint" id="tps-canvas-hint">Select a tile to edit its physics shapes.</div>
+          </div>
+          <div class="tcs-shape-list-header">
+            <span id="tps-shape-count">0 shapes</span>
+            <button class="tool-btn danger" id="tps-clear-all" type="button">Clear All</button>
+          </div>
+          <div class="tcs-shape-list" id="tps-shape-list"></div>
+        </div>
+      </details>
+
+      <!-- Terrain Sets -->
+      <details class="node-collapsible" id="nc-terrain-sets" open>
+        <summary class="node-collapsible-title">Terrain Sets</summary>
+        <div class="node-collapsible-body node-collapsible-body--terrain">
+          <div class="tiles-terrain-panel tileset-terrain-panel" id="ts-terrain-panel">
+            <div class="tile-meta">Create terrain types and rule tiles for the selected TileSet.</div>
+          </div>
+          <div class="tiles-terrain-panel" id="tm-terrain-panel">
+            <div class="tile-meta">Select a TileMap node with an assigned tileset to edit terrains.</div>
+          </div>
+        </div>
+      </details>
+
+    </section>
+  </aside>
+
+</main>
+
+<footer class="statusbar" id="statusbar">Ready.</footer>
+<div class="toast" id="toast"></div>
+
+<!-- ── Project loading overlay ──────────────────────────────────────── -->
+<div class="proj-loading-overlay" id="proj-loading-overlay" aria-hidden="true">
+  <div class="proj-loading-card">
+    <div class="proj-loading-logo">◆</div>
+    <div class="proj-loading-engine">RokuEngine Editor</div>
+    <div class="proj-loading-name" id="proj-loading-name">Opening project…</div>
+
+    <div class="proj-loading-bar-wrap">
+      <div class="proj-loading-bar" id="proj-loading-bar"></div>
+    </div>
+
+    <div class="proj-loading-steps" id="proj-loading-steps">
+      <div class="proj-loading-step" data-step="settings">
+        <span class="proj-step-icon">○</span>
+        <span>Project settings</span>
+      </div>
+      <div class="proj-loading-step" data-step="files">
+        <span class="proj-step-icon">○</span>
+        <span>File tree</span>
+      </div>
+      <div class="proj-loading-step" data-step="scenes">
+        <span class="proj-step-icon">○</span>
+        <span>Scenes</span>
+      </div>
+      <div class="proj-loading-step" data-step="assets">
+        <span class="proj-step-icon">○</span>
+        <span>Assets &amp; images</span>
+      </div>
+    </div>
+
+    <div class="proj-loading-status" id="proj-loading-status">Initializing…</div>
+  </div>
+</div>
+
+<!-- ═══ RGE v91: Core infrastructure (must load first) ═══ -->
+<script src="core/rge_bus.js"></script>
+<script src="core/rge_scheduler.js"></script>
+<!-- ═══ RGE v91: Asset pipeline ═══ -->
+<script src="pipeline/asset_registry.js"></script>
+<script src="pipeline/asset_preload_manager.js"></script>
+<!-- ═══ RGE v91: Atlas generator ═══ -->
+<script src="atlas/atlas_generator.js"></script>
+<!-- ═══ RGE v91: Animation system ═══ -->
+<script src="animation/animation_state_machine.js"></script>
+<!-- ═══ RGE v91: Memory budgeting ═══ -->
+<script src="memory/memory_budget.js"></script>
+<!-- ═══ RGE v91: Deployment ═══ -->
+<script src="deployment/deployment_manager.js"></script>
+<script src="deployment/roku_device_bridge.js"></script>
+<script src="deployment/runtime_debug_console.js"></script>
+<!-- ═══ RGE v91: Renderer authority ═══ -->
+<script src="render/render_authority.js"></script>
+<!-- ═══ RGE v91: Editor panels ═══ -->
+<script src="editor/panels/deployment_panel.js"></script>
+<script src="editor/panels/camera_preview_panel.js"></script>
+<script src="editor/panels/memory_inspector_panel.js"></script>
+<!-- ═══ Existing engine (unchanged) ═══ -->
+<script src="../node_modules/konva/konva.js"></script>
+<script src="schema/nodes.js"></script>
+<script src="schema/v91_migration.js"></script>
+<script src="schema/scene_validation.js"></script>
+<script src="schema/scene_migration.js"></script>
+<script src="schema/terrain_migration.js"></script>
+<script src="schema/resources.js"></script>
+<script src="export/metadata_builders.js"></script>
+<script src="editor/inspector.js"></script>
+<script src="editor/filesystem.js"></script>
+<script src="editor/viewport.js"></script>
+<script src="editor/spriteframes_editor.js"></script>
+<script src="editor/terrain_solver.js"></script>
+<script src="editor/terrain_rebuild.js"></script>
+<script src="editor/ui_editor.js"></script>
+<script src="editor/nineslice_editor.js"></script>
+<script src="editor/ui_transition_editor.js"></script>
+<script src="editor/ui_options_editor.js"></script>
+<script src="editor/templates/ui_templates.js"></script>
+<!-- v49: Architecture Stabilisation Modules — must load before scene_editor.js -->
+<script src="editor/modules/editor_store.js"></script>
+<script src="editor/modules/perf_monitor.js"></script>
+<script src="editor/modules/render_scheduler.js"></script>
+<script src="editor/modules/ui_editor_layer.js"></script>
+<script src="editor/modules/tilemap_paint_controller.js"></script>
+<script src="editor/audio/rge_audio_engine.js"></script>
+<script src="editor/audio/audio_panel.js"></script>
+<script src="editor/scene_editor.js"></script>
+<script src="editor/dock_drag.js"></script>
+<script src="editor/final_stability.js"></script>
+<script src="editor/tab_fallback.js"></script>
+<script src="editor/resizer_fallback.js"></script>
+<!-- v49: Regression tests — loaded last so all APIs are available -->
+<script src="editor/modules/regression_tests.js"></script>
+
+<script src="runtime/renderer/renderer_core.js"></script>
+<script src="runtime/animation/animation_runtime.js"></script>
+<script src="runtime/core/runtime_loop.js"></script>
+<script src="runtime/profiler/runtime_profiler.js"></script>
+
+
+<script src="runtime/renderer/dirty_region_renderer.js"></script>
+<script src="runtime/renderer/texture_atlas_builder.js"></script>
+<script src="runtime/memory/memory_pool.js"></script>
+<script src="runtime/debug/profiler_overlay.js"></script>
+<script src="runtime/streaming/asset_streaming_manager.js"></script>
+
+
+<script src="runtime/renderer/render_batcher.js"></script>
+<script src="runtime/ui/ui_batch_renderer.js"></script>
+<script src="runtime/assets/asset_database.js"></script>
+<script src="runtime/performance/frame_budget_manager.js"></script>
+<script src="runtime/debug/roku_diagnostics.js"></script>
+
+
+<script src="runtime/scene/scene_manager.js"></script>
+<script src="runtime/input/input_runtime.js"></script>
+<script src="runtime/deployment/deployment_validator.js"></script>
+<script src="runtime/ui/ui_virtualization.js"></script>
+<script src="runtime/debug/runtime_console.js"></script>
+
+
+<script src="runtime/rendergraph/render_graph.js"></script>
+<script src="runtime/performance/frame_pacing_controller.js"></script>
+<script src="runtime/streaming/scene_streamer.js"></script>
+<script src="runtime/ui/ui_invalidation_tracker.js"></script>
+<script src="runtime/performance/runtime_metrics.js"></script>
+
+
+<script src="runtime/deployment/incremental_package_builder.js"></script>
+<script src="runtime/rendering/render_state_cache.js"></script>
+<script src="runtime/scheduler/runtime_scheduler.js"></script>
+<script src="runtime/roku/roku_memory_budget.js"></script>
+<script src="runtime/serialization/runtime_serializer.js"></script>
+<script src="runtime/performance/adaptive_quality_manager.js"></script>
+<script src="runtime/ui/ui_compositor.js"></script>
+<script src="runtime/debug/runtime_crash_diagnostics.js"></script>
+
+
+<script src="runtime/renderer/visibility_culling.js"></script>
+<script src="runtime/assets/runtime_asset_manifest.js"></script>
+<script src="runtime/performance/runtime_performance_guard.js"></script>
+<script src="runtime/roku/roku_frame_analyzer.js"></script>
+<script src="runtime/ui/ui_visibility_tracker.js"></script>
+\n
+<script src="runtime/audio/audio_runtime_manager.js"></script>
+<script src="runtime/rendering/material_registry.js"></script>
+<script src="runtime/debug/live_runtime_inspector.js"></script>
+<script src="runtime/assets/prefab_runtime.js"></script>
+<script src="runtime/ui/ui_layout_runtime.js"></script>
+
+
+<script src="runtime/particles/particle_batch_system.js"></script>
+<script src="runtime/input/input_action_map.js"></script>
+<script src="runtime/scene/scene_transition_runtime.js"></script>
+<script src="runtime/performance/runtime_load_balancer.js"></script>
+<script src="runtime/debug/runtime_event_log.js"></script>
+
+
+<script src="runtime/camera/camera_runtime.js"></script>
+<script src="runtime/camera/camera_zone_runtime.js"></script>
+<script src="runtime/camera/camera_path_runtime.js"></script>
+<script src="runtime/camera/camera_target_group_runtime.js"></script>
+<script src="runtime/renderer/render_command_buffer.js"></script>
+<script src="runtime/assets/runtime_asset_cache.js"></script>
+<script src="runtime/debug/runtime_overlay.js"></script>
+<script src="runtime/ui/ui_runtime_tree.js"></script>
+
+
+<script src="runtime/animation/animation_event_runtime.js"></script>
+<script src="runtime/rendering/render_statistics.js"></script>
+<script src="runtime/physics/collision_layer_runtime.js"></script>
+<script src="runtime/debug/runtime_warning_system.js"></script>
+<script src="runtime/performance/runtime_timer.js"></script>
+
+
+<script src="runtime/core/runtime_service_registry.js"></script>
+<script src="runtime/rendering/render_layer_manager.js"></script>
+<script src="runtime/assets/runtime_asset_preloader.js"></script>
+<script src="runtime/debug/runtime_debug_hud.js"></script>
+<script src="runtime/ui/ui_focus_manager.js"></script>
+
+
+<script src="runtime/rendering/render_pipeline_manager.js"></script>
+<script src="runtime/scene/scene_residency_manager.js"></script>
+<script src="runtime/audio/audio_channel_mixer.js"></script>
+<script src="runtime/performance/frame_budget_visualizer.js"></script>
+
+<script src="runtime/input/roku_remote_runtime.js"></script>
+
+<script src="runtime/roku/roku_navigation_runtime.js"></script>
+<script src="runtime/ui/ui_safezone_manager.js"></script>
+<script src="runtime/performance/roku_runtime_optimizer.js"></script>
+<script src="runtime/deployment/roku_package_validator.js"></script>
+<script src="runtime/renderer/roku_dirty_region_manager.js"></script>
+
+
+<script src="runtime/roku/roku_focus_grid.js"></script>
+<script src="runtime/ui/tv_layout_manager.js"></script>
+<script src="runtime/performance/roku_memory_monitor.js"></script>
+<script src="runtime/deployment/roku_build_profile.js"></script>
+<script src="runtime/assets/roku_texture_budget.js"></script>
+
+<script src="runtime/integration/roku_runtime_bootstrap.js"></script>
+<script src="runtime/integration/active_runtime_integration.js"></script>
+</body>
+</html>
