@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64">
+  <!-- RGE Focused Button — nine-slice: 12px margins -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#3a72b0"/>
+      <stop offset="100%" stop-color="#2a5090"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="64" rx="3" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="255" height="63" rx="3" fill="none" stroke="#6ab0f0" stroke-width="2"/>
+  <!-- Glow hint -->
+  <rect x="2" y="2" width="252" height="60" rx="2" fill="none" stroke="rgba(100,180,255,0.15)" stroke-width="2"/>
+</svg>

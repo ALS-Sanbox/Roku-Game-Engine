@@ -1,0 +1,358 @@
+{
+  "sceneState": {
+    "scene": {
+      "formatVersion": 2,
+      "name": "CameraZone2D_Test",
+      "rootNodeId": "root-cz2d-test"
+    },
+    "nodes": [
+      {
+        "id": "root-cz2d-test",
+        "type": "SceneRoot",
+        "name": "CameraZone2D_Test",
+        "parentId": null,
+        "transform": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {},
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "cam-cz2d-001",
+        "type": "Camera2D",
+        "name": "MainCamera",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 640, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 1280, "height": 720,
+          "zoom": 1, "current": true,
+          "followLerp": 0.08, "smoothFollow": true,
+          "deadzoneWidth": 0, "deadzoneHeight": 0,
+          "deadzoneOffsetX": 0, "deadzoneOffsetY": 0
+        },
+        "visible": true,
+        "zIndex": 100
+      },
+
+      {
+        "id": "bounds-world",
+        "type": "CameraBounds2D",
+        "name": "WorldBounds",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": { "width": 5120, "height": 2880, "clampPosition": true, "clampZoom": true, "showBounds": true },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "bounds-bossroom",
+        "type": "CameraBounds2D",
+        "name": "BossRoomBounds",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 2048, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": { "width": 1280, "height": 720, "clampPosition": true, "clampZoom": false, "showBounds": true },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "bounds-arena",
+        "type": "CameraBounds2D",
+        "name": "ArenaBounds",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 3600, "y": 400, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": { "width": 2048, "height": 1024, "clampPosition": true, "clampZoom": true, "showBounds": true },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "player-001",
+        "type": "Node2D",
+        "name": "Player",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 640, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": { "width": 32, "height": 48 },
+        "visible": true,
+        "zIndex": 10
+      },
+
+      {
+        "id": "player-002",
+        "type": "Node2D",
+        "name": "Player2",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 800, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": { "width": 32, "height": 48 },
+        "visible": true,
+        "zIndex": 10
+      },
+
+      {
+        "id": "ctg-arena",
+        "type": "CameraTargetGroup",
+        "name": "ArenaFightGroup",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 4624, "y": 912, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "targets": [
+            { "nodeId": "player-001" },
+            { "nodeId": "player-002" }
+          ],
+          "autoTrack": true,
+          "minZoom": 0.5,
+          "maxZoom": 2.0,
+          "paddingLeft": 96,
+          "paddingRight": 96,
+          "paddingTop": 96,
+          "paddingBottom": 96,
+          "smoothing": 0.12,
+          "enableAutoZoom": true,
+          "showDebug": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "path-cutscene",
+        "type": "CameraPath2D",
+        "name": "BossIntroPath",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 2048, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "closedPath": false,
+          "loop": false,
+          "speed": 180,
+          "interpolation": "Smooth",
+          "duration": 4,
+          "autoPlay": false,
+          "points": [
+            { "x": 0,   "y": 360 },
+            { "x": 320, "y": 200 },
+            { "x": 640, "y": 360 }
+          ]
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-zoom",
+        "type": "CameraZone2D",
+        "name": "ZoomZone",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 300, "y": 200, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 512, "height": 288,
+          "mode": "Zoom Zone",
+          "enabled": true,
+          "priority": 1,
+          "blendTime": 0.6,
+          "zoom": 1.8,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": null,
+          "boundsOverride": null,
+          "targetGroupOverride": null,
+          "pathOverride": null,
+          "deadzoneOverride": null,
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-followspeed",
+        "type": "CameraZone2D",
+        "name": "SlowFollowZone",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 900, "y": 150, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 480, "height": 320,
+          "mode": "Normal",
+          "enabled": true,
+          "priority": 1,
+          "blendTime": 0.5,
+          "zoom": 1.0,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": 0.03,
+          "boundsOverride": null,
+          "targetGroupOverride": null,
+          "pathOverride": null,
+          "deadzoneOverride": null,
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-deadzone",
+        "type": "CameraZone2D",
+        "name": "DeadzoneZone",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 1500, "y": 200, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 512, "height": 288,
+          "mode": "Normal",
+          "enabled": true,
+          "priority": 1,
+          "blendTime": 0.4,
+          "zoom": 1.0,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": null,
+          "boundsOverride": null,
+          "targetGroupOverride": null,
+          "pathOverride": null,
+          "deadzoneOverride": { "w": 200, "h": 120, "ox": 0, "oy": 0 },
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-bossroom",
+        "type": "CameraZone2D",
+        "name": "BossRoom",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 2048, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 1280, "height": 720,
+          "mode": "Boss Arena",
+          "enabled": true,
+          "priority": 5,
+          "blendTime": 0.8,
+          "zoom": 0.85,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": null,
+          "boundsOverride": "bounds-bossroom",
+          "targetGroupOverride": null,
+          "pathOverride": null,
+          "deadzoneOverride": null,
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-cutscene",
+        "type": "CameraZone2D",
+        "name": "CutsceneTrigger",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 1900, "y": 280, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 256, "height": 160,
+          "mode": "Cinematic",
+          "enabled": true,
+          "priority": 10,
+          "blendTime": 1.0,
+          "zoom": 1.2,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": null,
+          "boundsOverride": null,
+          "targetGroupOverride": null,
+          "pathOverride": "path-cutscene",
+          "deadzoneOverride": null,
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-arena",
+        "type": "CameraZone2D",
+        "name": "Arena",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 3600, "y": 400, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 2048, "height": 1024,
+          "mode": "Normal",
+          "enabled": true,
+          "priority": 3,
+          "blendTime": 0.7,
+          "zoom": 1.0,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": null,
+          "boundsOverride": "bounds-arena",
+          "targetGroupOverride": "ctg-arena",
+          "pathOverride": null,
+          "deadzoneOverride": null,
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-outer",
+        "type": "CameraZone2D",
+        "name": "OuterZone_P1",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 100, "y": 100, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 960, "height": 540,
+          "mode": "Normal",
+          "enabled": true,
+          "priority": 1,
+          "blendTime": 0.4,
+          "zoom": 1.1,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": null,
+          "boundsOverride": null,
+          "targetGroupOverride": null,
+          "pathOverride": null,
+          "deadzoneOverride": null,
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "zone-inner",
+        "type": "CameraZone2D",
+        "name": "InnerZone_P5",
+        "parentId": "root-cz2d-test",
+        "transform": { "x": 300, "y": 200, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 360, "height": 200,
+          "mode": "Zoom Zone",
+          "enabled": true,
+          "priority": 5,
+          "blendTime": 0.3,
+          "zoom": 2.0,
+          "offsetX": 0, "offsetY": 0,
+          "followLerp": 0.05,
+          "boundsOverride": null,
+          "targetGroupOverride": null,
+          "pathOverride": null,
+          "deadzoneOverride": { "w": 80, "h": 50, "ox": 0, "oy": 0 },
+          "eventsEnabled": true,
+          "showDebug": true,
+          "showGizmo": true
+        },
+        "visible": true,
+        "zIndex": 0
+      }
+    ]
+  }
+}

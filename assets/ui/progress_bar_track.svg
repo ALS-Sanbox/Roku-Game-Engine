@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="20" viewBox="0 0 400 20">
+  <!-- RGE Progress Bar Track — nine-slice: 8px margins -->
+  <rect width="400" height="20" rx="3" fill="#1a2638"/>
+  <rect x="0.5" y="0.5" width="399" height="19" rx="3" fill="none" stroke="#3a5a80" stroke-width="1"/>
+</svg>

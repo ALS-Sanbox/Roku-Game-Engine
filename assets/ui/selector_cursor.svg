@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- RGE Selector Cursor -->
+  <polygon points="4,16 14,6 14,12 28,12 28,20 14,20 14,26" fill="#6ab0f0" opacity="0.9"/>
+  <polygon points="4,16 14,6 14,12 28,12 28,20 14,20 14,26" fill="none" stroke="#ffffff" stroke-width="1"/>
+</svg>

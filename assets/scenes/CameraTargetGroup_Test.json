@@ -1,0 +1,259 @@
+{
+  "sceneState": {
+    "scene": {
+      "formatVersion": 2,
+      "name": "CameraTargetGroup_Test",
+      "rootNodeId": "root-ctg-test-001"
+    },
+    "nodes": [
+      {
+        "id": "root-ctg-test-001",
+        "type": "SceneRoot",
+        "name": "CameraTargetGroup_Test",
+        "parentId": null,
+        "transform": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {},
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "cam-001",
+        "type": "Camera2D",
+        "name": "MainCamera",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 640, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 1280,
+          "height": 720,
+          "zoom": 1,
+          "current": true,
+          "followLerp": 0.1,
+          "smoothFollow": true
+        },
+        "visible": true,
+        "zIndex": 100
+      },
+
+      {
+        "id": "bounds-001",
+        "type": "CameraBounds2D",
+        "name": "WorldBounds",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 2560,
+          "height": 1440,
+          "clampPosition": true,
+          "clampZoom": true,
+          "showBounds": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "ctg-001",
+        "type": "CameraTargetGroup",
+        "name": "PlayerGroup",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 640, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "targets": [
+            { "nodeId": "target-p1" },
+            { "nodeId": "target-p2" },
+            { "nodeId": "target-p3" },
+            { "nodeId": "target-p4" }
+          ],
+          "autoTrack": true,
+          "minZoom": 0.5,
+          "maxZoom": 3.0,
+          "paddingLeft": 80,
+          "paddingRight": 80,
+          "paddingTop": 64,
+          "paddingBottom": 64,
+          "smoothing": 0.12,
+          "enableAutoZoom": true,
+          "showDebug": true
+        },
+        "visible": true,
+        "zIndex": 0
+      },
+
+      {
+        "id": "target-p1",
+        "type": "Sprite2D",
+        "name": "Player1",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 400, "y": 350, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#4fc3f7",
+          "opacity": 1
+        },
+        "visible": true,
+        "zIndex": 10
+      },
+
+      {
+        "id": "target-p2",
+        "type": "Sprite2D",
+        "name": "Player2",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 900, "y": 380, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#ef5350",
+          "opacity": 1
+        },
+        "visible": true,
+        "zIndex": 10
+      },
+
+      {
+        "id": "target-p3",
+        "type": "Sprite2D",
+        "name": "Player3",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 640, "y": 600, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#66bb6a",
+          "opacity": 1
+        },
+        "visible": true,
+        "zIndex": 10
+      },
+
+      {
+        "id": "target-p4",
+        "type": "Sprite2D",
+        "name": "Player4",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 640, "y": 200, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#ffa726",
+          "opacity": 1
+        },
+        "visible": true,
+        "zIndex": 10
+      },
+
+      {
+        "id": "ctg-one",
+        "type": "CameraTargetGroup",
+        "name": "SingleTargetGroup",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 200, "y": 200, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "targets": [
+            { "nodeId": "solo-target" }
+          ],
+          "autoTrack": true,
+          "minZoom": 0.8,
+          "maxZoom": 2.5,
+          "paddingLeft": 120,
+          "paddingRight": 120,
+          "paddingTop": 100,
+          "paddingBottom": 100,
+          "smoothing": 0.1,
+          "enableAutoZoom": true,
+          "showDebug": true
+        },
+        "visible": false,
+        "zIndex": 0
+      },
+
+      {
+        "id": "solo-target",
+        "type": "Sprite2D",
+        "name": "SoloPlayer",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 640, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#ce93d8",
+          "opacity": 1
+        },
+        "visible": false,
+        "zIndex": 10
+      },
+
+      {
+        "id": "ctg-spread",
+        "type": "CameraTargetGroup",
+        "name": "LargeSpreadGroup",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "targets": [
+            { "nodeId": "spread-a" },
+            { "nodeId": "spread-b" }
+          ],
+          "autoTrack": true,
+          "minZoom": 0.5,
+          "maxZoom": 1.5,
+          "paddingLeft": 64,
+          "paddingRight": 64,
+          "paddingTop": 64,
+          "paddingBottom": 64,
+          "smoothing": 0.08,
+          "enableAutoZoom": true,
+          "showDebug": true
+        },
+        "visible": false,
+        "zIndex": 0
+      },
+
+      {
+        "id": "spread-a",
+        "type": "Sprite2D",
+        "name": "FarLeft",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 100, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#80cbc4",
+          "opacity": 1
+        },
+        "visible": false,
+        "zIndex": 10
+      },
+
+      {
+        "id": "spread-b",
+        "type": "Sprite2D",
+        "name": "FarRight",
+        "parentId": "root-ctg-test-001",
+        "transform": { "x": 2200, "y": 360, "scaleX": 1, "scaleY": 1, "rotation": 0 },
+        "properties": {
+          "width": 48,
+          "height": 48,
+          "tint": "#80cbc4",
+          "opacity": 1
+        },
+        "visible": false,
+        "zIndex": 10
+      }
+    ]
+  },
+  "editorState": {
+    "editorVersion": 1,
+    "selection": ["ctg-001"],
+    "expandedTreeNodes": ["root-ctg-test-001"],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "scale": 1
+    },
+    "spritesheets": [],
+    "tilesets": []
+  }
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="256" viewBox="0 0 480 256">
+  <!-- RGE Dialog Box — nine-slice: 20px margins -->
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1e2840"/>
+      <stop offset="100%" stop-color="#161e30"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="472" height="248" rx="6" fill="url(#g)" filter="url(#shadow)"/>
+  <rect x="0.5" y="0.5" width="479" height="255" rx="6" fill="none" stroke="#3a5080" stroke-width="1.5"/>
+  <!-- Title bar accent -->
+  <rect x="1" y="1" width="478" height="44" rx="5" fill="#263550"/>
+  <rect x="1" y="44" width="478" height="1" fill="#3a5080"/>
+</svg>
