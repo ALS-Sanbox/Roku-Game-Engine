@@ -1,0 +1,14 @@
+{
+  "name": "roku-visual-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local visual editing for existing BrightScript games",
+  "scripts": {
+    "start": "node visual-editor/server.js",
+    "simulator": "node visual-editor/simulator-server.js",
+    "simulator:setup": "node visual-editor/setup-simulator.js",
+    "test:browser": "node visual-editor/check-browser.js",
+    "test": "node --test visual-editor/test/*.test.js"
+  },
+  "engines": { "node": ">=22" }
+}

@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/lvcabral/brs-engine.git",
+  "revision": "0847071e3ce7890bff3ce331d738a38d4e34655e",
+  "version": "2.6.2",
+  "license": "MIT",
+  "directory": "tools/brs-engine"
+}
