@@ -1681,6 +1681,34 @@ async function exportRokuProject() {
   return true;
 }
 
+let simulatorBuildInProgress = false;
+async function testInRokuSimulator() {
+  if (simulatorBuildInProgress) return;
+  simulatorBuildInProgress = true;
+  try {
+    flushTerrainDirtyCells();
+    persistActiveSceneEntry();
+    let projectRoot = state.projectRoot;
+    if (!projectRoot) {
+      const chosen = await window.electronAPI.chooseProjectFolder();
+      if (!chosen?.success) return;
+      projectRoot = chosen.rootPath;
+      state.projectRoot = projectRoot;
+    }
+    setStatus('Building native BrightScript game for the simulator…');
+    const result = await window.electronAPI.testInSimulator({
+      projectRoot,
+      projectTitle: state.projectSettings.projectName,
+      scenes: state.scenes.map(entry => ({ sceneName: entry.sceneState.scene.name, runtimeScene: entry.sceneState, editorState: entry.editorState }))
+    });
+    if (!result.success) throw new Error(result.reason);
+    for (const warning of result.warnings || []) appendLog('Roku compatibility: ' + warning);
+    setStatus(`Simulator opened. ${result.warnings.length} compatibility warning(s). ZIP: ${result.zipPath}`, { tone: result.warnings.length ? 'warning' : 'normal' });
+    return result;
+  } catch (error) { setStatus('Simulator build failed: ' + error.message, true); }
+  finally { simulatorBuildInProgress = false; }
+}
+
 async function createProject() {
   if (!window.electronAPI?.createProject) {
     setStatus('Create Project is not available.', true);
@@ -18978,6 +19006,11 @@ document.addEventListener('keydown', (e) => {
 
 // ── Done ──────────────────────────────────────────────────────────────────
 console.info('[RGE v49] Architecture stabilisation modules loaded. Alt+Shift+P = perf monitor, Alt+Shift+T = run tests.');
+document.getElementById('menu-test-simulator')?.addEventListener('click', () => void testInRokuSimulator());
+document.getElementById('btn-test-simulator')?.addEventListener('click', () => void testInRokuSimulator());
+document.addEventListener('keydown', event => {
+  if (event.key === 'F5') { event.preventDefault(); void testInRokuSimulator(); }
+});
 
 
 

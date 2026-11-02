@@ -13,7 +13,7 @@ function RokuEngine_DefaultActionMap() as Object
 end function
 
 function RokuEngine_ButtonNameToCode(buttonName as Dynamic) as Integer
-  key = LCase(Trim(Str(buttonName)))
+  key = LCase(RokuEngine_Trim(RokuEngine_ToString(buttonName)))
   if key = "up" then return 2
   if key = "down" then return 3
   if key = "left" then return 4
@@ -56,7 +56,7 @@ function RokuEngine_NormalizeActionMap(actionMap as Dynamic) as Object
   for each actionName in defaultMap
     buttonName = defaultMap[actionName]
     if source.DoesExist(actionName) and source[actionName] <> invalid and source[actionName] <> "" then buttonName = source[actionName]
-    normalized[actionName] = LCase(Trim(Str(buttonName)))
+    normalized[actionName] = LCase(RokuEngine_Trim(RokuEngine_ToString(buttonName)))
   end for
   return normalized
 end function
@@ -67,17 +67,17 @@ function RokuEngine_GetActionForButtonCode(code as Integer) as String
   actionMap = m.inputActionMap
   if actionMap = invalid then actionMap = RokuEngine_DefaultActionMap()
   for each actionName in actionMap
-    mappedName = LCase(Trim(Str(actionMap[actionName])))
+    mappedName = LCase(RokuEngine_Trim(RokuEngine_ToString(actionMap[actionName])))
     if mappedName = buttonName then return actionName
   end for
   return buttonName
 end function
 
 sub RokuEngine_PumpPlatformMessages()
-  msg = wait(0, m.port)
+  msg = m.port.GetMessage()
   while msg <> invalid
     m.ProcessMessages(msg)
-    msg = wait(0, m.port)
+    msg = m.port.GetMessage()
   end while
 end sub
 

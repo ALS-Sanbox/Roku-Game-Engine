@@ -69,7 +69,7 @@ end function
 
 function RokuEngine_BuildLocalTransformSignature(localTransform as Object) as String
   if localTransform = invalid then return ""
-  return Str(localTransform.x) + "|" + Str(localTransform.y) + "|" + Str(localTransform.rotation) + "|" + Str(localTransform.scaleX) + "|" + Str(localTransform.scaleY) + "|" + LCase(Str(localTransform.visible)) + "|" + Str(localTransform.opacity)
+  return RokuEngine_ToString(localTransform.x) + "|" + RokuEngine_ToString(localTransform.y) + "|" + RokuEngine_ToString(localTransform.rotation) + "|" + RokuEngine_ToString(localTransform.scaleX) + "|" + RokuEngine_ToString(localTransform.scaleY) + "|" + LCase(RokuEngine_ToString(localTransform.visible)) + "|" + RokuEngine_ToString(localTransform.opacity)
 end function
 
 sub RokuEngine_MarkNodeTransformDirty(nodeId as String)

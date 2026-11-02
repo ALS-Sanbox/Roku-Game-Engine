@@ -77,8 +77,10 @@ end sub
 ' Random direction for wanderMoveTime seconds, pause for wanderWaitTime seconds.
 sub RokuAI_Wander(ctx as Object, rt as Object)
   speed       = RokuAI_Speed(ctx, 45.0)
-  moveTime    = 1.8 : if ctx.component.wanderMoveTime <> invalid then moveTime = ctx.component.wanderMoveTime
-  waitTime    = 0.8 : if ctx.component.wanderWaitTime <> invalid then waitTime = ctx.component.wanderWaitTime
+  moveTime    = 1.8
+  if ctx.component.wanderMoveTime <> invalid then moveTime = ctx.component.wanderMoveTime
+  waitTime    = 0.8
+  if ctx.component.wanderWaitTime <> invalid then waitTime = ctx.component.wanderWaitTime
 
   rt.aiTimer = rt.aiTimer + ctx.dt
 
@@ -104,7 +106,8 @@ sub RokuAI_Chase(ctx as Object, rt as Object)
   target = RokuAI_GetTarget(ctx)
   if target = invalid then return
   speed  = RokuAI_Speed(ctx, 70.0)
-  stopDist = 8.0 : if ctx.component.stopDistance <> invalid then stopDist = ctx.component.stopDistance
+  stopDist = 8.0
+  if ctx.component.stopDistance <> invalid then stopDist = ctx.component.stopDistance
   dx = target.transform.x - ctx.transform.x
   dy = target.transform.y - ctx.transform.y
   dist = Sqr(dx * dx + dy * dy)
@@ -134,10 +137,13 @@ end sub
 ' Returns to patrol once player leaves leashRadius.
 sub RokuAI_Guard(ctx as Object, rt as Object)
   target     = RokuAI_GetTarget(ctx)
-  alertRadius = 120.0 : if ctx.component.alertRadius  <> invalid then alertRadius  = ctx.component.alertRadius
-  leashRadius = 200.0 : if ctx.component.leashRadius  <> invalid then leashRadius  = ctx.component.leashRadius
+  alertRadius = 120.0
+  if ctx.component.alertRadius  <> invalid then alertRadius  = ctx.component.alertRadius
+  leashRadius = 200.0
+  if ctx.component.leashRadius  <> invalid then leashRadius  = ctx.component.leashRadius
   speed       = RokuAI_Speed(ctx, 70.0)
-  returnSpeed = 40.0  : if ctx.component.returnSpeed  <> invalid then returnSpeed  = ctx.component.returnSpeed
+  returnSpeed = 40.0
+  if ctx.component.returnSpeed  <> invalid then returnSpeed  = ctx.component.returnSpeed
 
   if target <> invalid then
     distToTarget = RokuAI_Distance(ctx.transform.x, ctx.transform.y, target.transform.x, target.transform.y)
@@ -146,7 +152,8 @@ sub RokuAI_Guard(ctx as Object, rt as Object)
     if rt.aiState = "guard" then
       if distToTarget <= alertRadius then rt.aiState = "chase"
     else if rt.aiState = "chase" then
-      if distToSpawn > leashRadius then rt.aiState = "return"
+      if distToSpawn > leashRadius then
+        rt.aiState = "return"
       else
         dx = target.transform.x - ctx.transform.x : dy = target.transform.y - ctx.transform.y
         dir = RokuAI_Normalize(dx, dy)
@@ -179,10 +186,14 @@ end sub
 ' Moves at constant velocity, flips direction when hitting scene bounds.
 sub RokuAI_Bounce(ctx as Object, rt as Object)
   speed  = RokuAI_Speed(ctx, 80.0)
-  boundsW = 1920.0 : if ctx.component.boundsWidth  <> invalid then boundsW = ctx.component.boundsWidth
-  boundsH = 1080.0 : if ctx.component.boundsHeight <> invalid then boundsH = ctx.component.boundsHeight
-  nodeW   = 32.0   : if ctx.node.properties <> invalid and ctx.node.properties.width  <> invalid then nodeW = ctx.node.properties.width
-  nodeH   = 32.0   : if ctx.node.properties <> invalid and ctx.node.properties.height <> invalid then nodeH = ctx.node.properties.height
+  boundsW = 1920.0
+  if ctx.component.boundsWidth  <> invalid then boundsW = ctx.component.boundsWidth
+  boundsH = 1080.0
+  if ctx.component.boundsHeight <> invalid then boundsH = ctx.component.boundsHeight
+  nodeW   = 32.0
+  if ctx.node.properties <> invalid and ctx.node.properties.width  <> invalid then nodeW = ctx.node.properties.width
+  nodeH   = 32.0
+  if ctx.node.properties <> invalid and ctx.node.properties.height <> invalid then nodeH = ctx.node.properties.height
 
   if rt.aiDirX = 0.0 and rt.aiDirY = 0.0 then
     rt.aiDirX = 1.0 : rt.aiDirY = 0.7
@@ -205,7 +216,8 @@ end sub
 ' Orbits around spawn point at orbitRadius.
 sub RokuAI_Circle(ctx as Object, rt as Object)
   speed  = RokuAI_Speed(ctx, 90.0)
-  radius = 80.0 : if ctx.component.orbitRadius <> invalid then radius = ctx.component.orbitRadius
+  radius = 80.0
+  if ctx.component.orbitRadius <> invalid then radius = ctx.component.orbitRadius
 
   rt.aiAngle = rt.aiAngle + (speed / radius) * ctx.dt
   ctx.transform.x = rt.spawnX + Cos(rt.aiAngle) * radius
@@ -218,10 +230,14 @@ end sub
 ' shmup bullets, jellyfish, swimming fish.
 sub RokuAI_SineWave(ctx as Object, rt as Object)
   speed     = RokuAI_Speed(ctx, 100.0)
-  amplitude = 40.0  : if ctx.component.sineAmplitude <> invalid then amplitude = ctx.component.sineAmplitude
-  frequency = 2.0   : if ctx.component.sineFrequency <> invalid then frequency = ctx.component.sineFrequency
-  axisX     = 0.0   : if ctx.component.moveAxisX     <> invalid then axisX     = ctx.component.moveAxisX
-  axisY     = -1.0  : if ctx.component.moveAxisY     <> invalid then axisY     = ctx.component.moveAxisY
+  amplitude = 40.0
+  if ctx.component.sineAmplitude <> invalid then amplitude = ctx.component.sineAmplitude
+  frequency = 2.0
+  if ctx.component.sineFrequency <> invalid then frequency = ctx.component.sineFrequency
+  axisX     = 0.0
+  if ctx.component.moveAxisX     <> invalid then axisX     = ctx.component.moveAxisX
+  axisY     = -1.0
+  if ctx.component.moveAxisY     <> invalid then axisY     = ctx.component.moveAxisY
 
   rt.aiTimer = rt.aiTimer + ctx.dt
   dir = RokuAI_Normalize(axisX, axisY)
@@ -240,7 +256,8 @@ sub RokuAI_Homing(ctx as Object, rt as Object)
   target    = RokuAI_GetTarget(ctx)
   if target = invalid then return
   speed     = RokuAI_Speed(ctx, 120.0)
-  turnSpeed = 2.5 : if ctx.component.turnSpeed <> invalid then turnSpeed = ctx.component.turnSpeed
+  turnSpeed = 2.5
+  if ctx.component.turnSpeed <> invalid then turnSpeed = ctx.component.turnSpeed
 
   if rt.aiDirX = 0.0 and rt.aiDirY = 0.0 then rt.aiDirY = -1.0
 
@@ -281,12 +298,14 @@ sub RokuAI_Flank(ctx as Object, rt as Object)
   target = RokuAI_GetTarget(ctx)
   if target = invalid then return
   speed     = RokuAI_Speed(ctx, 75.0)
-  flankDist = 80.0 : if ctx.component.flankDistance <> invalid then flankDist = ctx.component.flankDistance
+  flankDist = 80.0
+  if ctx.component.flankDistance <> invalid then flankDist = ctx.component.flankDistance
 
   dx = target.transform.x - ctx.transform.x
   dy = target.transform.y - ctx.transform.y
   dir = RokuAI_Normalize(dx, dy)
-  side = 1.0 : if rt.aiState = "flank_left" then side = -1.0
+  side = 1.0
+  if rt.aiState = "flank_left" then side = -1.0
 
   goalX = target.transform.x + (-dir.y * flankDist * side)
   goalY = target.transform.y + ( dir.x * flankDist * side)
@@ -311,20 +330,31 @@ sub RokuComponent_EnemyAI_Update(ctx as Object)
 
   aiType = "patrol"
   if ctx.component.aiType <> invalid and ctx.component.aiType <> "" then
-    aiType = LCase(Trim(Str(ctx.component.aiType)))
+    aiType = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.component.aiType)))
   end if
 
-  if aiType = "patrol"      then RokuAI_Patrol(ctx,    rt)
-  else if aiType = "wander"      then RokuAI_Wander(ctx,    rt)
-  else if aiType = "chase"       then RokuAI_Chase(ctx,     rt)
-  else if aiType = "flee"        then RokuAI_Flee(ctx,      rt)
-  else if aiType = "guard"       then RokuAI_Guard(ctx,     rt)
-  else if aiType = "bounce"      then RokuAI_Bounce(ctx,    rt)
-  else if aiType = "circle"      then RokuAI_Circle(ctx,    rt)
-  else if aiType = "sine_wave"   then RokuAI_SineWave(ctx,  rt)
-  else if aiType = "homing"      then RokuAI_Homing(ctx,    rt)
-  else if aiType = "strafe"      then RokuAI_Strafe(ctx,    rt)
-  else if aiType = "flank"       then RokuAI_Flank(ctx,     rt)
+  if aiType = "patrol"      then
+    RokuAI_Patrol(ctx,    rt)
+  else if aiType = "wander"      then
+    RokuAI_Wander(ctx,    rt)
+  else if aiType = "chase"       then
+    RokuAI_Chase(ctx,     rt)
+  else if aiType = "flee"        then
+    RokuAI_Flee(ctx,      rt)
+  else if aiType = "guard"       then
+    RokuAI_Guard(ctx,     rt)
+  else if aiType = "bounce"      then
+    RokuAI_Bounce(ctx,    rt)
+  else if aiType = "circle"      then
+    RokuAI_Circle(ctx,    rt)
+  else if aiType = "sine_wave"   then
+    RokuAI_SineWave(ctx,  rt)
+  else if aiType = "homing"      then
+    RokuAI_Homing(ctx,    rt)
+  else if aiType = "strafe"      then
+    RokuAI_Strafe(ctx,    rt)
+  else if aiType = "flank"       then
+    RokuAI_Flank(ctx,     rt)
   ' stationary: no movement
   end if
 end sub

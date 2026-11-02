@@ -29,6 +29,7 @@ sub RokuEngine_RegisterBuiltinComponents(registry as Object)
 
   m.RegisterComponentDefinition({
     defaultPriority: 120
+    type: "MoveComponent"
     phases: ["update"]
     handlers: {
       update: RokuComponent_Move_Update
@@ -139,11 +140,11 @@ function RokuEngine_GetComponentDefinition(typeName as Dynamic) as Dynamic
   if m.componentRegistry = invalid or m.componentRegistry.definitions = invalid then return invalid
   resolvedType = ""
   if GetInterface(typeName, "ifAssociativeArray") <> invalid then
-    if typeName.type <> invalid then resolvedType = Str(typeName.type)
+    if typeName.type <> invalid then resolvedType = RokuEngine_ToString(typeName.type)
   else if typeName <> invalid then
-    resolvedType = Str(typeName)
+    resolvedType = RokuEngine_ToString(typeName)
   end if
-  resolvedType = Trim(resolvedType)
+  resolvedType = RokuEngine_Trim(resolvedType)
   if resolvedType = "" then return invalid
   if m.componentRegistry.definitions.DoesExist(resolvedType) <> true then return invalid
   return m.componentRegistry.definitions[resolvedType]
@@ -162,7 +163,7 @@ sub RokuEngine_InvokeComponentPhase(node as Object, component as Object, phase a
   if node = invalid or component = invalid then return
   definition = m.GetComponentDefinition(component)
   if definition = invalid then return
-  phaseKey = LCase(Trim(Str(phase)))
+  phaseKey = LCase(RokuEngine_Trim(RokuEngine_ToString(phase)))
   if phaseKey = "" then return
   handlers = definition.handlers
   if handlers = invalid or handlers.DoesExist(phaseKey) <> true then return
@@ -223,7 +224,7 @@ sub RokuComponent_Bob_Update(ctx as Object)
   if ctx.component.amplitude <> invalid then amplitude = ctx.component.amplitude
   if ctx.component.speed <> invalid then speed = ctx.component.speed
   if ctx.component.phase <> invalid then phaseOffset = ctx.component.phase
-  if ctx.component.axis <> invalid then axis = LCase(Str(ctx.component.axis))
+  if ctx.component.axis <> invalid then axis = LCase(RokuEngine_ToString(ctx.component.axis))
   if ctx.runtime.bobBaseX = invalid then ctx.runtime.bobBaseX = ctx.transform.x
   if ctx.runtime.bobBaseY = invalid then ctx.runtime.bobBaseY = ctx.transform.y
   offset = Sin((ctx.runtime.bobElapsed * speed) + phaseOffset) * amplitude
@@ -250,7 +251,7 @@ sub RokuComponent_HandleDirectionalInput(ctx as Object, useFollowSpeed as Boolea
   code = invalid
   actionKey = ""
   if ctx.event <> invalid and ctx.event.code <> invalid then code = ctx.event.code
-  if ctx.event <> invalid and ctx.event.action <> invalid then actionKey = LCase(Trim(Str(ctx.event.action)))
+  if ctx.event <> invalid and ctx.event.action <> invalid then actionKey = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.event.action)))
   if code = invalid and actionKey = "" then return
 
   speed = 24.0
@@ -316,7 +317,7 @@ sub RokuComponent_AnimationPlayer_Input(ctx as Object)
   code = invalid
   actionKey = ""
   if ctx.event <> invalid and ctx.event.code <> invalid then code = ctx.event.code
-  if ctx.event <> invalid and ctx.event.action <> invalid then actionKey = LCase(Trim(Str(ctx.event.action)))
+  if ctx.event <> invalid and ctx.event.action <> invalid then actionKey = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.event.action)))
   if code = invalid and actionKey = "" then return
 
   triggerAction = RokuComponent_ResolveTriggerAction(ctx)
@@ -330,7 +331,7 @@ sub RokuComponent_AudioSource_Input(ctx as Object)
   code = invalid
   actionKey = ""
   if ctx.event <> invalid and ctx.event.code <> invalid then code = ctx.event.code
-  if ctx.event <> invalid and ctx.event.action <> invalid then actionKey = LCase(Trim(Str(ctx.event.action)))
+  if ctx.event <> invalid and ctx.event.action <> invalid then actionKey = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.event.action)))
   if code = invalid and actionKey = "" then return
 
   triggerAction = RokuComponent_ResolveTriggerAction(ctx)
@@ -365,9 +366,9 @@ end sub
 function RokuComponent_ResolveTriggerAction(ctx as Object) as String
   triggerAction = "action"
   if ctx.component.triggerAction <> invalid and ctx.component.triggerAction <> "" then
-    triggerAction = LCase(Trim(Str(ctx.component.triggerAction)))
+    triggerAction = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.component.triggerAction)))
   else if ctx.component.triggerButton <> invalid then
-    triggerAction = LCase(Trim(Str(ctx.engine.GetActionForButtonCode(ctx.component.triggerButton))))
+    triggerAction = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.engine.GetActionForButtonCode(ctx.component.triggerButton))))
   end if
   return triggerAction
 end function
@@ -378,7 +379,7 @@ sub RokuComponent_Script_Input(ctx as Object)
   rawEvent = invalid
   if ctx.event <> invalid then
     if ctx.event.code <> invalid then code = ctx.event.code
-    if ctx.event.action <> invalid then actionKey = LCase(Trim(Str(ctx.event.action)))
+    if ctx.event.action <> invalid then actionKey = LCase(RokuEngine_Trim(RokuEngine_ToString(ctx.event.action)))
     if ctx.event.raw <> invalid then rawEvent = ctx.event.raw
   end if
   if code = invalid and actionKey = "" then return

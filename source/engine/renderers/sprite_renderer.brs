@@ -62,7 +62,10 @@ sub RokuEngine_SyncNodeSprite(nodeId as String, active as Object, layer as Integ
         if needsCreate then
           m.RemoveNodeCompositorSprite(node)
           spriteState = m.EnsureSpriteNodeRuntime(node)
-          spriteState.member = m.compositor.NewSprite(drawX, drawY, bitmap, layer)
+          drawable = bitmap
+          if type(bitmap) = "roBitmap" then drawable = CreateObject("roRegion", bitmap, 0, 0, bitmap.GetWidth(), bitmap.GetHeight())
+          spriteState.member = m.compositor.NewSprite(drawX, drawY, drawable, layer)
+          spriteState.sourceRegion = drawable
           spriteState.kind = "sprite"
           spriteState.textureKey = textureKey
           spriteState.layer = layer
@@ -100,6 +103,7 @@ sub RokuEngine_SyncNodeSprite(nodeId as String, active as Object, layer as Integ
           m.RemoveNodeCompositorSprite(node)
           spriteState = m.EnsureSpriteNodeRuntime(node)
           spriteState.member = m.compositor.NewSprite(drawX, drawY, frame, layer)
+          spriteState.sourceRegion = frame
           spriteState.kind = "animated_frame"
           spriteState.textureKey = propsKey
           spriteState.layer = layer
@@ -127,9 +131,28 @@ sub RokuEngine_ApplySpriteTransform(node as Object, world as Object, spriteState
   if spriteState = invalid or spriteState.member = invalid then return
   spriteState.member.MoveTo(drawX, drawY)
   scale = m.ComputeSpriteScale(node, world, spriteState)
-  if scale <> invalid then
-    spriteState.member.SetScale(scale.x, scale.y)
+  if scale = invalid or spriteState.sourceRegion = invalid then return
+  ' roSprite has no SetScale method. Cache a scaled bitmap/region instead.
+  if spriteState.appliedScaleX = scale.x and spriteState.appliedScaleY = scale.y then return
+  spriteState.appliedScaleX = scale.x
+  spriteState.appliedScaleY = scale.y
+  if scale.x = 1 and scale.y = 1 then
+    spriteState.member.SetRegion(spriteState.sourceRegion)
+    return
   end if
+  width = Int(Abs(spriteState.baseWidth * scale.x))
+  height = Int(Abs(spriteState.baseHeight * scale.y))
+  if width < 1 or height < 1 then return
+  scaled = CreateObject("roBitmap", {width: width, height: height, alphaEnable: true})
+  if scaled = invalid then return
+  scaled.Clear(&h00000000)
+  originX = 0
+  originY = 0
+  if scale.x < 0 then originX = width
+  if scale.y < 0 then originY = height
+  scaled.DrawScaledObject(originX, originY, scale.x, scale.y, spriteState.sourceRegion)
+  spriteState.scaledBitmap = scaled
+  spriteState.member.SetRegion(CreateObject("roRegion", scaled, 0, 0, width, height))
 end sub
 
 function RokuEngine_ComputeSpriteScale(node as Object, world as Object, spriteState as Object) as Object
@@ -151,7 +174,7 @@ end function
 
 function RokuEngine_ParseTileAssetPath(resourcePath as Dynamic) as Dynamic
   if resourcePath = invalid then return invalid
-  value = Trim(Str(resourcePath))
+  value = RokuEngine_Trim(RokuEngine_ToString(resourcePath))
   marker = Instr(1, value, "#tile:")
   if marker <= 0 then return invalid
   basePath = Left(value, marker - 1)
@@ -196,13 +219,13 @@ sub RokuEngine_RenderPassTileMaps()
     if props.mapWidth <> invalid then mapWidth = Int(props.mapWidth)
     if props.mapHeight <> invalid then mapHeight = Int(props.mapHeight)
     defaultTilesetId = ""
-    if props.tilesetId <> invalid then defaultTilesetId = Trim(Str(props.tilesetId))
+    if props.tilesetId <> invalid then defaultTilesetId = RokuEngine_Trim(RokuEngine_ToString(props.tilesetId))
     if GetInterface(props.layers, "ifArray") = invalid then continue for
     for each layer in props.layers
       if layer = invalid then continue for
       if layer.visible = false then continue for
       tilesetId = defaultTilesetId
-      if layer.tilesetId <> invalid and Trim(Str(layer.tilesetId)) <> "" then tilesetId = Trim(Str(layer.tilesetId))
+      if layer.tilesetId <> invalid and RokuEngine_Trim(RokuEngine_ToString(layer.tilesetId)) <> "" then tilesetId = RokuEngine_Trim(RokuEngine_ToString(layer.tilesetId))
       if tilesetId = "" then continue for
       opacity = world.opacity
       if layer.opacity <> invalid then opacity = opacity * layer.opacity

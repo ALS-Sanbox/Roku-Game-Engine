@@ -18,7 +18,7 @@
 ' ── Namespace builder ─────────────────────────────────────────────────────────
 
 function _HS_NS(tableId as String) as String
-  return "rge.scores." + Left(Trim(tableId), 20)
+  return "rge.scores." + Left(RokuEngine_Trim(tableId), 20)
 end function
 
 ' ── Init ──────────────────────────────────────────────────────────────────────
@@ -31,14 +31,14 @@ sub RokuEngine_InitializeHighScores()
     }
   end if
   if not m.highScores.loaded then
-    _HS_LoadDefs()
+    m._HS_LoadDefs()
     m.highScores.loaded = true
   end if
 end sub
 
 sub _HS_LoadDefs()
   ' Default table always exists
-  _HS_EnsureTable("default", 10, "desc")
+  m._HS_EnsureTable("default", 10, "desc")
 
   manifest = invalid
   if m.resources <> invalid then manifest = m.resources.manifest
@@ -59,14 +59,14 @@ sub _HS_LoadDefs()
     if maxEntries < 1  then maxEntries = 1
     if maxEntries > 100 then maxEntries = 100
     sortOrder = "desc"
-    if entry.sortOrder <> invalid then sortOrder = LCase(Trim(Str(entry.sortOrder)))
-    _HS_EnsureTable(tableId, maxEntries, sortOrder)
+    if entry.sortOrder <> invalid then sortOrder = LCase(RokuEngine_Trim(RokuEngine_ToString(entry.sortOrder)))
+    m._HS_EnsureTable(tableId, maxEntries, sortOrder)
   end for
 end sub
 
 sub _HS_EnsureTable(tableId as String, maxEntries as Integer, sortOrder as String)
   if m.highScores.tables.DoesExist(tableId) then return
-  entries = _HS_LoadEntriesFromStorage(tableId)
+  entries = m._HS_LoadEntriesFromStorage(tableId)
   m.highScores.tables[tableId] = {
     tableId:    tableId
     maxEntries: maxEntries
@@ -78,7 +78,7 @@ end sub
 ' ── Storage serialisation ─────────────────────────────────────────────────────
 
 function _HS_LoadEntriesFromStorage(tableId as String) as Object
-  raw = RGE_Storage_Load(_HS_NS(tableId), "entries", "[]")
+  raw = m.RGE_Storage_Load(_HS_NS(tableId), "entries", "[]")
   if raw = "" or raw = "[]" then return []
   parsed = ParseJson(raw)
   if parsed = invalid or type(parsed) <> "roArray" then return []
@@ -104,15 +104,15 @@ sub _HS_SaveEntriesToStorage(tableId as String, entries as Object)
     escaped_init  = _HS_JsonStr(e.initials)
     escaped_date  = _HS_JsonStr(e.date)
     escaped_extra = _HS_JsonStr(e.extra)
-    rowJson = "{""initials"":" + escaped_init + ",""score"":" + Trim(Str(e.score)) + ",""date"":" + escaped_date + ",""extra"":" + escaped_extra + "}"
+    rowJson = "{""initials"":" + escaped_init + ",""score"":" + RokuEngine_Trim(RokuEngine_ToString(e.score)) + ",""date"":" + escaped_date + ",""extra"":" + escaped_extra + "}"
     parts.Push(rowJson)
   end for
   raw = "[" + _HS_Join(parts, ",") + "]"
-  RGE_Storage_Save(_HS_NS(tableId), "entries", raw)
+  m.RGE_Storage_Save(_HS_NS(tableId), "entries", raw)
 end sub
 
 function _HS_JsonStr(s as Dynamic) as String
-  v = Trim(Str(s))
+  v = RokuEngine_Trim(RokuEngine_ToString(s))
   ' Escape backslashes and double-quotes
   v = v.Replace("\", "\\").Replace(Chr(34), "\" + Chr(34))
   return Chr(34) + v + Chr(34)
@@ -133,11 +133,11 @@ end function
 function RGE_HighScores_Add(tableId as String, score as Integer, initials as String, extra as Dynamic) as Boolean
   if extra = invalid then extra = ""
   m.InitializeHighScores()
-  _HS_EnsureTable(tableId, 10, "desc")
+  m._HS_EnsureTable(tableId, 10, "desc")
   table = m.highScores.tables[tableId]
 
   ' Normalise initials: uppercase, max 3 chars, pad to 3
-  inits = UCase(Left(Trim(initials), 3))
+  inits = UCase(Left(RokuEngine_Trim(initials), 3))
   while Len(inits) < 3
     inits = inits + " "
   end while
@@ -146,15 +146,15 @@ function RGE_HighScores_Add(tableId as String, score as Integer, initials as Str
   dateStr = ""
   dt = CreateObject("roDateTime")
   if dt <> invalid then
-    year  = Trim(Str(dt.GetYear()))
-    month = Trim(Str(dt.GetMonth()))
-    day   = Trim(Str(dt.GetDayOfMonth()))
+    year  = RokuEngine_Trim(RokuEngine_ToString(dt.GetYear()))
+    month = RokuEngine_Trim(RokuEngine_ToString(dt.GetMonth()))
+    day   = RokuEngine_Trim(RokuEngine_ToString(dt.GetDayOfMonth()))
     if Len(month) = 1 then month = "0" + month
     if Len(day)   = 1 then day   = "0" + day
     dateStr = year + month + day
   end if
 
-  entry = { initials: inits, score: score, date: dateStr, extra: Trim(extra) }
+  entry = { initials: inits, score: score, date: dateStr, extra: RokuEngine_Trim(extra) }
   table.entries.Push(entry)
 
   ' Sort
@@ -171,14 +171,14 @@ function RGE_HighScores_Add(tableId as String, score as Integer, initials as Str
     if e.initials = inits and e.score = score then survived = true
   end for
 
-  _HS_SaveEntriesToStorage(tableId, table.entries)
+  m._HS_SaveEntriesToStorage(tableId, table.entries)
   return survived
 end function
 
 ' Get all entries for a table (sorted, trimmed)
 function RGE_HighScores_GetEntries(tableId as String) as Object
   m.InitializeHighScores()
-  _HS_EnsureTable(tableId, 10, "desc")
+  m._HS_EnsureTable(tableId, 10, "desc")
   return m.highScores.tables[tableId].entries
 end function
 
@@ -188,13 +188,13 @@ sub RGE_HighScores_Clear(tableId as String)
   if m.highScores.tables.DoesExist(tableId) then
     m.highScores.tables[tableId].entries = []
   end if
-  RGE_Storage_ClearNamespace(_HS_NS(tableId))
+  m.RGE_Storage_ClearNamespace(_HS_NS(tableId))
 end sub
 
 ' Is a score good enough to make the table?
 function RGE_HighScores_IsHighScore(tableId as String, score as Integer) as Boolean
   m.InitializeHighScores()
-  _HS_EnsureTable(tableId, 10, "desc")
+  m._HS_EnsureTable(tableId, 10, "desc")
   table = m.highScores.tables[tableId]
   entries = table.entries
   if entries.Count() < table.maxEntries then return true
@@ -208,14 +208,14 @@ end function
 ' Get a formatted display row string  "1. AAA  98765  20250101"
 function RGE_HighScores_GetRowText(tableId as String, rank as Integer) as String
   m.InitializeHighScores()
-  entries = RGE_HighScores_GetEntries(tableId)
+  entries = m.RGE_HighScores_GetEntries(tableId)
   idx = rank - 1
   if idx < 0 or idx >= entries.Count() then return ""
   e = entries[idx]
-  scoreStr = Trim(Str(e.score))
+  scoreStr = RokuEngine_Trim(RokuEngine_ToString(e.score))
   dateStr  = e.date
   if dateStr = "" then dateStr = "--------"
-  return Trim(Str(rank)) + ". " + e.initials + "  " + scoreStr + "  " + dateStr
+  return RokuEngine_Trim(RokuEngine_ToString(rank)) + ". " + e.initials + "  " + scoreStr + "  " + dateStr
 end function
 
 ' ── Sorting ───────────────────────────────────────────────────────────────────
@@ -253,12 +253,12 @@ sub RokuEngine_UpdateHighScoreBindings()
     props = node.properties
     if props = invalid then continue for
     tableId = ""
-    if props.boundHighScoreTable <> invalid then tableId = Trim(Str(props.boundHighScoreTable))
+    if props.boundHighScoreTable <> invalid then tableId = RokuEngine_Trim(RokuEngine_ToString(props.boundHighScoreTable))
     if tableId = "" then continue for
 
     rank = 1
     if props.boundHighScoreRank <> invalid then rank = Int(props.boundHighScoreRank)
-    props.text = RGE_HighScores_GetRowText(tableId, rank)
+    props.text = m.RGE_HighScores_GetRowText(tableId, rank)
   end for
 end sub
 
@@ -266,5 +266,5 @@ end sub
 
 function _HS_Coerce(v as Dynamic, defaultVal as String) as String
   if v = invalid then return defaultVal
-  return Trim(Str(v))
+  return RokuEngine_Trim(RokuEngine_ToString(v))
 end function

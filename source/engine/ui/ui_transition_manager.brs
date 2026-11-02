@@ -13,8 +13,8 @@
 '
 ' Loading screen:
 '   When waitForLoad=true the "hold" phase stays until m.transitionMgr.loadComplete=true.
-'   Call RGE_UI_SetLoadProgress(fraction) to drive the progress bar.
-'   Call RGE_UI_MarkLoadComplete() to release the transition.
+'   Call m.RGE_UI_SetLoadProgress(fraction) to drive the progress bar.
+'   Call m.RGE_UI_MarkLoadComplete() to release the transition.
 
 ' ── Easing library ─────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ function _TM_Ease(t as Float, easing as String) as Float
   if easing = "elastic_out" then
     if t = 0.0 or t = 1.0 then return t
     c4 = (2.0 * 3.14159265) / 3.0
-    return Float(Exp(-Float(10.0) * (t - 1.0))) * Float(Sin((t * 10.0 - 10.75) * c4)) + 1.0
+    return RokuEngine_ToFloat(Exp(-RokuEngine_ToFloat(10.0) * (t - 1.0))) * RokuEngine_ToFloat(Sin((t * 10.0 - 10.75) * c4)) + 1.0
   end if
   return t   ' default: linear
 end function
@@ -94,7 +94,7 @@ sub RokuEngine_UpdateTransition(dt as Float)
     if tm.phase = "out" then
       tm.phase = "hold"
       tm.elapsed = 0.0
-      _TM_ExecutePendingAction()
+      m._TM_ExecutePendingAction()
     else if tm.phase = "hold" then
       if (not tm.waitForLoad) or tm.loadComplete then
         tm.loadProgress = 1.0
@@ -102,7 +102,7 @@ sub RokuEngine_UpdateTransition(dt as Float)
         tm.elapsed = 0.0
       end if
     else if tm.phase = "in" then
-      _TM_Finish()
+      m._TM_Finish()
     end if
   else
     if tm.phase = "out" then
@@ -111,7 +111,7 @@ sub RokuEngine_UpdateTransition(dt as Float)
         tm.t = 1.0
         tm.phase = "hold"
         tm.elapsed = 0.0
-        _TM_ExecutePendingAction()
+        m._TM_ExecutePendingAction()
       end if
     else if tm.phase = "hold" then
       tm.t = 1.0
@@ -123,7 +123,7 @@ sub RokuEngine_UpdateTransition(dt as Float)
     else if tm.phase = "in" then
       tm.t = 1.0 - _TM_Ease(_TM_Clamp01(tm.elapsed / half), tm.easing)
       if tm.elapsed >= half then
-        _TM_Finish()
+        m._TM_Finish()
       end if
     end if
   end if
@@ -132,11 +132,11 @@ end sub
 sub _TM_ExecutePendingAction()
   tm = m.transitionMgr
   if tm.pendingAction = "screen" then
-    RGE_UI_ChangeScreen(tm.pendingTarget)
+    m.RGE_UI_ChangeScreen(tm.pendingTarget)
   else if tm.pendingAction = "push_screen" then
-    RGE_UI_PushScreen(tm.pendingTarget)
+    m.RGE_UI_PushScreen(tm.pendingTarget)
   else if tm.pendingAction = "pop_screen" then
-    RGE_UI_PopScreen()
+    m.RGE_UI_PopScreen()
   else if tm.pendingAction = "scene" then
     m.QueueSceneChange(tm.pendingTarget)
   else if tm.pendingAction = "push_scene" then
@@ -177,7 +177,7 @@ sub RGE_UI_StartTransition(transType as String, options as Dynamic)
 
   if transType = invalid or transType = "" then transType = "fade"
   tm.active       = true
-  tm.transType    = LCase(Trim(Str(transType)))
+  tm.transType    = LCase(RokuEngine_Trim(RokuEngine_ToString(transType)))
   tm.phase        = "out"
   tm.elapsed      = 0.0
   tm.t            = 0.0
@@ -196,15 +196,15 @@ sub RGE_UI_StartTransition(transType as String, options as Dynamic)
   tm.fakeProgressRate    = 0.6
 
   if options <> invalid and type(options) = "roAssociativeArray" then
-    if options.duration    <> invalid then tm.duration    = Float(options.duration)
-    if options.easing      <> invalid then tm.easing      = LCase(Trim(Str(options.easing)))
+    if options.duration    <> invalid then tm.duration    = RokuEngine_ToFloat(options.duration)
+    if options.easing      <> invalid then tm.easing      = LCase(RokuEngine_Trim(RokuEngine_ToString(options.easing)))
     if options.color       <> invalid then tm.color       = Int(options.color)
     if options.blockInput  <> invalid then tm.blockInput  = (options.blockInput = true)
     if options.waitForLoad <> invalid then tm.waitForLoad = (options.waitForLoad = true)
-    if options.loadingLabel <> invalid then tm.loadingLabel = Trim(Str(options.loadingLabel))
+    if options.loadingLabel <> invalid then tm.loadingLabel = RokuEngine_Trim(RokuEngine_ToString(options.loadingLabel))
     if options.fakeProgress <> invalid then tm.fakeProgress = (options.fakeProgress = true)
     if options.showLoadingProgress <> invalid then tm.showLoadingProgress = (options.showLoadingProgress = true)
-    if options.fakeProgressRate <> invalid then tm.fakeProgressRate = Float(options.fakeProgressRate)
+    if options.fakeProgressRate <> invalid then tm.fakeProgressRate = RokuEngine_ToFloat(options.fakeProgressRate)
   end if
 
   ' Auto-enable fake progress when waitForLoad requested but no real hook exists
@@ -225,9 +225,9 @@ sub RGE_UI_TransitionToScreen(screenName as String, options as Dynamic)
   m.transitionMgr.pendingTarget = screenName
   transType = "fade"
   if options <> invalid and type(options) = "roAssociativeArray" and options.transType <> invalid then
-    transType = Trim(Str(options.transType))
+    transType = RokuEngine_Trim(RokuEngine_ToString(options.transType))
   end if
-  RGE_UI_StartTransition(transType, options)
+  m.RGE_UI_StartTransition(transType, options)
 end sub
 
 ' RGE_UI_TransitionToScene — transition then change scene
@@ -238,9 +238,9 @@ sub RGE_UI_TransitionToScene(sceneName as String, options as Dynamic)
   m.transitionMgr.pendingTarget = sceneName
   transType = "fade"
   if options <> invalid and type(options) = "roAssociativeArray" and options.transType <> invalid then
-    transType = Trim(Str(options.transType))
+    transType = RokuEngine_Trim(RokuEngine_ToString(options.transType))
   end if
-  RGE_UI_StartTransition(transType, options)
+  m.RGE_UI_StartTransition(transType, options)
 end sub
 
 ' RGE_UI_SetLoadProgress — drive the loading progress bar (0.0 – 1.0)
@@ -329,7 +329,7 @@ sub RokuEngine_RenderTransitionOverlay()
 
   ' Loading screen (shown during hold phase when waitForLoad=true)
   if tm.phase = "hold" and tm.waitForLoad then
-    _TM_DrawLoadingScreen(sw, sh, tm)
+    m._TM_DrawLoadingScreen(sw, sh, tm)
   end if
 end sub
 
@@ -390,7 +390,7 @@ sub _TM_DrawLoadingScreen(sw as Integer, sh as Integer, tm as Object)
 
     ' Percentage
     pct = Int(tm.loadProgress * 100)
-    pctStr = Trim(Str(pct)) + "%"
+    pctStr = RokuEngine_Trim(RokuEngine_ToString(pct)) + "%"
     pctW = fontSm.GetOneLineWidth(pctStr, 80)
     m.screen.DrawText(pctStr, cx - pctW / 2, barY + barH + 8, dimColor, fontSm)
   end if

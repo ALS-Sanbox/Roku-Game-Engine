@@ -9,6 +9,10 @@ const http = require('http');
 const { execFileSync } = require('child_process');
 const { writeClassicRuntimeFiles } = require('./export/classic2d_export');
 const { buildClassicExportMetadataFiles } = require('./export/runtime_manifest_builder');
+const { buildSimulatorProject } = require('./export/simulator_build');
+const { registerSimulatorPackage, stopSimulatorHost } = require('./export/simulator_host');
+const engineSmokeTest = process.argv.includes('--engine-smoke-test');
+if (engineSmokeTest) app.setPath('userData', path.join(__dirname, '.visual-editor/electron-test-profile'));
 
 let mainWindow = null;
 let settingsWindow = null;
@@ -767,6 +771,7 @@ function openEditorForProject(projectRoot) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    show: !engineSmokeTest,
     width: 1440,
     height: 900,
     minWidth: 1100,
@@ -795,6 +800,19 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+app.on('before-quit', stopSimulatorHost);
+
+ipcMain.handle('test-in-simulator', async (_event, payload = {}) => {
+  try {
+    const projectRoot = path.resolve(payload.projectRoot || getProjectRoot());
+    const scenes = payload.scenes?.length ? payload.scenes : sideloadGatherScenes(projectRoot);
+    const result = buildSimulatorProject({ ...payload, projectRoot, scenes, settings: readProjectSettings(projectRoot) }, { copyScripts: copyProjectBrightScriptFiles });
+    const url = await registerSimulatorPackage(result.zipPath, payload.projectTitle || 'RokuEngine Game');
+    const preview = new BrowserWindow({ show: !engineSmokeTest, width: 1360, height: 1000, title: 'Roku Game Simulator', backgroundColor: '#10151d', webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
+    await preview.loadURL(url);
+    return { ...result, url };
+  } catch (error) { return { success: false, reason: error.message }; }
 });
 
 app.on('activate', () => {
@@ -1847,7 +1865,7 @@ ipcMain.handle('export-roku-project', async (_event, payload = {}) => {
   let exportRoot = '';
   try {
     const projectRoot = path.resolve(String(payload.projectRoot || getProjectRoot() || __dirname));
-    const scenes = Array.isArray(payload.scenes) ? payload.scenes : [];
+    const scenes = Array.isArray(payload.scenes) && payload.scenes.length ? payload.scenes : sideloadGatherScenes(projectRoot);
     if (!scenes.length) return { success: false, reason: 'missing_scenes' };
 
     const bundleBaseName = getExportBundleBaseName(payload.projectTitle || path.basename(projectRoot), projectRoot);

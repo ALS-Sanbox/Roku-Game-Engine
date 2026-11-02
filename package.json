@@ -1,14 +1,25 @@
 {
-  "name": "roku-visual-editor",
+  "name": "roku-game-engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Local visual editing for existing BrightScript games",
+  "description": "Roku game creation with native BrightScript simulator testing",
+  "main": "main.js",
   "scripts": {
-    "start": "node visual-editor/server.js",
+    "start": "electron .",
+    "start:visual": "node visual-editor/server.js",
+    "check:runtime": "bsc --rootDir . --files source/**/*.brs --copyToStaging false --createPackage false",
     "simulator": "node visual-editor/simulator-server.js",
     "simulator:setup": "node visual-editor/setup-simulator.js",
-    "test:browser": "node visual-editor/check-browser.js",
-    "test": "node --test visual-editor/test/*.test.js"
+    "test:browser": "node tools/check-engine.cjs",
+    "test:visual-browser": "node visual-editor/check-browser.js",
+    "test": "node --test visual-editor/test/*.test.js export/test/*.test.cjs"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22.12"
+  },
+  "devDependencies": {
+    "brighterscript": "^0.73.8",
+    "electron": "^45.2.1",
+    "konva": "^9.3.22"
+  }
 }

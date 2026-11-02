@@ -125,12 +125,7 @@ sub RokuComponent_ObjectPool_PreUpdate(ctx as Object)
   poolsJson = "[]"
   if ctx.component.pools <> invalid and ctx.component.pools <> "" then poolsJson = ctx.component.pools
 
-  defs = invalid
-  jsonParser = CreateObject("roJSON")
-  if jsonParser <> invalid then
-    parsed = ParseJSON(poolsJson)
-    if type(parsed) = "roArray" then defs = parsed
-  end if
+  defs = ParseJSON(poolsJson)
 
   if defs = invalid then
     ' Fallback: try ParseJSON directly (older firmware)

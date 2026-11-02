@@ -13,7 +13,12 @@ async function start() {
       else if (event === 'started') state.textContent = 'Running ' + current?.name;
       else if (event === 'closed') state.textContent = 'Game stopped.';
     });
-    await brs.initialize({ developerId: 'roku-visual-editor', displayMode: '720p', maxFps: 60, extensions: new Map() }, { debugToConsole: true });
+    // Upstream initialize starts its default asset fetch asynchronously. Preload
+    // the common volume so an immediately launched game has fonts and audio.
+    const commonResponse = await fetch('/simulator/assets/common.zip');
+    if (!commonResponse.ok) throw new Error('Simulator common.zip is missing. Run npm.cmd run simulator:setup.');
+    const assets = await commonResponse.arrayBuffer();
+    await brs.initialize({ assets, developerId: 'roku-game-engine', displayMode: '720p', maxFps: 60, extensions: new Map() }, { debugToConsole: true });
     document.getElementById('restart').disabled = document.getElementById('stop').disabled = false;
     document.getElementById('package').disabled = false;
     state.textContent = 'Ready. Open a Roku ZIP or choose Build & test in the visual editor.';

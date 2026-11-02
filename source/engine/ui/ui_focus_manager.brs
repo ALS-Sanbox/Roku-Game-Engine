@@ -66,7 +66,7 @@ function RokuEngine_IsNodeFocusable(node as Object) as Boolean
   ' Control / generic: honour focusMode
   focusMode = "none"
   if props.focusMode <> invalid and props.focusMode <> "" then
-    focusMode = LCase(Trim(Str(props.focusMode)))
+    focusMode = LCase(RokuEngine_Trim(RokuEngine_ToString(props.focusMode)))
   end if
   return focusMode = "all"
 end function
@@ -180,14 +180,14 @@ sub RokuEngine_MoveFocusDirection(direction as String)
     if currentNode <> invalid and currentNode.properties <> invalid then
       props = currentNode.properties
       manualTarget = ""
-      if direction = "up"    and props.focusUp    <> invalid and props.focusUp    <> "" then manualTarget = Trim(Str(props.focusUp))
-      if direction = "down"  and props.focusDown  <> invalid and props.focusDown  <> "" then manualTarget = Trim(Str(props.focusDown))
-      if direction = "left"  and props.focusLeft  <> invalid and props.focusLeft  <> "" then manualTarget = Trim(Str(props.focusLeft))
-      if direction = "right" and props.focusRight <> invalid and props.focusRight <> "" then manualTarget = Trim(Str(props.focusRight))
+      if direction = "up"    and props.focusUp    <> invalid and props.focusUp    <> "" then manualTarget = RokuEngine_Trim(RokuEngine_ToString(props.focusUp))
+      if direction = "down"  and props.focusDown  <> invalid and props.focusDown  <> "" then manualTarget = RokuEngine_Trim(RokuEngine_ToString(props.focusDown))
+      if direction = "left"  and props.focusLeft  <> invalid and props.focusLeft  <> "" then manualTarget = RokuEngine_Trim(RokuEngine_ToString(props.focusLeft))
+      if direction = "right" and props.focusRight <> invalid and props.focusRight <> "" then manualTarget = RokuEngine_Trim(RokuEngine_ToString(props.focusRight))
 
       if manualTarget <> "" then
         ' Resolve by id or by name
-        resolved = _FM_ResolveNodeIdByIdOrName(manualTarget)
+        resolved = m._FM_ResolveNodeIdByIdOrName(manualTarget)
         if resolved <> "" then
           m.focus.focusedNodeId = resolved
           return
@@ -197,12 +197,12 @@ sub RokuEngine_MoveFocusDirection(direction as String)
   end if
 
   ' Spatial search
-  bestId = _FM_FindSpatialNearest(currentId, direction, ids)
+  bestId = m._FM_FindSpatialNearest(currentId, direction, ids)
   if bestId <> "" then m.focus.focusedNodeId = bestId
 end sub
 
-' Legacy: move focus by linear step (up/left = -1, down/right = +1)
-sub RokuEngine_MoveFocus(step as Integer)
+' Legacy: move focus by linear directionStep (up/left = -1, down/right = +1)
+sub RokuEngine_MoveFocus(directionStep as Integer)
   m.InitializeFocusManager()
   if m.focus.dirty = true then m.RebuildFocusables()
   ids = m.focus.focusableIds
@@ -220,7 +220,7 @@ sub RokuEngine_MoveFocus(step as Integer)
   if currentIndex < 0 then
     currentIndex = 0
   else
-    currentIndex = currentIndex + step
+    currentIndex = currentIndex + directionStep
     if currentIndex < 0 then currentIndex = ids.Count() - 1
     if currentIndex >= ids.Count() then currentIndex = 0
   end if
@@ -236,7 +236,7 @@ function _FM_FindSpatialNearest(fromId as String, direction as String, ids as Ob
   fromR  = invalid
   if fromId <> "" and m.scene <> invalid and m.scene.nodeMap <> invalid and m.scene.nodeMap.DoesExist(fromId) then
     fromNode = m.scene.nodeMap[fromId]
-    fromR = _FM_GetNodeRect(fromNode, fromId)
+    fromR = m._FM_GetNodeRect(fromNode, fromId)
     fromCx = fromR.cx
     fromCy = fromR.cy
   end if
@@ -250,7 +250,7 @@ function _FM_FindSpatialNearest(fromId as String, direction as String, ids as Ob
     if not m.scene.nodeMap.DoesExist(candidateId) then continue for
     node = m.scene.nodeMap[candidateId]
     if node = invalid then continue for
-    cr = _FM_GetNodeRect(node, candidateId)
+    cr = m._FM_GetNodeRect(node, candidateId)
 
     ' Direction gate: candidate must be roughly in the requested direction
     dx = cr.cx - fromCx
@@ -283,8 +283,8 @@ function _FM_GetNodeRect(node as Object, nodeId as String) as Object
   props = node.properties
   w = 80.0 : h = 40.0
   if props <> invalid then
-    if props.width  <> invalid then w = Float(props.width)
-    if props.height <> invalid then h = Float(props.height)
+    if props.width  <> invalid then w = RokuEngine_ToFloat(props.width)
+    if props.height <> invalid then h = RokuEngine_ToFloat(props.height)
   end if
   return { x: tf.x, y: tf.y, w: w, h: h, cx: tf.x + w * 0.5, cy: tf.y + h * 0.5 }
 end function
@@ -296,7 +296,7 @@ function _FM_ResolveNodeIdByIdOrName(target as String) as String
   ' Try name match
   if type(m.scene.doc.nodes) = "roArray" then
     for each node in m.scene.doc.nodes
-      if node <> invalid and Trim(Str(node.name)) = target then return node.id
+      if node <> invalid and RokuEngine_Trim(RokuEngine_ToString(node.name)) = target then return node.id
     end for
   end if
   return ""
@@ -309,7 +309,7 @@ sub RokuEngine_HandleFocusInput(event as Object)
   if event.isPress <> true then return
 
   actionName = ""
-  if event.action <> invalid then actionName = LCase(Trim(Str(event.action)))
+  if event.action <> invalid then actionName = LCase(RokuEngine_Trim(RokuEngine_ToString(event.action)))
   if actionName = "" then return
 
   m.InitializeFocusManager()
@@ -329,7 +329,7 @@ sub RokuEngine_HandleFocusInput(event as Object)
         runtime.uiPressed      = true
         runtime.uiPressedFrame = m.frameNumber
         ' Queue the action for the frame-end dispatcher
-        _FM_QueueAction(focused)
+        m._FM_QueueAction(focused)
         event.consumed = true
       end if
     end if
@@ -342,13 +342,13 @@ sub RokuEngine_HandleFocusInput(event as Object)
     if focused <> invalid and focused.properties <> invalid then
       backAction = focused.properties.actionBack
       if backAction <> invalid and backAction <> "" then
-        _FM_DispatchNamedAction(backAction)
+        m._FM_DispatchNamedAction(backAction)
         event.consumed = true
         return
       end if
     end if
     ' Default back: let it fall through to normal back handling (scene pop)
-    _FM_DispatchNamedAction("back")
+    m._FM_DispatchNamedAction("back")
   end if
 end sub
 
@@ -360,7 +360,7 @@ sub _FM_QueueAction(node as Object)
   props = node.properties
   if props = invalid then return
   actionStr = ""
-  if props.action <> invalid then actionStr = Trim(Str(props.action))
+  if props.action <> invalid then actionStr = RokuEngine_Trim(RokuEngine_ToString(props.action))
   if actionStr = "" then return
   m.focus.actionQueue.Push({ nodeId: node.id, action: actionStr, nodeName: node.name })
 end sub
@@ -369,14 +369,14 @@ end sub
 sub _FM_FlushActionQueue()
   if m.focus = invalid or m.focus.actionQueue = invalid then return
   for each entry in m.focus.actionQueue
-    if entry <> invalid then _FM_DispatchNamedAction(entry.action)
+    if entry <> invalid then m._FM_DispatchNamedAction(entry.action)
   end for
   m.focus.actionQueue = []
 end sub
 
 sub _FM_DispatchNamedAction(actionStr as String)
   if actionStr = invalid or actionStr = "" then return
-  action = LCase(Trim(actionStr))
+  action = LCase(RokuEngine_Trim(actionStr))
 
   ' Built-in actions
   if action = "back" then
@@ -406,56 +406,56 @@ sub _FM_DispatchNamedAction(actionStr as String)
 
   ' Scene change: "scene:SceneName"
   if Left(action, 6) = "scene:" then
-    sceneName = Trim(Mid(action, 7))
+    sceneName = RokuEngine_Trim(Mid(action, 7))
     if sceneName <> "" then m.QueueSceneChange(sceneName)
     return
   end if
 
   ' Push scene: "push:SceneName"
   if Left(action, 5) = "push:" then
-    sceneName = Trim(Mid(action, 6))
+    sceneName = RokuEngine_Trim(Mid(action, 6))
     if sceneName <> "" then m.PushScene(sceneName)
     return
   end if
 
   ' UI Screen change: "screen:ScreenName"
   if Left(action, 7) = "screen:" then
-    screenName = Trim(Mid(action, 8))
-    if screenName <> "" then RGE_UI_ChangeScreen(screenName)
+    screenName = RokuEngine_Trim(Mid(action, 8))
+    if screenName <> "" then m.RGE_UI_ChangeScreen(screenName)
     return
   end if
 
   ' UI Screen push: "pushscreen:ScreenName"
   if Left(action, 11) = "pushscreen:" then
-    screenName = Trim(Mid(action, 12))
-    if screenName <> "" then RGE_UI_PushScreen(screenName)
+    screenName = RokuEngine_Trim(Mid(action, 12))
+    if screenName <> "" then m.RGE_UI_PushScreen(screenName)
     return
   end if
 
   ' UI Screen pop: "popscreen"
   if action = "popscreen" then
-    RGE_UI_PopScreen()
+    m.RGE_UI_PopScreen()
     return
   end if
 
   ' UI Transition to screen: "transition_screen:ScreenName" (uses default fade)
   if Left(action, 18) = "transition_screen:" then
-    screenName = Trim(Mid(action, 19))
-    if screenName <> "" then RGE_UI_TransitionToScreen(screenName, invalid)
+    screenName = RokuEngine_Trim(Mid(action, 19))
+    if screenName <> "" then m.RGE_UI_TransitionToScreen(screenName, invalid)
     return
   end if
 
   ' UI Transition to scene: "transition_scene:SceneName"
   if Left(action, 17) = "transition_scene:" then
-    sceneName = Trim(Mid(action, 18))
-    if sceneName <> "" then RGE_UI_TransitionToScene(sceneName, invalid)
+    sceneName = RokuEngine_Trim(Mid(action, 18))
+    if sceneName <> "" then m.RGE_UI_TransitionToScene(sceneName, invalid)
     return
   end if
 
   ' Script event: fire a custom SceneExit-style event that scripts can handle
   ' "custom:EventName" — emits the event to all ScriptComponent listeners
   if Left(action, 7) = "custom:" then
-    eventName = Trim(Mid(action, 8))
+    eventName = RokuEngine_Trim(Mid(action, 8))
     if eventName <> "" then
       m.RunScriptHooks(0.0, { name: eventName, phase: "ui_action", action: actionStr })
     end if
@@ -464,26 +464,26 @@ sub _FM_DispatchNamedAction(actionStr as String)
 
   ' Cycle option value: "option_cycle:optionKey"
   if Left(action, 13) = "option_cycle:" then
-    optKey = Trim(Mid(action, 14))
-    if optKey <> "" then RGE_Options_Cycle(optKey)
+    optKey = RokuEngine_Trim(Mid(action, 14))
+    if optKey <> "" then m.RGE_Options_Cycle(optKey)
     return
   end if
 
   ' Set option: "option_set:optionKey=value"
   if Left(action, 11) = "option_set:" then
-    rest = Trim(Mid(action, 12))
+    rest = RokuEngine_Trim(Mid(action, 12))
     eqIdx = InStr(rest, "=")
     if eqIdx > 0 then
       optKey = Left(rest, eqIdx - 1)
       optVal = Mid(rest, eqIdx + 1)
-      RGE_Options_Set(optKey, optVal)
+      m.RGE_Options_Set(optKey, optVal)
     end if
     return
   end if
 
   ' Reset all options: "options_reset"
   if action = "options_reset" then
-    RGE_Options_ResetAll()
+    m.RGE_Options_ResetAll()
     return
   end if
 
@@ -515,5 +515,5 @@ sub RokuEngine_UpdateFocusState()
   m.UpdateUiBindings()
 
   ' Dispatch queued actions at the end of the state update
-  _FM_FlushActionQueue()
+  m._FM_FlushActionQueue()
 end sub

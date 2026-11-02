@@ -32,7 +32,7 @@ end sub
 
 function _STG_GetSection(namespace as String) as Dynamic
   if not m.storage.available then return invalid
-  ns = Left(Trim(namespace), 40)
+  ns = Left(RokuEngine_Trim(namespace), 40)
   if ns = "" then return invalid
   section = CreateObject("roRegistrySection", ns)
   return section
@@ -44,12 +44,12 @@ sub RGE_Storage_Save(namespace as String, key as String, value as Dynamic)
   m.InitializeStorage()
 
   ' Cache write-through
-  ns = Left(Trim(namespace), 40)
+  ns = Left(RokuEngine_Trim(namespace), 40)
   if m.storage.cache.DoesExist(ns) <> true then m.storage.cache[ns] = {}
   m.storage.cache[ns][key] = _BRS_StrCoalesce(value, "")
 
   if not m.storage.available then return
-  section = _STG_GetSection(namespace)
+  section = m._STG_GetSection(namespace)
   if section = invalid then return
   section.Write(key, _BRS_StrCoalesce(value, ""))
   section.Flush()
@@ -60,7 +60,7 @@ end sub
 function RGE_Storage_Load(namespace as String, key as String, defaultValue as Dynamic) as String
   if defaultValue = invalid then defaultValue = ""
   m.InitializeStorage()
-  ns = Left(Trim(namespace), 40)
+  ns = Left(RokuEngine_Trim(namespace), 40)
 
   ' Check cache first
   if m.storage.cache.DoesExist(ns) and m.storage.cache[ns].DoesExist(key) then
@@ -68,7 +68,7 @@ function RGE_Storage_Load(namespace as String, key as String, defaultValue as Dy
   end if
 
   if not m.storage.available then return _BRS_StrCoalesce(defaultValue, "")
-  section = _STG_GetSection(namespace)
+  section = m._STG_GetSection(namespace)
   if section = invalid then return _BRS_StrCoalesce(defaultValue, "")
 
   if section.Exists(key) then
@@ -85,21 +85,21 @@ end function
 
 function RGE_Storage_LoadFloat(namespace as String, key as String, defaultValue as Dynamic) as Float
   if defaultValue = invalid then defaultValue = 0.0
-  raw = RGE_Storage_Load(namespace, key, Trim(Str(defaultValue)))
+  raw = m.RGE_Storage_Load(namespace, key, RokuEngine_Trim(RokuEngine_ToString(defaultValue)))
   v = Val(raw)
   if v = invalid then return defaultValue
-  return Float(v)
+  return RokuEngine_ToFloat(v)
 end function
 
 function RGE_Storage_LoadInt(namespace as String, key as String, defaultValue as Dynamic) as Integer
   if defaultValue = invalid then defaultValue = 0
-  raw = RGE_Storage_Load(namespace, key, Trim(Str(defaultValue)))
+  raw = m.RGE_Storage_Load(namespace, key, RokuEngine_Trim(RokuEngine_ToString(defaultValue)))
   return Int(Val(raw))
 end function
 
 function RGE_Storage_LoadBool(namespace as String, key as String, defaultValue as Dynamic) as Boolean
   if defaultValue = invalid then defaultValue = false
-  raw = LCase(Trim(RGE_Storage_Load(namespace, key, _STG_BoolToStr(defaultValue))))
+  raw = LCase(RokuEngine_Trim(m.RGE_Storage_Load(namespace, key, _STG_BoolToStr(defaultValue))))
   return raw = "true" or raw = "1" or raw = "yes"
 end function
 
@@ -107,7 +107,7 @@ end function
 
 sub RGE_Storage_Delete(namespace as String, key as String)
   m.InitializeStorage()
-  ns = Left(Trim(namespace), 40)
+  ns = Left(RokuEngine_Trim(namespace), 40)
 
   ' Remove from cache
   if m.storage.cache.DoesExist(ns) and m.storage.cache[ns].DoesExist(key) then
@@ -115,7 +115,7 @@ sub RGE_Storage_Delete(namespace as String, key as String)
   end if
 
   if not m.storage.available then return
-  section = _STG_GetSection(namespace)
+  section = m._STG_GetSection(namespace)
   if section = invalid then return
   if section.Exists(key) then
     section.Delete(key)
@@ -127,13 +127,13 @@ end sub
 
 sub RGE_Storage_ClearNamespace(namespace as String)
   m.InitializeStorage()
-  ns = Left(Trim(namespace), 40)
+  ns = Left(RokuEngine_Trim(namespace), 40)
 
   ' Clear cache
   m.storage.cache[ns] = {}
 
   if not m.storage.available then return
-  section = _STG_GetSection(namespace)
+  section = m._STG_GetSection(namespace)
   if section = invalid then return
   keys = section.GetKeyList()
   if type(keys) <> "roArray" then return
@@ -148,7 +148,7 @@ end sub
 function RGE_Storage_ListKeys(namespace as String) as Object
   m.InitializeStorage()
   if not m.storage.available then return []
-  section = _STG_GetSection(namespace)
+  section = m._STG_GetSection(namespace)
   if section = invalid then return []
   keys = section.GetKeyList()
   if type(keys) <> "roArray" then return []
@@ -159,10 +159,10 @@ end function
 
 function RGE_Storage_Exists(namespace as String, key as String) as Boolean
   m.InitializeStorage()
-  ns = Left(Trim(namespace), 40)
+  ns = Left(RokuEngine_Trim(namespace), 40)
   if m.storage.cache.DoesExist(ns) and m.storage.cache[ns].DoesExist(key) then return true
   if not m.storage.available then return false
-  section = _STG_GetSection(namespace)
+  section = m._STG_GetSection(namespace)
   if section = invalid then return false
   return section.Exists(key) = true
 end function

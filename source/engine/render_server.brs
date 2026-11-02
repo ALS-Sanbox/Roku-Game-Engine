@@ -11,7 +11,7 @@ sub RokuEngine_Render()
   m.RenderPassWorldDebug()
 
   ' Skip the software UI pass on frames where nothing UI-related changed.
-  ' RokuEngine_MarkUIDirty() must be called by any code that mutates UI node
+  ' m.RokuEngine_MarkUIDirty() must be called by any code that mutates UI node
   ' properties, focus state, transitions, or option/high-score bindings.
   ' The flag is cleared here after each render so successive static frames skip.
   if m.uiDirty = invalid then m.uiDirty = true ' default true until explicitly managed

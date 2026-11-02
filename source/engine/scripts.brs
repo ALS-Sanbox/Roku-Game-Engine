@@ -2,7 +2,7 @@
 
 function RokuEngine_NormalizeScriptPath(scriptPath as Dynamic) as String
   if scriptPath = invalid then return ""
-  value = Trim(Str(scriptPath))
+  value = RokuEngine_Trim(RokuEngine_ToString(scriptPath))
   if value = "" then return ""
   if Left(value, 6) = "pkg:/" then return "res://" + Mid(value, 6)
   if Left(value, 1) = "/" then return "res://" + Mid(value, 2)
@@ -32,7 +32,7 @@ sub RokuEngine_InvokeScriptComponent(node as Object, component as Object, eventN
   if eventName <> invalid then entryPoint = eventName
   if entryPoint = "" and component.entryPoint <> invalid and component.entryPoint <> "" then entryPoint = component.entryPoint
   if entryPoint = "" then entryPoint = "Update"
-  lowerEntry = LCase(Trim(Str(entryPoint)))
+  lowerEntry = LCase(RokuEngine_Trim(RokuEngine_ToString(entryPoint)))
   if lowerEntry = "_ready" then entryPoint = "Ready"
   if lowerEntry = "_init" then entryPoint = "Init"
   if lowerEntry = "_pre_update" or lowerEntry = "preupdate" then entryPoint = "PreUpdate"
@@ -44,7 +44,7 @@ sub RokuEngine_InvokeScriptComponent(node as Object, component as Object, eventN
   if lowerEntry = "_collision" then entryPoint = "Collision"
   if lowerEntry = "sceneenter" then entryPoint = "SceneEnter"
   if lowerEntry = "sceneexit" then entryPoint = "SceneExit"
-  context = RokuEngine_BuildScriptContext(node, component, entryPoint, dt, extra)
+  context = m.RokuEngine_BuildScriptContext(node, component, entryPoint, dt, extra)
   RokuEngine_UserScriptDispatch(scriptPath, entryPoint, context)
 end sub
 

@@ -44,7 +44,7 @@ function RokuEngine_CreateResourceManager(engine as Object) as Object
   return manager
 end function
 
-sub RokuEngine_Resources_LoadManifest(path as Dynamic)
+sub RokuEngine_Resources_LoadManifest(path = invalid as Dynamic)
   manifestPath = m.manifestPath
   if path <> invalid and path <> "" then manifestPath = path
   m.manifestPath = manifestPath
@@ -109,7 +109,7 @@ end function
 
 function RokuEngine_Resources_ResolvePkgPath(resourcePath as Dynamic) as Dynamic
   if resourcePath = invalid then return invalid
-  pathValue = Trim(Str(resourcePath))
+  pathValue = RokuEngine_Trim(RokuEngine_ToString(resourcePath))
   if pathValue = "" then return invalid
   if Left(pathValue, 6) = "res://" then return "pkg:/" + Mid(pathValue, 7)
   return pathValue
@@ -117,7 +117,7 @@ end function
 
 function RokuEngine_Resources_ResolveBitmapPath(resourceIdOrPath as Dynamic) as Dynamic
   if resourceIdOrPath = invalid then return invalid
-  value = Trim(Str(resourceIdOrPath))
+  value = RokuEngine_Trim(RokuEngine_ToString(resourceIdOrPath))
   if value = "" then return invalid
   texture = m.GetTexture(value)
   if texture <> invalid and texture.path <> invalid and texture.path <> "" then return m.ResolvePkgPath(texture.path)
@@ -126,7 +126,7 @@ end function
 
 function RokuEngine_Resources_GetBitmap(resourceIdOrPath as Dynamic) as Dynamic
   if resourceIdOrPath = invalid or resourceIdOrPath = "" then return invalid
-  cacheKey = Trim(Str(resourceIdOrPath))
+  cacheKey = RokuEngine_Trim(RokuEngine_ToString(resourceIdOrPath))
   if m.bitmapCache.DoesExist(cacheKey) then return m.bitmapCache[cacheKey]
 
   resolvedPath = m.ResolveBitmapPath(resourceIdOrPath)
@@ -163,18 +163,18 @@ end function
 
 function RokuEngine_Resources_GetTilesetTileRegion(tilesetId as String, tileIndex as Integer) as Dynamic
   if tilesetId = invalid or tilesetId = "" or tileIndex < 0 then return invalid
-  cacheKey = "tileset|" + Trim(Str(tilesetId)) + "|" + StrI(tileIndex)
+  cacheKey = "tileset|" + RokuEngine_Trim(RokuEngine_ToString(tilesetId)) + "|" + StrI(tileIndex)
   if m.regionCache.DoesExist(cacheKey) then return m.regionCache[cacheKey]
 
   tileset = m.GetTileset(tilesetId)
   if tileset = invalid then return invalid
   spriteSheetId = ""
-  if tileset.spriteSheetId <> invalid then spriteSheetId = Trim(Str(tileset.spriteSheetId))
+  if tileset.spriteSheetId <> invalid then spriteSheetId = RokuEngine_Trim(RokuEngine_ToString(tileset.spriteSheetId))
   if spriteSheetId = "" then return invalid
   sheet = m.GetSpriteSheet(spriteSheetId)
   if sheet = invalid then return invalid
   basePath = ""
-  if sheet.resourcePath <> invalid and sheet.resourcePath <> "" then basePath = Trim(Str(sheet.resourcePath)) else if sheet.filePath <> invalid then basePath = Trim(Str(sheet.filePath))
+  if sheet.resourcePath <> invalid and sheet.resourcePath <> "" then basePath = RokuEngine_Trim(RokuEngine_ToString(sheet.resourcePath)) else if sheet.filePath <> invalid then basePath = RokuEngine_Trim(RokuEngine_ToString(sheet.filePath))
   if basePath = "" then return invalid
   bitmap = m.GetBitmap(basePath)
   if bitmap = invalid then return invalid
@@ -254,7 +254,7 @@ end function
 
 function RokuEngine_Resources_GetSpriteSheetTile(basePath as String, tileIndex as Integer) as Dynamic
   if basePath = invalid or basePath = "" or tileIndex < 0 then return invalid
-  cacheKey = Trim(Str(basePath)) + "#tile:" + StrI(tileIndex)
+  cacheKey = RokuEngine_Trim(RokuEngine_ToString(basePath)) + "#tile:" + StrI(tileIndex)
   if m.regionCache.DoesExist(cacheKey) then return m.regionCache[cacheKey]
 
   sheet = m.FindSpriteSheetByResourcePath(basePath)
@@ -375,7 +375,7 @@ function RokuEngine_Resources_GetTilesetTileDrawable(tilesetId as String, tileIn
   if baseRegion = invalid then return invalid
   transform = m.NormalizeCellTransform(cellTransform)
   if transform.flipX = false and transform.flipY = false and transform.rotation = 0 then return baseRegion
-  cacheKey = "tilexform|" + Trim(Str(tilesetId)) + "|" + StrI(tileIndex) + "|" + LCase(Str(transform.flipX)) + "|" + LCase(Str(transform.flipY)) + "|" + StrI(transform.rotation)
+  cacheKey = "tilexform|" + RokuEngine_Trim(RokuEngine_ToString(tilesetId)) + "|" + StrI(tileIndex) + "|" + LCase(RokuEngine_ToString(transform.flipX)) + "|" + LCase(RokuEngine_ToString(transform.flipY)) + "|" + StrI(transform.rotation)
   if m.transformedTileCache <> invalid and m.transformedTileCache.DoesExist(cacheKey) then return m.transformedTileCache[cacheKey]
   transformed = m.BuildTransformedTileBitmap(baseRegion, transform)
   if transformed <> invalid then

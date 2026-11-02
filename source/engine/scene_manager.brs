@@ -111,14 +111,14 @@ function RokuEngine_BuildNamedNodeMap(nodes as Object) as Object
   map = {}
   if type(nodes) <> "roArray" then return map
   for each node in nodes
-    if node <> invalid and node.name <> invalid and Trim(Str(node.name)) <> "" then map[LCase(Trim(Str(node.name)))] = node.id
+    if node <> invalid and node.name <> invalid and RokuEngine_Trim(RokuEngine_ToString(node.name)) <> "" then map[LCase(RokuEngine_Trim(RokuEngine_ToString(node.name)))] = node.id
   end for
   return map
 end function
 
 function RokuEngine_FindNodeByName(nodeName as String) as Dynamic
   if m.scene = invalid then return invalid
-  key = LCase(Trim(Str(nodeName)))
+  key = LCase(RokuEngine_Trim(RokuEngine_ToString(nodeName)))
   if key = "" then return invalid
   nodeId = invalid
   if m.scene.namedNodeMap <> invalid and m.scene.namedNodeMap.DoesExist(key) then nodeId = m.scene.namedNodeMap[key]
@@ -179,7 +179,7 @@ sub RokuEngine_ApplyCameraFollow(dt as Float)
   props = cameraNode.properties
   if props.enabled = false then return
   targetName = ""
-  if props.followTargetName <> invalid then targetName = Trim(Str(props.followTargetName))
+  if props.followTargetName <> invalid then targetName = RokuEngine_Trim(RokuEngine_ToString(props.followTargetName))
   if targetName = "" then return
   targetNode = m.FindNodeByName(targetName)
   if targetNode = invalid then return
@@ -226,8 +226,12 @@ sub RokuEngine_ApplyCameraFollow(dt as Float)
   end if
 end sub
 
-sub RokuEngine_QueueSceneChange(mode as String, sceneName as Dynamic)
+sub RokuEngine_QueueSceneChange(mode as String, sceneName = invalid as Dynamic)
   if m.scene = invalid then return
+  if sceneName = invalid and mode <> "reload" and mode <> "pop" then
+    sceneName = mode
+    mode = "change"
+  end if
   request = { mode: mode }
   if sceneName <> invalid then request.sceneName = sceneName
   m.scene.pendingSceneChange = request

@@ -47,7 +47,7 @@ sub RokuEngine_DrawNineSliceStyled(screen as Object, engine as Object, node as O
   end if
 
   imagePath = ""
-  if style.imagePath <> invalid then imagePath = Trim(Str(style.imagePath))
+  if style.imagePath <> invalid then imagePath = RokuEngine_Trim(RokuEngine_ToString(style.imagePath))
   if imagePath = "" then
     _NS_FallbackRect(screen, x, y, w, h, opacity)
     return
@@ -65,10 +65,10 @@ sub RokuEngine_DrawNineSliceStyled(screen as Object, engine as Object, node as O
   sb = _BRS_IntOr(style.sliceBottom, 16)
 
   centerMode = "stretch"
-  if style.centerMode <> invalid then centerMode = LCase(Trim(Str(style.centerMode)))
+  if style.centerMode <> invalid then centerMode = LCase(RokuEngine_Trim(RokuEngine_ToString(style.centerMode)))
 
   edgeMode = "stretch"
-  if style.edgeMode <> invalid then edgeMode = LCase(Trim(Str(style.edgeMode)))
+  if style.edgeMode <> invalid then edgeMode = LCase(RokuEngine_Trim(RokuEngine_ToString(style.edgeMode)))
 
   RokuEngine_DrawNineSliceRegions(screen, engine, region, sl, st, sr, sb, x, y, w, h, centerMode, edgeMode, opacity)
 end sub

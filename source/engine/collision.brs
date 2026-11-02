@@ -248,7 +248,7 @@ sub RokuCollision_ApplyRigidBodyMotion(node as Object, component as Object, dt a
   if transform.x = invalid then transform.x = 0.0
   if transform.y = invalid then transform.y = 0.0
   bodyType = "dynamic"
-  if component.bodyType <> invalid and component.bodyType <> "" then bodyType = LCase(Str(component.bodyType))
+  if component.bodyType <> invalid and component.bodyType <> "" then bodyType = LCase(RokuEngine_ToString(component.bodyType))
   if bodyType = "static" then runtime.rbVx = 0.0 : runtime.rbVy = 0.0 : return
   vx = runtime.rbVx : vy = runtime.rbVy
   if vx = invalid then vx = component.vx
@@ -280,7 +280,7 @@ sub RokuCollision_ResolveRigidBodyCollisions(node as Object, component as Object
   engine = m.engine
   if engine = invalid then return
   bodyType = "dynamic"
-  if component.bodyType <> invalid and component.bodyType <> "" then bodyType = LCase(Str(component.bodyType))
+  if component.bodyType <> invalid and component.bodyType <> "" then bodyType = LCase(RokuEngine_ToString(component.bodyType))
   if bodyType = "static" then return
   collider = m.GetNodeCollider(node)
   if collider = invalid then return

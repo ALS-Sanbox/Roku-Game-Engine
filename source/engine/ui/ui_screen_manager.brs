@@ -62,7 +62,7 @@ sub RokuEngine_LoadScreensFromManifest()
     ' Collect explicitly listed rootNodeIds from manifest
     if type(entry.rootNodeIds) = "roArray" then
       for each nid in entry.rootNodeIds
-        screenDef.rootNodeIds.Push(Trim(Str(nid)))
+        screenDef.rootNodeIds.Push(RokuEngine_Trim(RokuEngine_ToString(nid)))
       end for
     end if
     m.screenMgr.allScreens[screenName] = screenDef
@@ -72,7 +72,7 @@ sub RokuEngine_LoadScreensFromManifest()
   end for
 
   ' Also discover from scene nodes: any CanvasLayer with uiScreenName property
-  _SM_DiscoverScreensFromNodes()
+  m._SM_DiscoverScreensFromNodes()
   m.screenMgr.initialized = true
 end sub
 
@@ -84,7 +84,7 @@ sub _SM_DiscoverScreensFromNodes()
     props = node.properties
     if props = invalid then continue for
     screenName = ""
-    if props.uiScreenName <> invalid then screenName = Trim(Str(props.uiScreenName))
+    if props.uiScreenName <> invalid then screenName = RokuEngine_Trim(RokuEngine_ToString(props.uiScreenName))
     if screenName = "" then continue for
     ' Create screen def if it doesn't exist yet
     if not m.screenMgr.allScreens.DoesExist(screenName) then
@@ -112,14 +112,14 @@ sub RokuEngine_ShowStartupScreen()
   m.LoadScreensFromManifest()
 
   ' Hide all screens initially
-  _SM_HideAllScreenRoots()
+  m._SM_HideAllScreenRoots()
 
   startupName = m.screenMgr.startupScreen
   if startupName <> "" then
     m.ChangeScreen(startupName)
   else
     ' No startup screen defined — show all CanvasLayers (legacy behaviour)
-    _SM_ShowAllScreenRoots()
+    m._SM_ShowAllScreenRoots()
   end if
 end sub
 
@@ -129,12 +129,12 @@ end sub
 sub RGE_UI_ChangeScreen(screenName as String)
   m.InitializeScreenManager()
   if screenName = invalid or screenName = "" then return
-  prev = _SM_TopStackName()
+  prev = m._SM_TopStackName()
 
   ' Exit current
   if prev <> "" and prev <> screenName then
-    _SM_FireEvent("UIScreen_Exit", prev, screenName)
-    _SM_SetScreenVisible(prev, false)
+    m._SM_FireEvent("UIScreen_Exit", prev, screenName)
+    m._SM_SetScreenVisible(prev, false)
   end if
 
   ' Clear stack
@@ -142,9 +142,9 @@ sub RGE_UI_ChangeScreen(screenName as String)
   m.screenMgr.visibleScreens = {}
 
   ' Push new
-  _SM_PushStack(screenName)
-  _SM_SetScreenVisible(screenName, true)
-  _SM_FireEvent("UIScreen_Enter", screenName, prev)
+  m._SM_PushStack(screenName)
+  m._SM_SetScreenVisible(screenName, true)
+  m._SM_FireEvent("UIScreen_Enter", screenName, prev)
   m.SetFocusToScreen(screenName)
 end sub
 
@@ -152,14 +152,14 @@ end sub
 sub RGE_UI_PushScreen(screenName as String)
   m.InitializeScreenManager()
   if screenName = invalid or screenName = "" then return
-  prev = _SM_TopStackName()
+  prev = m._SM_TopStackName()
 
   ' Pause current
-  if prev <> "" then _SM_FireEvent("UIScreen_Pause", prev, screenName)
+  if prev <> "" then m._SM_FireEvent("UIScreen_Pause", prev, screenName)
 
-  _SM_PushStack(screenName)
-  _SM_SetScreenVisible(screenName, true)
-  _SM_FireEvent("UIScreen_Enter", screenName, prev)
+  m._SM_PushStack(screenName)
+  m._SM_SetScreenVisible(screenName, true)
+  m._SM_FireEvent("UIScreen_Enter", screenName, prev)
   m.SetFocusToScreen(screenName)
 end sub
 
@@ -171,13 +171,13 @@ function RGE_UI_PopScreen() as Boolean
 
   topEntry = stack.Pop()
   topName  = topEntry.name
-  _SM_FireEvent("UIScreen_Exit", topName, _SM_TopStackName())
-  _SM_SetScreenVisible(topName, false)
+  m._SM_FireEvent("UIScreen_Exit", topName, m._SM_TopStackName())
+  m._SM_SetScreenVisible(topName, false)
 
-  prevName = _SM_TopStackName()
+  prevName = m._SM_TopStackName()
   if prevName <> "" then
-    _SM_SetScreenVisible(prevName, true)
-    _SM_FireEvent("UIScreen_Resume", prevName, topName)
+    m._SM_SetScreenVisible(prevName, true)
+    m._SM_FireEvent("UIScreen_Resume", prevName, topName)
     m.SetFocusToScreen(prevName)
   end if
   return true
@@ -187,22 +187,22 @@ end function
 sub RGE_UI_ShowScreen(screenName as String)
   m.InitializeScreenManager()
   if screenName = invalid or screenName = "" then return
-  _SM_SetScreenVisible(screenName, true)
-  _SM_FireEvent("UIScreen_Enter", screenName, "")
+  m._SM_SetScreenVisible(screenName, true)
+  m._SM_FireEvent("UIScreen_Enter", screenName, "")
 end sub
 
 ' HideScreen — make a screen invisible without modifying the stack
 sub RGE_UI_HideScreen(screenName as String)
   m.InitializeScreenManager()
   if screenName = invalid or screenName = "" then return
-  _SM_SetScreenVisible(screenName, false)
-  _SM_FireEvent("UIScreen_Exit", screenName, "")
+  m._SM_SetScreenVisible(screenName, false)
+  m._SM_FireEvent("UIScreen_Exit", screenName, "")
 end sub
 
 ' GetCurrentScreen — returns name of the top-of-stack screen
 function RGE_UI_GetCurrentScreen() as String
   m.InitializeScreenManager()
-  return _SM_TopStackName()
+  return m._SM_TopStackName()
 end function
 
 ' IsScreenVisible — returns true if the named screen is currently shown
@@ -214,7 +214,7 @@ end function
 
 ' ChangeScreen as alias for action dispatcher compatibility
 sub RokuEngine_ChangeScreen(screenName as String)
-  RGE_UI_ChangeScreen(screenName)
+  m.RGE_UI_ChangeScreen(screenName)
 end sub
 
 ' ── Focus routing ─────────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ end sub
 
 sub RokuEngine_SetFocusToScreen(screenName as String)
   if m.focus = invalid then return
-  def = _SM_GetDef(screenName)
+  def = m._SM_GetDef(screenName)
   if def = invalid then return
 
   ' Collect all focusable node ids belonging to this screen's roots
@@ -243,7 +243,7 @@ sub RokuEngine_SetFocusToScreen(screenName as String)
     node = m.scene.nodeMap[nodeId]
     if node = invalid then continue for
     ' Check ancestry to see if it belongs to this screen
-    if not _SM_NodeBelongsToScreen(node, rootSet) then continue for
+    if not m._SM_NodeBelongsToScreen(node, rootSet) then continue for
     if m.IsNodeFocusable(node) then
       if bestId = "" then bestId = nodeId
       props = node.properties
@@ -298,7 +298,7 @@ end sub
 ' Show/hide all CanvasLayer roots belonging to this screen
 sub _SM_SetScreenVisible(screenName as String, visible as Boolean)
   if m.scene = invalid or type(m.scene.doc.nodes) <> "roArray" then return
-  def = _SM_GetDef(screenName)
+  def = m._SM_GetDef(screenName)
   if def = invalid then return
 
   if visible then
@@ -332,7 +332,7 @@ sub _SM_HideAllScreenRoots()
     if node = invalid or node.type <> "CanvasLayer" then continue for
     props = node.properties
     if props = invalid then continue for
-    if props.uiScreenName <> invalid and Trim(Str(props.uiScreenName)) <> "" then
+    if props.uiScreenName <> invalid and RokuEngine_Trim(RokuEngine_ToString(props.uiScreenName)) <> "" then
       node.visible = false
     end if
   end for

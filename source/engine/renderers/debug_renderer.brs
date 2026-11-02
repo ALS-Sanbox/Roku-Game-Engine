@@ -22,7 +22,6 @@ sub RokuEngine_RenderDebugNode(node as Object, world as Object)
       m.screen.DrawRect(Int(world.x - m.scene.cameraX), Int(world.y - m.scene.cameraY), Int(width * world.scaleX), Int(height * world.scaleY), color)
     end if
   end if
-  end if
 end sub
 
 sub RokuEngine_DrawDebugText()
@@ -36,22 +35,6 @@ sub RokuEngine_DrawDebugText()
   m.screen.DrawText(line2, 24, 52, &hC8D6E5FF, font)
   m.screen.DrawText(line3, 24, 72, &hC8D6E5FF, font)
 end sub
-
-function RokuEngine_HexToRgba(hexValue as String, opacity as Dynamic) as Integer
-  if opacity = invalid then opacity = 1.0
-  value = hexValue
-  if value = invalid or value = "" then value = "#ffffff"
-  if Left(value, 1) = "#" then value = Mid(value, 2)
-  if Len(value) <> 6 then value = "ffffff"
-
-  r = Val("&h" + Mid(value, 1, 2))
-  g = Val("&h" + Mid(value, 3, 2))
-  b = Val("&h" + Mid(value, 5, 2))
-  a = Int(255 * opacity)
-  if a < 0 then a = 0
-  if a > 255 then a = 255
-  return (r * 16777216) + (g * 65536) + (b * 256) + a
-end function
 
 function RokuEngine_IsWorldRectVisible(world as Object, width as Dynamic, height as Dynamic, cameraX as Dynamic, cameraY as Dynamic, viewWidth as Dynamic, viewHeight as Dynamic) as Boolean
   if world = invalid then return false

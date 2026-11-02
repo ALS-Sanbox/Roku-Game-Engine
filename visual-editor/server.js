@@ -133,5 +133,17 @@ const server = http.createServer(async (req, res) => {
     res.end(data);
   } catch (error) { if (!res.headersSent) send(res, 400, { error: error.message }); else res.end(); }
 });
-server.listen(Number(process.env.RGE_EDITOR_PORT || 4173), '127.0.0.1', () => console.log(`Roku Visual Editor: http://127.0.0.1:${server.address().port}\nOriginal game folders are read-only; saves and exports go to ${storage}`));
+process.on('message', message => {
+  if (message.type !== 'register-package') return;
+  try {
+    const file = fs.realpathSync(message.zipPath);
+    if (!inside(storage, file) || path.extname(file) !== '.zip') throw new Error('Simulator packages must be built inside the engine workspace.');
+    const build = crypto.randomBytes(16).toString('hex'); builds.set(build, file);
+    process.send?.({ requestId: message.requestId, build });
+  } catch (error) { process.send?.({ requestId: message.requestId, error: error.message }); }
+});
+server.listen(Number(process.env.RGE_EDITOR_PORT || 4173), '127.0.0.1', () => {
+  console.log(`Roku simulator host: http://127.0.0.1:${server.address().port}`);
+  process.send?.({ type: 'ready', port: server.address().port });
+});
 server.on('error', error => { console.error(error.message); process.exitCode = 1; });

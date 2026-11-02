@@ -4,22 +4,12 @@
 ' ── Type helpers ──────────────────────────────────────────────────────────────
 
 function RokuEngine_IsUiNodeType(nodeType as Dynamic) as Boolean
-  key = Trim(Str(nodeType))
-  return key = "CanvasLayer" _
-    or key = "Control" _
-    or key = "Label" _
-    or key = "Panel" _
-    or key = "TextureRect" _
-    or key = "Button" _
-    or key = "NineSlicePanel" _
-    or key = "MenuList" _
-    or key = "ProgressBar" _
-    or key = "CheckBox" _
-    or key = "Slider"
+  key = RokuEngine_Trim(RokuEngine_ToString(nodeType))
+  return key = "CanvasLayer" or key = "Control" or key = "Label" or key = "Panel" or key = "TextureRect" or key = "Button" or key = "NineSlicePanel" or key = "MenuList" or key = "ProgressBar" or key = "CheckBox" or key = "Slider"
 end function
 
 function RokuEngine_IsWorldNodeType(nodeType as Dynamic) as Boolean
-  return not RokuEngine_IsUiNodeType(nodeType) and Trim(Str(nodeType)) <> "SceneRoot"
+  return not RokuEngine_IsUiNodeType(nodeType) and RokuEngine_Trim(RokuEngine_ToString(nodeType)) <> "SceneRoot"
 end function
 
 ' ── Screen-space transform ────────────────────────────────────────────────────
@@ -59,7 +49,7 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
     accX = accX + _BRS_IntOr(t.x, 0)
     accY = accY + _BRS_IntOr(t.y, 0)
     if ancestor.properties <> invalid and ancestor.properties.opacity <> invalid then
-      accOpacity = accOpacity * Float(ancestor.properties.opacity)
+      accOpacity = accOpacity * RokuEngine_ToFloat(ancestor.properties.opacity)
     end if
     if ancestor.visible = false then accVisible = false
   end for
@@ -121,8 +111,8 @@ end sub
 
 ' Phase 8: call binding updates each frame (called from UpdateFocusState)
 sub RokuEngine_UpdateUiBindings()
-  RokuEngine_UpdateOptionBindings()
-  RokuEngine_UpdateHighScoreBindings()
+  m.RokuEngine_UpdateOptionBindings()
+  m.RokuEngine_UpdateHighScoreBindings()
 end sub
 
 
@@ -196,9 +186,7 @@ end sub
 function RokuEngine_GetUiTraversalNodeIds() as Object
   if m.scene = invalid then return []
   m.InitializeUiRuntime()
-  if m.scene.ui.traversalIds = invalid _
-    or type(m.scene.ui.traversalIds) <> "roArray" _
-    or m.scene.ui.focusDirty = true then
+  if m.scene.ui.traversalIds = invalid or type(m.scene.ui.traversalIds) <> "roArray" or m.scene.ui.focusDirty = true then
     m.RebuildUiRuntime()
   end if
   return m.scene.ui.traversalIds

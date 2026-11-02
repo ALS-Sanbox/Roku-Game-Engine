@@ -5,28 +5,21 @@ const path = require('path');
 
 const TEMPLATE_ROOT = path.join(__dirname, 'runtime_templates');
 const ENGINE_TEMPLATE_ROOT = path.join(TEMPLATE_ROOT, 'engine');
-// Canonical source dir — used for files not mirrored in runtime_templates
+// Canonical source directory; templates are only a fallback for missing files.
 const ENGINE_SOURCE_ROOT = path.join(__dirname, '..', 'source', 'engine');
 
 function readEngineFile(relativeName) {
   // relativeName is relative to source/engine/, e.g. 'enemy_ai.brs' or 'ui/ui_storage.brs'
-  const templatePath = path.join(ENGINE_TEMPLATE_ROOT, relativeName);
-  if (fs.existsSync(templatePath)) return fs.readFileSync(templatePath, 'utf8');
   const sourcePath = path.join(ENGINE_SOURCE_ROOT, relativeName);
   if (fs.existsSync(sourcePath)) return fs.readFileSync(sourcePath, 'utf8');
+  const templatePath = path.join(ENGINE_TEMPLATE_ROOT, relativeName);
+  if (fs.existsSync(templatePath)) return fs.readFileSync(templatePath, 'utf8');
   throw new Error(`Engine file not found: ${relativeName}`);
 }
 
-function sanitizeRokuComponentName(name = 'MainScene') {
-  const cleaned = String(name || 'MainScene')
-    .replace(/[^A-Za-z0-9_]/g, '_')
-    .replace(/^[^A-Za-z_]+/, '');
-  return cleaned || 'MainScene';
-}
-
 function buildMainBrightScriptTemplate(sceneName = 'MainScene', projectName = 'RokuEngine Game') {
-  const safeSceneName = sanitizeRokuComponentName(sceneName || 'MainScene');
-  const safeProjectName = String(projectName || 'RokuEngine Game').replace(/"/g, '\\"');
+  const safeSceneName = String(sceneName || 'MainScene').replace(/"/g, '""').replace(/[\r\n]/g, ' ');
+  const safeProjectName = String(projectName || 'RokuEngine Game').replace(/"/g, '""').replace(/[\r\n]/g, ' ');
   return `' main.brs - ${safeProjectName}
 sub Main()
   projectName = "${safeProjectName}"
@@ -37,17 +30,10 @@ end sub
 `;
 }
 
-function readTemplate(relativePath) {
-  return fs.readFileSync(path.join(TEMPLATE_ROOT, relativePath), 'utf8');
-}
-
-function readTemplate(relativePath) {
-  return fs.readFileSync(path.join(TEMPLATE_ROOT, relativePath), 'utf8');
-}
-
 function getClassicRuntimeSourceFiles() {
   return {
     'source/engine/core.brs':               readEngineFile('core.brs'),
+    'source/engine/runtime_bindings.brs':   readEngineFile('runtime_bindings.brs'),
     // RGE v91: new runtime systems
     'source/engine/animation_state_machine.brs': readEngineFile('animation_state_machine.brs'),
     'source/engine/asset_stream.brs':            readEngineFile('asset_stream.brs'),
@@ -70,7 +56,7 @@ function getClassicRuntimeSourceFiles() {
     'source/engine/camera.brs':             readEngineFile('camera.brs'),
     'source/engine/transform_system.brs':   readEngineFile('transform_system.brs'),
     'source/engine/scripts.brs':            readEngineFile('scripts.brs'),
-    'source/engine/user_scripts_registry.brs': readTemplate(path.join('engine', 'user_scripts_registry.brs')),
+    'source/engine/user_scripts_registry.brs': readEngineFile('user_scripts_registry.brs'),
     'source/engine/ui/ui_compat.brs':             readEngineFile('ui/ui_compat.brs'),
     'source/engine/ui/ui_focus_manager.brs':      readEngineFile('ui/ui_focus_manager.brs'),
     'source/engine/ui/ui_screen_manager.brs':     readEngineFile('ui/ui_screen_manager.brs'),

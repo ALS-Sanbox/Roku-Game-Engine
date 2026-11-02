@@ -33,8 +33,8 @@ sub RokuEngine_InitializeOptions()
     }
   end if
   if not m.options.loaded then
-    _OPT_LoadDefs()
-    _OPT_LoadValues()
+    m._OPT_LoadDefs()
+    m._OPT_LoadValues()
     m.options.loaded = true
   end if
 end sub
@@ -43,10 +43,10 @@ end sub
 
 sub _OPT_LoadDefs()
   ' Built-in defaults
-  _OPT_RegisterDef("music_volume",  "float",  "1.0",    [])
-  _OPT_RegisterDef("sound_volume",  "float",  "1.0",    [])
-  _OPT_RegisterDef("difficulty",    "string", "medium", ["easy", "medium", "hard"])
-  _OPT_RegisterDef("display_mode",  "string", "normal", ["normal", "fullscreen"])
+  m._OPT_RegisterDef("music_volume",  "float",  "1.0",    [])
+  m._OPT_RegisterDef("sound_volume",  "float",  "1.0",    [])
+  m._OPT_RegisterDef("difficulty",    "string", "medium", ["easy", "medium", "hard"])
+  m._OPT_RegisterDef("display_mode",  "string", "normal", ["normal", "fullscreen"])
 
   ' Custom defs from manifest
   manifest = invalid
@@ -59,16 +59,16 @@ sub _OPT_LoadDefs()
     entry = defs[key]
     if entry = invalid then continue for
     defType = "string"
-    if entry.optionType <> invalid then defType = LCase(Trim(Str(entry.optionType)))
+    if entry.optionType <> invalid then defType = LCase(RokuEngine_Trim(RokuEngine_ToString(entry.optionType)))
     defVal = ""
-    if entry.defaultValue <> invalid then defVal = Trim(Str(entry.defaultValue))
+    if entry.defaultValue <> invalid then defVal = RokuEngine_Trim(RokuEngine_ToString(entry.defaultValue))
     allowed = []
     if type(entry.allowedValues) = "roArray" then
       for each av in entry.allowedValues
-        allowed.Push(Trim(Str(av)))
+        allowed.Push(RokuEngine_Trim(RokuEngine_ToString(av)))
       end for
     end if
-    _OPT_RegisterDef(key, defType, defVal, allowed)
+    m._OPT_RegisterDef(key, defType, defVal, allowed)
   end for
 end sub
 
@@ -86,7 +86,7 @@ end sub
 sub _OPT_LoadValues()
   for each key in m.options.defs
     def   = m.options.defs[key]
-    saved = RGE_Storage_Load(_OPT_Namespace(), key, def.defaultValue)
+    saved = m.RGE_Storage_Load(_OPT_Namespace(), key, def.defaultValue)
     m.options.current[key] = saved
   end for
 end sub
@@ -101,15 +101,15 @@ function RGE_Options_Get(key as String) as String
 end function
 
 function RGE_Options_GetFloat(key as String) as Float
-  return Float(Val(RGE_Options_Get(key)))
+  return RokuEngine_ToFloat(Val(m.RGE_Options_Get(key)))
 end function
 
 function RGE_Options_GetInt(key as String) as Integer
-  return Int(Val(RGE_Options_Get(key)))
+  return Int(Val(m.RGE_Options_Get(key)))
 end function
 
 function RGE_Options_GetBool(key as String) as Boolean
-  return LCase(Trim(RGE_Options_Get(key))) = "true" or LCase(Trim(RGE_Options_Get(key))) = "1"
+  return LCase(RokuEngine_Trim(m.RGE_Options_Get(key))) = "true" or LCase(RokuEngine_Trim(m.RGE_Options_Get(key))) = "1"
 end function
 
 sub RGE_Options_Set(key as String, value as Dynamic)
@@ -129,7 +129,7 @@ sub RGE_Options_Set(key as String, value as Dynamic)
   end if
 
   m.options.current[key] = strVal
-  RGE_Storage_Save(_OPT_Namespace(), key, strVal)
+  m.RGE_Storage_Save(_OPT_Namespace(), key, strVal)
 end sub
 
 sub RGE_Options_Reset(key as String)
@@ -137,50 +137,50 @@ sub RGE_Options_Reset(key as String)
   if m.options.defs.DoesExist(key) then
     def = m.options.defs[key]
     m.options.current[key] = def.defaultValue
-    RGE_Storage_Delete(_OPT_Namespace(), key)
+    m.RGE_Storage_Delete(_OPT_Namespace(), key)
   end if
 end sub
 
 sub RGE_Options_ResetAll()
   m.InitializeOptions()
   for each key in m.options.defs
-    RGE_Options_Reset(key)
+    m.RGE_Options_Reset(key)
   end for
 end sub
 
 ' Cycle to next allowed value (useful for MenuList / Button)
 function RGE_Options_Cycle(key as String) as String
   m.InitializeOptions()
-  if not m.options.defs.DoesExist(key) then return RGE_Options_Get(key)
+  if not m.options.defs.DoesExist(key) then return m.RGE_Options_Get(key)
   def     = m.options.defs[key]
   allowed = def.allowedValues
-  if type(allowed) <> "roArray" or allowed.Count() = 0 then return RGE_Options_Get(key)
+  if type(allowed) <> "roArray" or allowed.Count() = 0 then return m.RGE_Options_Get(key)
 
-  cur   = RGE_Options_Get(key)
+  cur   = m.RGE_Options_Get(key)
   idx   = 0
   for i = 0 to allowed.Count() - 1
     if allowed[i] = cur then idx = i
   end for
   nextIdx = (idx + 1) mod allowed.Count()
   nextVal = allowed[nextIdx]
-  RGE_Options_Set(key, nextVal)
+  m.RGE_Options_Set(key, nextVal)
   return nextVal
 end function
 
 ' Get display label for current value (key → "Music Volume: 80%")
 function RGE_Options_GetDisplayText(key as String) as String
   m.InitializeOptions()
-  val = RGE_Options_Get(key)
+  val = m.RGE_Options_Get(key)
 
   ' Format float as percentage if 0–1 range
   if m.options.defs.DoesExist(key) then
     def = m.options.defs[key]
     if def.optionType = "float" then
-      fv = Float(Val(val))
-      if fv >= 0.0 and fv <= 1.0 then return Trim(Str(Int(fv * 100))) + "%"
-      return Trim(Str(Int(fv)))
+      fv = RokuEngine_ToFloat(Val(val))
+      if fv >= 0.0 and fv <= 1.0 then return RokuEngine_Trim(RokuEngine_ToString(Int(fv * 100))) + "%"
+      return RokuEngine_Trim(RokuEngine_ToString(Int(fv)))
     end if
-    if def.optionType = "int" then return Trim(Str(Int(Val(val))))
+    if def.optionType = "int" then return RokuEngine_Trim(RokuEngine_ToString(Int(Val(val))))
     if def.optionType = "bool" then
       if val = "true" or val = "1" then return "On"
   return "Off"
@@ -206,13 +206,13 @@ sub RokuEngine_UpdateOptionBindings()
     props = node.properties
     if props = invalid then continue for
     boundKey = ""
-    if props.boundOptionKey <> invalid then boundKey = Trim(Str(props.boundOptionKey))
+    if props.boundOptionKey <> invalid then boundKey = RokuEngine_Trim(RokuEngine_ToString(props.boundOptionKey))
     if boundKey = "" then continue for
 
     ' Format and set display text
-    displayText = RGE_Options_GetDisplayText(boundKey)
+    displayText = m.RGE_Options_GetDisplayText(boundKey)
     prefix = ""
-    if props.boundOptionPrefix <> invalid then prefix = Trim(Str(props.boundOptionPrefix))
+    if props.boundOptionPrefix <> invalid then prefix = RokuEngine_Trim(RokuEngine_ToString(props.boundOptionPrefix))
     props.text = prefix + displayText
   end for
 end sub

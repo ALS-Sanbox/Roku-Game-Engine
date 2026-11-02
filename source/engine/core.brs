@@ -228,7 +228,6 @@ function RokuEngine_Create(initialSceneName as String) as Object
     LoadSpriteSheetTile: RokuEngine_LoadSpriteSheetTile
     ParseTileAssetPath: RokuEngine_ParseTileAssetPath
     FindSpriteSheetByResourcePath: RokuEngine_FindSpriteSheetByResourcePath
-    FindSpriteSheetById: RokuEngine_FindSpriteSheetById
     BuildAnimationFrames: RokuEngine_BuildAnimationFrames
     ComputeAnimationFrameIndex: RokuEngine_ComputeAnimationFrameIndex
     DrawDebugText: RokuEngine_DrawDebugText
@@ -265,13 +264,14 @@ function RokuEngine_Create(initialSceneName as String) as Object
     PoolGetActive: RokuEngine_PoolGetActive
   }
 
+  RokuEngine_BindRuntimeMethods(engine)
   engine.componentRegistry = engine.CreateComponentRegistry()
   engine.RegisterBuiltinComponents(engine.componentRegistry)
   engine.resources = engine.CreateResourceManager(engine)
   engine.resources.LoadManifest()
   engine.collisionSystem = RokuEngine_CreateCollisionSystem(engine)
   engine.projectSettings = engine.resources.GetJsonDocument("pkg:/assets/project_settings.json")
-  engine.inputActionMap = RokuEngine_NormalizeActionMap(invalid)
+  engine.inputActionMap = engine.RokuEngine_NormalizeActionMap(invalid)
   engine.InitializeUiRuntime()
   engine.InitializeFocusManager()
   engine.InitializeTransitionManager()
@@ -282,6 +282,7 @@ end function
 sub RokuEngine_Run()
   m.scene = m.LoadScene(m.initialSceneName)
   if m.scene = invalid then return
+  print "RokuEngine: loaded scene "; m.initialSceneName
 
   m.frameClock.Mark()
   while m.running
@@ -511,7 +512,7 @@ sub RokuEngine_PlayNodeAudio(node as Object, component as Object)
   end if
   if resourcePath = invalid or resourcePath = "" then return
 
-  configKey = resourcePath + "|" + LCase(Str(loopEnabled)) + "|" + StrI(volume)
+  configKey = resourcePath + "|" + LCase(RokuEngine_ToString(loopEnabled)) + "|" + StrI(volume)
   if runtime.audioConfigKey = configKey and runtime.audioReady = true and runtime.audioPlayer <> invalid then return
 
   if runtime.audioPlayer <> invalid then
@@ -789,8 +790,8 @@ function RokuEngine_BuildTraversalNodeIds() as Object
       stack = [rootId]
       while stack.Count() > 0
         nodeId = stack.Pop()
-        if nodeId = invalid or nodeId = "" then continue for
-        if visited.DoesExist(nodeId) then continue for
+        if nodeId = invalid or nodeId = "" then continue while
+        if visited.DoesExist(nodeId) then continue while
         visited[nodeId] = true
         ids.Push(nodeId)
 
@@ -938,7 +939,7 @@ sub RokuEngine_ProcessInputPhase(dt as Float)
   if type(events) <> "roArray" or events.Count() = 0 then return
 
   ' Phase 7: block all input while a blocking transition is active
-  if RGE_UI_IsInputBlocked() then
+  if m.RGE_UI_IsInputBlocked() then
     m.inputState.frameEvents = []
     m.pendingInputEvents = []
     return
@@ -982,8 +983,8 @@ sub RokuEngine_RunScriptHooks(dt as Float, event as Dynamic)
   if m.scene = invalid then return
   eventName = ""
   phaseName = ""
-  if event <> invalid and event.name <> invalid then eventName = Trim(Str(event.name))
-  if event <> invalid and event.phase <> invalid then phaseName = Trim(Str(event.phase))
+  if event <> invalid and event.name <> invalid then eventName = RokuEngine_Trim(RokuEngine_ToString(event.name))
+  if event <> invalid and event.phase <> invalid then phaseName = RokuEngine_Trim(RokuEngine_ToString(event.phase))
 
   if eventName = "Input" then
     m.RunComponentPhase("input", dt, event)
@@ -1161,8 +1162,6 @@ end sub
 ' Generate a random id string
 function RokuEngine_GenerateId() as String
   ts   = CreateObject("roTimespan")
-  rnd  = CreateObject("roRandom")
-  rnd.Seed(ts.TotalMilliseconds() + Rnd(99999))
   hex  = "0123456789abcdef"
   id   = "sp_"
   for i = 0 to 11

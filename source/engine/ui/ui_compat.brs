@@ -20,7 +20,7 @@ end function
 
 function _BRS_FloatOr(value as Dynamic, defaultVal as Float) as Float
   if value = invalid then return defaultVal
-  return Float(value)
+  return RokuEngine_ToFloat(value)
 end function
 
 ' ── Numeric coalesce (returns Dynamic — use when type varies) ─────────────────
@@ -34,5 +34,24 @@ end function
 
 function _BRS_StrCoalesce(value as Dynamic, defaultVal as String) as String
   if value = invalid then return defaultVal
-  return Trim(Str(value))
+  return RokuEngine_Trim(RokuEngine_ToString(value))
+end function
+
+' BrightScript uses string methods rather than JavaScript-style Trim/Float globals.
+function RokuEngine_ToString(value as Dynamic) as String
+  if value = invalid then return ""
+  if GetInterface(value, "ifString") <> invalid then return value
+  if GetInterface(value, "ifInt") <> invalid or GetInterface(value, "ifFloat") <> invalid or GetInterface(value, "ifDouble") <> invalid or GetInterface(value, "ifBoolean") <> invalid then return value.ToStr()
+  return ""
+end function
+
+function RokuEngine_Trim(value as Dynamic) as String
+  text = RokuEngine_ToString(value)
+  return text.Trim()
+end function
+
+function RokuEngine_ToFloat(value as Dynamic) as Float
+  if value = invalid then return 0.0
+  if GetInterface(value, "ifString") <> invalid then return Val(value)
+  return value * 1.0
 end function

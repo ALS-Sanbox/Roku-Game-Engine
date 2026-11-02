@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('project-settings-updated', listener);
   },
   exportRokuProject: (payload) => ipcRenderer.invoke('export-roku-project', payload),
+  testInSimulator: (payload) => ipcRenderer.invoke('test-in-simulator', payload),
   importProjectAsset: (payload) => ipcRenderer.invoke('import-project-asset', payload),
   createProjectItem: (payload) => ipcRenderer.invoke('create-project-item', payload),
   renameProjectItem: (payload) => ipcRenderer.invoke('rename-project-item', payload),

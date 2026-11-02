@@ -52,13 +52,13 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
 
   else if node.type = "Control" then
     ' Transparent container with a subtle outline.
-    m.screen.DrawRect(x, y, width, height, RokuEngine_ApplyAlpha(&h0F2338, opacity))
-    RokuEngine_DrawUiOutlineRect(m.screen, x, y, width, height, RokuEngine_ApplyAlpha(&h506580, opacity))
+    m.screen.DrawRect(x, y, width, height, RokuEngine_ApplyAlpha(&h0F2338FF, opacity))
+    RokuEngine_DrawUiOutlineRect(m.screen, x, y, width, height, RokuEngine_ApplyAlpha(&h506580FF, opacity))
 
   else if node.type = "Panel" then
     ' Try nine-slice style first
     if props.nineSliceStyleId <> invalid and props.nineSliceStyleId <> "" then
-      style = RokuEngine_ResolveNineSliceStyle(m, Trim(Str(props.nineSliceStyleId)))
+      style = RokuEngine_ResolveNineSliceStyle(m, RokuEngine_Trim(RokuEngine_ToString(props.nineSliceStyleId)))
       if style <> invalid then
         RokuEngine_DrawNineSliceStyled(m.screen, m, node, style, x, y, width, height, opacity)
         return
@@ -81,7 +81,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
     region = m.LoadImageAsset(props.imagePath)
     if region <> invalid then
       if width > 0 and height > 0 then
-        m.screen.DrawScaledObject(x, y, width, height, region)
+        m.screen.DrawScaledObject(x, y, width / region.GetWidth(), height / region.GetHeight(), region)
       else
         m.screen.DrawObject(x, y, region)
       end if
@@ -95,7 +95,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
   else if node.type = "Button" then
     ' Try nine-slice style first (uses focused/pressed state color tinting)
     if props.nineSliceStyleId <> invalid and props.nineSliceStyleId <> "" then
-      style = RokuEngine_ResolveNineSliceStyle(m, Trim(Str(props.nineSliceStyleId)))
+      style = RokuEngine_ResolveNineSliceStyle(m, RokuEngine_Trim(RokuEngine_ToString(props.nineSliceStyleId)))
       if style <> invalid then
         RokuEngine_DrawNineSliceStyled(m.screen, m, node, style, x, y, width, height, opacity)
         m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), "center", "center", opacity)
@@ -118,7 +118,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
   else if node.type = "NineSlicePanel" then
     ' Try named style first, then inline slice props
     if props.nineSliceStyleId <> invalid and props.nineSliceStyleId <> "" then
-      style = RokuEngine_ResolveNineSliceStyle(m, Trim(Str(props.nineSliceStyleId)))
+      style = RokuEngine_ResolveNineSliceStyle(m, RokuEngine_Trim(RokuEngine_ToString(props.nineSliceStyleId)))
       if style <> invalid then
         RokuEngine_DrawNineSliceStyled(m.screen, m, node, style, x, y, width, height, opacity)
         return
@@ -142,8 +142,8 @@ end sub
 sub RokuEngine_DrawNineSliceInline(screen as Object, engine as Object, node as Object, props as Object, x as Integer, y as Integer, w as Integer, h as Integer, opacity as Float)
   region = engine.LoadImageAsset(props.imagePath)
   if region = invalid then
-    screen.DrawRect(x, y, w, h, RokuEngine_ApplyAlpha(&h1E2F45, opacity))
-    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&h5e7594, opacity))
+    screen.DrawRect(x, y, w, h, RokuEngine_ApplyAlpha(&h1E2F45FF, opacity))
+    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&h5e7594FF, opacity))
     return
   end if
 
@@ -153,9 +153,9 @@ sub RokuEngine_DrawNineSliceInline(screen as Object, engine as Object, node as O
   sb = _BRS_IntOr(props.sliceBottom, 16)
 
   centerMode = "stretch"
-  if props.centerMode <> invalid then centerMode = LCase(Trim(Str(props.centerMode)))
+  if props.centerMode <> invalid then centerMode = LCase(RokuEngine_Trim(RokuEngine_ToString(props.centerMode)))
   edgeMode = "stretch"
-  if props.edgeMode <> invalid then edgeMode = LCase(Trim(Str(props.edgeMode)))
+  if props.edgeMode <> invalid then edgeMode = LCase(RokuEngine_Trim(RokuEngine_ToString(props.edgeMode)))
 
   RokuEngine_DrawNineSliceRegions(screen, engine, region, sl, st, sr, sb, x, y, w, h, centerMode, edgeMode, opacity)
 end sub
@@ -187,20 +187,20 @@ sub RokuEngine_DrawMenuList(screen as Object, engine as Object, node as Object, 
     label = ""
     item = items[i]
     if type(item) = "roString" then label = item
-    if type(item) = "roAssociativeArray" and item.label <> invalid then label = Str(item.label)
+    if type(item) = "roAssociativeArray" and item.label <> invalid then label = RokuEngine_ToString(item.label)
     color = textColor
     if isSelected then color = selTextColor
     engine.DrawUiText(label, x + 12, iy + Int(itemH * 0.7), color)
     ' Divider line
     if i < items.Count() - 1 and i < maxVisible - 1 then
-      screen.DrawLine(x, iy + itemH - 1, x + w, iy + itemH - 1, RokuEngine_ApplyAlpha(&h4a5568, opacity))
+      screen.DrawLine(x, iy + itemH - 1, x + w, iy + itemH - 1, RokuEngine_ApplyAlpha(&h4a5568FF, opacity))
     end if
   end for
 
   if focused then
-    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&hF6D365, opacity))
+    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&hF6D365FF, opacity))
   else
-    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&h5e7594, opacity))
+    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&h5e7594FF, opacity))
   end if
 end sub
 
@@ -236,7 +236,7 @@ sub RokuEngine_DrawProgressBar(screen as Object, engine as Object, node as Objec
   ' Optional label
   if props.showLabel = true then
     pct = Int(fraction * 100)
-    label = Str(pct) + "%"
+    label = RokuEngine_ToString(pct) + "%"
     engine.DrawUiText(label, x + Int(w * 0.5) - 16, y + Int(h * 0.7), _BRS_StrCoalesce(props.labelColor, "#e7eef7"))
   end if
 end sub
@@ -244,11 +244,12 @@ end sub
 ' ── Text helpers ──────────────────────────────────────────────────────────────
 
 sub RokuEngine_DrawUiText(textValue as Dynamic, x as Integer, y as Integer, colorHex as Dynamic)
-  fontRegistry = CreateObject("roFontRegistry")
+  if m.uiFontRegistry = invalid then m.uiFontRegistry = CreateObject("roFontRegistry")
+  fontRegistry = m.uiFontRegistry
   font = fontRegistry.GetDefaultFont()
   color = &hFFFFFFFF
   if colorHex <> invalid and colorHex <> "" then color = RokuEngine_HexToRgba(colorHex, 1.0)
-  m.screen.DrawText(Trim(Str(textValue)), x, y, color, font)
+  m.screen.DrawText(RokuEngine_Trim(RokuEngine_ToString(textValue)), x, y, color, font)
 end sub
 
 sub RokuEngine_DrawUiTextAligned(textValue as Dynamic, x as Integer, y as Integer, w as Integer, h as Integer, colorHex as Dynamic, fontSize as Dynamic, align as Dynamic, valign as Dynamic, opacity as Dynamic)
@@ -257,7 +258,8 @@ sub RokuEngine_DrawUiTextAligned(textValue as Dynamic, x as Integer, y as Intege
   if align = invalid or align = "" then align = "left"
   if valign = invalid or valign = "" then valign = "center"
   if opacity = invalid then opacity = 1.0
-  fontRegistry = CreateObject("roFontRegistry")
+  if m.uiFontRegistry = invalid then m.uiFontRegistry = CreateObject("roFontRegistry")
+  fontRegistry = m.uiFontRegistry
   font = fontRegistry.GetDefaultFont(fontSize, false, false)
   if font = invalid then font = fontRegistry.GetDefaultFont()
   color = RokuEngine_HexToRgba(_BRS_StrCoalesce(colorHex, "#ffffff"), opacity)
@@ -294,14 +296,14 @@ end sub
 function RokuEngine_HexToRgba(hexStr as Dynamic, opacity as Dynamic) as Integer
   if opacity = invalid then opacity = 1.0
   if hexStr = invalid or hexStr = "" then return &hFFFFFFFF
-  s = Trim(Str(hexStr))
+  s = RokuEngine_Trim(RokuEngine_ToString(hexStr))
   if Left(s, 1) = "#" then s = Mid(s, 2)
   if Len(s) = 6 then s = s + "FF"
   if Len(s) <> 8 then return &hFFFFFFFF
-  r = Val("&h" + Left(s, 2))
-  g = Val("&h" + Mid(s, 3, 2))
-  b = Val("&h" + Mid(s, 5, 2))
-  a = Int(Val("&h" + Mid(s, 7, 2)) * opacity)
+  r = Val(Left(s, 2), 16)
+  g = Val(Mid(s, 3, 2), 16)
+  b = Val(Mid(s, 5, 2), 16)
+  a = Int(Val(Mid(s, 7, 2), 16) * opacity)
   if a < 0 then a = 0
   if a > 255 then a = 255
   return (r * 16777216) + (g * 65536) + (b * 256) + a

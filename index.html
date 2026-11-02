@@ -29,6 +29,7 @@
 
 <!-- ── Toolbar ───────────────────────────────────────────────────────── -->
 <nav class="toolbar">
+  <button class="tool-btn" id="btn-test-simulator" type="button" title="Build native Roku game and test it (F5)">Build &amp; Test ▶</button>
   <div class="toolbar-group menu-group">
     <div class="toolbar-menu" id="file-menu">
       <button class="tool-btn toolbar-menu-trigger" id="btn-file-menu" type="button" aria-haspopup="true" aria-expanded="false">File ▾</button>
@@ -39,6 +40,7 @@
         <button class="toolbar-menu-item" id="menu-save-project" type="button" role="menuitem">Save Project</button>
         <button class="toolbar-menu-item" id="menu-save-project-as" type="button" role="menuitem">Save As</button>
         <button class="toolbar-menu-item" id="menu-export-game" type="button" role="menuitem">Export Game</button>
+        <button class="toolbar-menu-item" id="menu-test-simulator" type="button" role="menuitem">Build &amp; Test in Roku Simulator (F5)</button>
         <button class="toolbar-menu-item" id="menu-sideload" type="button" role="menuitem">Sideload to Roku ▸</button>
         <button class="toolbar-menu-item" id="menu-settings" type="button" role="menuitem">Settings</button>
         <button class="toolbar-menu-item" id="menu-quit" type="button" role="menuitem">Quit</button>
@@ -957,7 +959,7 @@
 <script src="editor/panels/camera_preview_panel.js"></script>
 <script src="editor/panels/memory_inspector_panel.js"></script>
 <!-- ═══ Existing engine (unchanged) ═══ -->
-<script src="../node_modules/konva/konva.js"></script>
+<script src="node_modules/konva/konva.min.js"></script>
 <script src="schema/nodes.js"></script>
 <script src="schema/v91_migration.js"></script>
 <script src="schema/scene_validation.js"></script>
@@ -992,115 +994,115 @@
 <!-- v49: Regression tests — loaded last so all APIs are available -->
 <script src="editor/modules/regression_tests.js"></script>
 
-<script src="runtime/renderer/renderer_core.js"></script>
-<script src="runtime/animation/animation_runtime.js"></script>
-<script src="runtime/core/runtime_loop.js"></script>
-<script src="runtime/profiler/runtime_profiler.js"></script>
 
 
-<script src="runtime/renderer/dirty_region_renderer.js"></script>
-<script src="runtime/renderer/texture_atlas_builder.js"></script>
-<script src="runtime/memory/memory_pool.js"></script>
-<script src="runtime/debug/profiler_overlay.js"></script>
-<script src="runtime/streaming/asset_streaming_manager.js"></script>
 
 
-<script src="runtime/renderer/render_batcher.js"></script>
-<script src="runtime/ui/ui_batch_renderer.js"></script>
-<script src="runtime/assets/asset_database.js"></script>
-<script src="runtime/performance/frame_budget_manager.js"></script>
-<script src="runtime/debug/roku_diagnostics.js"></script>
 
 
-<script src="runtime/scene/scene_manager.js"></script>
-<script src="runtime/input/input_runtime.js"></script>
-<script src="runtime/deployment/deployment_validator.js"></script>
-<script src="runtime/ui/ui_virtualization.js"></script>
-<script src="runtime/debug/runtime_console.js"></script>
 
 
-<script src="runtime/rendergraph/render_graph.js"></script>
-<script src="runtime/performance/frame_pacing_controller.js"></script>
-<script src="runtime/streaming/scene_streamer.js"></script>
-<script src="runtime/ui/ui_invalidation_tracker.js"></script>
-<script src="runtime/performance/runtime_metrics.js"></script>
 
 
-<script src="runtime/deployment/incremental_package_builder.js"></script>
-<script src="runtime/rendering/render_state_cache.js"></script>
-<script src="runtime/scheduler/runtime_scheduler.js"></script>
-<script src="runtime/roku/roku_memory_budget.js"></script>
-<script src="runtime/serialization/runtime_serializer.js"></script>
-<script src="runtime/performance/adaptive_quality_manager.js"></script>
-<script src="runtime/ui/ui_compositor.js"></script>
-<script src="runtime/debug/runtime_crash_diagnostics.js"></script>
 
 
-<script src="runtime/renderer/visibility_culling.js"></script>
-<script src="runtime/assets/runtime_asset_manifest.js"></script>
-<script src="runtime/performance/runtime_performance_guard.js"></script>
-<script src="runtime/roku/roku_frame_analyzer.js"></script>
-<script src="runtime/ui/ui_visibility_tracker.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 \n
-<script src="runtime/audio/audio_runtime_manager.js"></script>
-<script src="runtime/rendering/material_registry.js"></script>
-<script src="runtime/debug/live_runtime_inspector.js"></script>
-<script src="runtime/assets/prefab_runtime.js"></script>
-<script src="runtime/ui/ui_layout_runtime.js"></script>
 
 
-<script src="runtime/particles/particle_batch_system.js"></script>
-<script src="runtime/input/input_action_map.js"></script>
-<script src="runtime/scene/scene_transition_runtime.js"></script>
-<script src="runtime/performance/runtime_load_balancer.js"></script>
-<script src="runtime/debug/runtime_event_log.js"></script>
 
 
-<script src="runtime/camera/camera_runtime.js"></script>
-<script src="runtime/camera/camera_zone_runtime.js"></script>
-<script src="runtime/camera/camera_path_runtime.js"></script>
-<script src="runtime/camera/camera_target_group_runtime.js"></script>
-<script src="runtime/renderer/render_command_buffer.js"></script>
-<script src="runtime/assets/runtime_asset_cache.js"></script>
-<script src="runtime/debug/runtime_overlay.js"></script>
-<script src="runtime/ui/ui_runtime_tree.js"></script>
 
 
-<script src="runtime/animation/animation_event_runtime.js"></script>
-<script src="runtime/rendering/render_statistics.js"></script>
-<script src="runtime/physics/collision_layer_runtime.js"></script>
-<script src="runtime/debug/runtime_warning_system.js"></script>
-<script src="runtime/performance/runtime_timer.js"></script>
 
 
-<script src="runtime/core/runtime_service_registry.js"></script>
-<script src="runtime/rendering/render_layer_manager.js"></script>
-<script src="runtime/assets/runtime_asset_preloader.js"></script>
-<script src="runtime/debug/runtime_debug_hud.js"></script>
-<script src="runtime/ui/ui_focus_manager.js"></script>
 
 
-<script src="runtime/rendering/render_pipeline_manager.js"></script>
-<script src="runtime/scene/scene_residency_manager.js"></script>
-<script src="runtime/audio/audio_channel_mixer.js"></script>
-<script src="runtime/performance/frame_budget_visualizer.js"></script>
-
-<script src="runtime/input/roku_remote_runtime.js"></script>
-
-<script src="runtime/roku/roku_navigation_runtime.js"></script>
-<script src="runtime/ui/ui_safezone_manager.js"></script>
-<script src="runtime/performance/roku_runtime_optimizer.js"></script>
-<script src="runtime/deployment/roku_package_validator.js"></script>
-<script src="runtime/renderer/roku_dirty_region_manager.js"></script>
 
 
-<script src="runtime/roku/roku_focus_grid.js"></script>
-<script src="runtime/ui/tv_layout_manager.js"></script>
-<script src="runtime/performance/roku_memory_monitor.js"></script>
-<script src="runtime/deployment/roku_build_profile.js"></script>
-<script src="runtime/assets/roku_texture_budget.js"></script>
 
-<script src="runtime/integration/roku_runtime_bootstrap.js"></script>
-<script src="runtime/integration/active_runtime_integration.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 </body>
 </html>
