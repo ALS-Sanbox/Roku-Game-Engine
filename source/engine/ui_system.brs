@@ -35,6 +35,7 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
     if p = invalid then p = {}
     x = _BRS_NumCoalesce(t.x, 0)
     y = _BRS_NumCoalesce(t.y, 0)
+    anchored = false
     w = _BRS_NumCoalesce(p.width, result.width)
     h = _BRS_NumCoalesce(p.height, result.height)
     if ancestor.type = "CanvasLayer" then
@@ -49,6 +50,7 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
         al = anchors.left : ar = anchors.right : at = anchors.top : ab = anchors.bottom
       end if
       if al <> 0 or ar <> 0 or at <> 0 or ab <> 0 or ml <> 0 or mr <> 0 or mt <> 0 or mb <> 0 then
+        anchored = true
         x = al * result.width + ml
         y = at * result.height + mt
         if ar <> al then w = (ar - al) * result.width + mr - ml
@@ -56,8 +58,12 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
       end if
     end if
     sx = _BRS_NumCoalesce(t.scaleX, 1) : sy = _BRS_NumCoalesce(t.scaleY, 1)
-    result.x = result.x + (x - _BRS_NumCoalesce(t.pivotX, 0) * sx) * result.scaleX
-    result.y = result.y + (y - _BRS_NumCoalesce(t.pivotY, 0) * sy) * result.scaleY
+    if not anchored then
+      x = x - _BRS_NumCoalesce(t.pivotX, 0) * sx
+      y = y - _BRS_NumCoalesce(t.pivotY, 0) * sy
+    end if
+    result.x = result.x + x * result.scaleX
+    result.y = result.y + y * result.scaleY
     result.scaleX = result.scaleX * sx : result.scaleY = result.scaleY * sy
     result.width = w : result.height = h
     result.opacity = result.opacity * _BRS_NumCoalesce(p.opacity, 1)

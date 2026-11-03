@@ -2950,15 +2950,11 @@ function syncSelectedNodesFromShapes() {
     const node = getNode(id);
     const shape = shapeRefs.get(id);
     if (!node || !shape) return;
-    const absPos = typeof shape.getAbsolutePosition === 'function' ? shape.getAbsolutePosition(contentGroup) : { x: shape.x(), y: shape.y() };
-    const absScale = typeof shape.getAbsoluteScale === 'function' ? shape.getAbsoluteScale() : { x: shape.scaleX(), y: shape.scaleY() };
-    setNodeLocalFromGlobal(node, {
-      x: absPos.x,
-      y: absPos.y,
-      rotation: typeof shape.getAbsoluteRotation === 'function' ? shape.getAbsoluteRotation() : shape.rotation(),
-      scaleX: absScale?.x ?? shape.scaleX(),
-      scaleY: absScale?.y ?? shape.scaleY()
-    }, node.parentId || null);
+    // Shapes already live in their node parent's local coordinates. Converting
+    // through screen space includes camera zoom and loses parent pivot offsets.
+    node.transform.x = shape.x();
+    node.transform.y = shape.y();
+    node.transform.rotation = shape.rotation();
 
     const baseline = session.perNode?.[id] || {};
     const startShapeScaleX = Number(baseline.shapeScaleX) || 1;
@@ -2991,12 +2987,22 @@ function syncSelectedNodesFromShapes() {
       if (preset && preset !== 'custom' && (scaleChangedX || scaleChangedY)) {
         applyPivotPreset(node, preset, { keepPivotWorldPosition: true });
       }
+      const correction = rotatePoint(
+        (Number(node.transform.pivotX) || 0) * node.transform.scaleX - shape.offsetX() * currentShapeScaleX,
+        (Number(node.transform.pivotY) || 0) * node.transform.scaleY - shape.offsetY() * currentShapeScaleY,
+        node.transform.rotation
+      );
+      node.transform.x += correction.x;
+      node.transform.y += correction.y;
     } else {
       node.transform.scaleX = (Number(baseline.nodeScaleX) || 1) * deltaScaleX;
       node.transform.scaleY = (Number(baseline.nodeScaleY) || 1) * deltaScaleY;
     }
 
-    shape.scale({ x: 1, y: 1 });
+    shape.scale({ x: node.transform.scaleX, y: node.transform.scaleY });
+    shape.position({ x: node.transform.x, y: node.transform.y });
+    shape.offset({ x: Number(node.transform.pivotX) || 0, y: Number(node.transform.pivotY) || 0 });
+    syncNodeAnchorOffsets(node);
   });
 }
 function getFrameTargetIds()  {
@@ -5622,6 +5628,25 @@ function buildSiblingOrderField(node) {
 }
 
 
+function applyNodeAnchorPreset(node, anchors) {
+  const parent = getNode(node.parentId);
+  const resolution = String(state.editorState?.uiMeta?.resolution || '1280x720').split('x').map(Number);
+  const width = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.width) || resolution[0] : resolution[0];
+  const height = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.height) || resolution[1] : resolution[1];
+  RGE_ROOT.RGELayoutGeometry.preset(node, anchors, width, height);
+  RGE_ROOT.RGEUIEditor?.applyAnchorLayout();
+  RGE_ROOT.RGEUIEditor?.markDirty?.();
+}
+
+function syncNodeAnchorOffsets(node) {
+  if (!isUiNodeType(node.type)) return;
+  const parent = getNode(node.parentId);
+  const resolution = String(state.editorState?.uiMeta?.resolution || '1280x720').split('x').map(Number);
+  RGE_ROOT.RGELayoutGeometry.captureOffsets(node,
+    parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.width) || resolution[0] : resolution[0],
+    parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.height) || resolution[1] : resolution[1]);
+}
+
 function getPivotableNodeSize(node) {
   if (!node) return { width: 0, height: 0 };
   return {
@@ -6082,15 +6107,7 @@ function buildField(node, field) {
         btn.addEventListener('click', () => {
           pushHistory(`Anchor: ${preset[0]}`);
           const n = getNode(node.id); if (!n) return;
-          n.properties.anchorLeft   = preset[1];
-          n.properties.anchorTop    = preset[2];
-          n.properties.anchorRight  = preset[3];
-          n.properties.anchorBottom = preset[4];
-          n.properties.marginLeft   = preset[5];
-          n.properties.marginTop    = preset[6];
-          n.properties.marginRight  = preset[7];
-          n.properties.marginBottom = preset[8];
-          if (RGE_ROOT.RGEUIEditor?.applyAnchorLayout) { RGE_ROOT.RGEUIEditor.applyAnchorLayout(); RGE_ROOT.RGEUIEditor.markDirty?.(); }
+          applyNodeAnchorPreset(n, preset.slice(1, 5));
           scheduleRender(RenderFlags.VIEWPORT | RenderFlags.INSPECTOR);
         });
         grid.appendChild(btn);
@@ -6128,11 +6145,7 @@ function buildField(node, field) {
           const p = PRESETS[pi];
           pushHistory(`Anchor: ${p[0]}`);
           const n = getNode(node.id); if (!n) return;
-          n.properties.anchorLeft   = p[1];
-          n.properties.anchorTop    = p[2];
-          n.properties.anchorRight  = p[3];
-          n.properties.anchorBottom = p[4];
-          if (RGE_ROOT.RGEUIEditor?.applyAnchorLayout) { RGE_ROOT.RGEUIEditor.applyAnchorLayout(); RGE_ROOT.RGEUIEditor.markDirty?.(); }
+          applyNodeAnchorPreset(n, p.slice(1, 5));
           scheduleRender(RenderFlags.VIEWPORT | RenderFlags.INSPECTOR);
         });
         stretchGrid.appendChild(btn);
@@ -7401,6 +7414,8 @@ function updateField(nodeId, field, rawValue, options = {}) {
     }
   }
 
+  if (['transform.x','transform.y','transform.pivotX','transform.pivotY','transform.pivotPreset','properties.width','properties.height'].includes(field.key) || field.type === 'pivot_preset') syncNodeAnchorOffsets(node);
+
   if (node.type === 'AnimatedSprite2D' && field.key === 'properties.animation') {
     const clip = getCurrentAnimationClip(node);
     if (clip) {
@@ -8154,9 +8169,8 @@ function renderViewport() {
     });
     shape.on('dragmove', () => {
       const n = getNode(node.id); if (!n) return;
-      const dragRoot = isUiNodeType(n.type) ? uiContentGroup : contentGroup;
-      const absPos = typeof shape.getAbsolutePosition === 'function' ? shape.getAbsolutePosition(dragRoot) : { x: shape.x(), y: shape.y() };
-      setNodeLocalPositionFromGlobal(n, absPos, n.parentId || null);
+      n.transform.x = shape.x();
+      n.transform.y = shape.y();
       if (state.snapEnabled) {
         n.transform.x = snapValue(n.transform.x);
         n.transform.y = snapValue(n.transform.y);
@@ -8172,6 +8186,7 @@ function renderViewport() {
       if (transformer && getSelectedNodeIds().includes(node.id)) transformer.forceUpdate();
     });
     shape.on('dragend', () => {
+      syncNodeAnchorOffsets(node);
       endSelectionDrag();
     });
 
@@ -8378,7 +8393,8 @@ function buildUiNodeGroup(node) {
   if (node.type === 'TextureRect') {
     const img = state.imageCache.get(node.id);
     if (img && img.complete) {
-      g.add(new Konva.Image({ image: img, width: w, height: h }));
+      const rect = RGE_ROOT.RGELayoutGeometry.textureRect(img.naturalWidth, img.naturalHeight, w, h, node.properties?.fitMode || 'contain', node.properties?.sourceRect);
+      if (rect.crop.width > 0 && rect.crop.height > 0) g.add(new Konva.Image({ image: img, ...rect }));
       g.add(new Konva.Rect({ width: w, height: h, stroke: '#7dc4ff', strokeWidth: 1.25 }));
     } else if (node.properties?.imageDataUrl) {
       loadImageIntoCache(node.id, node.properties.imageDataUrl, renderViewport);
@@ -9301,7 +9317,7 @@ function attachTransformer() {
 function loadImageIntoCache(key, dataUrl, onDone) {
   if (!dataUrl) return;
   const img = new Image();
-  img.onload  = () => { state.imageCache.set(key, img); if (typeof onDone === 'function') onDone(); };
+  img.onload  = () => { state.imageCache.set(key, img); RGE_ROOT.RGEUIEditor?.markDirty?.(); if (typeof onDone === 'function') onDone(); };
   img.onerror = () => setStatus('Could not load image.', true);
   img.src = dataUrl;
 }
@@ -9503,8 +9519,19 @@ function rebuildImageCache() {
   state.imageCache.clear();
 
   getNodes().forEach((n) => {
+    const styleId = n.properties?.atlasRegionId || n.properties?.nineSliceStyleId;
+    const style = (state.nineSliceStyles || []).find(s => s.id === styleId)
+      || (state.editorState?.nineSliceStyles || []).find(s => s.id === styleId);
+    if (!n.properties?.imageDataUrl && style?.imageDataUrl) n.properties.imageDataUrl = style.imageDataUrl;
     if (n.properties?.imageDataUrl) {
       loadImageIntoCache(n.id, n.properties.imageDataUrl, renderViewport);
+    } else if (n.properties?.imagePath && window.electronAPI?.readProjectAsset) {
+      const resourcePath = n.properties.imagePath.split('#')[0];
+      window.electronAPI.readProjectAsset({ resourcePath }).then(result => {
+        if (!result?.success || getNode(n.id) !== n || n.properties.imagePath.split('#')[0] !== resourcePath) return;
+        n.properties.imageDataUrl = result.dataUrl;
+        loadImageIntoCache(n.id, result.dataUrl, renderViewport);
+      }).catch(error => setStatus('Could not load texture: ' + error.message, true));
     }
   });
 
@@ -18617,6 +18644,8 @@ init();
 // Exposes the minimal scene API the UI editor needs without coupling it to
 // scene_editor.js internals.
 RGE_ROOT.RGESceneBridge = {
+  syncNodeAnchorOffsets,
+  getNodeImage: (id) => state.imageCache.get(id) || null,
   getNodes,
   getNode,
   getChildren,

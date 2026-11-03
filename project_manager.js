@@ -349,6 +349,7 @@ function openSettingsPanel() {
 }
 
 function bindUI() {
+  document.getElementById('pm-close-btn').addEventListener('click', () => window.electronAPI.closeWindow());
   document.getElementById('pm-create-btn').addEventListener('click', () => void createProject());
   document.getElementById('pm-import-btn').addEventListener('click', () => void importProject());
   document.getElementById('pm-scan-btn').addEventListener('click', () => void scanProjects());

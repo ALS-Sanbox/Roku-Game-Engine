@@ -80,6 +80,29 @@ function buildNativeProject(payload, options = {}) {
     } else if (value && typeof value === 'object') for (const child of Object.values(value)) copyReferences(child);
   }
   copyReferences(scenes.map(s => ({ runtimeScene: s.runtimeScene, editorState: s.editorState })));
+  // Older atlas imports retained only a filename plus embedded image bytes.
+  // Recover those bytes into the package so reopened projects still render.
+  for (const scene of scenes) {
+    for (const style of scene.editorState.nineSliceStyles || []) {
+      const embedded = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=\r\n]+)$/.exec(style.imageDataUrl || '');
+      if (!embedded) continue;
+      const bytes = Buffer.from(embedded[2], 'base64');
+      const valid = embedded[1] === 'png' ? bytes.subarray(0, 8).toString('hex') === '89504e470d0a1a0a' : bytes.subarray(0, 2).toString('hex') === 'ffd8';
+      if (!valid) throw new BuildError([{ severity: 'error', code: 'ATLAS_IMAGE', message: 'Embedded atlas image is invalid.', scene: scene.runtimeScene.scene.name }]);
+      const relative = 'assets/generated/atlas-' + crypto.createHash('sha256').update(bytes).digest('hex').slice(0, 16) + (embedded[1] === 'png' ? '.png' : '.jpg');
+      fs.mkdirSync(path.dirname(path.join(output, relative)), { recursive: true });
+      fs.writeFileSync(path.join(output, relative), bytes);
+      style.imagePath = 'res://' + relative;
+      style.imageDataUrl = '';
+      for (const node of scene.runtimeScene.nodes) {
+        const props = node.properties || {};
+        if (props.atlasRegionId === style.id || props.nineSliceStyleId === style.id) {
+          props.imagePath = style.imagePath;
+          props.imageDataUrl = '';
+        }
+      }
+    }
+  }
   scenes = scenes.map(s => rewriteSvg(s, projectRoot, output, conversions));
   const metadata = buildClassicExportMetadataFiles(scenes, { projectRoot, exportOptions: payload.exportOptions || { bakeTerrain: payload.bakeTerrain !== false } });
   for (const scene of metadata.scenePayloads) fs.writeFileSync(path.join(output, 'assets/scenes', scene.sceneName + '.json'), scene.json);

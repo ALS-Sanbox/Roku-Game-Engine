@@ -7,6 +7,25 @@ const { buildNativeProject } = require('../native_build');
 const { validateSnapshot, BuildError } = require('../build_diagnostics');
 const { packageFiles } = require('../../visual-editor/roku-package');
 function scene(name) { return { formatVersion: 2, scene: { name, rootNodeId: 'root' }, nodes: [{ id: 'root', name: 'Root', type: 'SceneRoot', parentId: null, children: [], transform: {}, properties: {}, components: [] }] }; }
+test('legacy embedded atlas images become packaged textures without modifying the project', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'roku-atlas-'));
+  try {
+    const data='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+    const doc=scene('Atlas');
+    doc.nodes.push({id:'texture',name:'Texture',type:'TextureRect',parentId:'root',children:[],transform:{},properties:{imagePath:'missing.png',atlasRegionId:'legacy',nineSliceStyleId:'legacy'},components:[]});
+    doc.nodes[0].children=['texture'];
+    const file=path.join(root,'Atlas.rkscene');fs.writeFileSync(file,JSON.stringify(doc));
+    fs.writeFileSync(file+'.editstate',JSON.stringify({nineSliceStyles:[{id:'legacy',name:'Legacy',imagePath:'missing.png',imageDataUrl:data}]}));
+    const original=fs.readFileSync(file);
+    const result=buildNativeProject({projectRoot:root},{buildRoot:path.join(root,'.builds')});
+    const exported=JSON.parse(fs.readFileSync(path.join(result.output,'assets/scenes/Atlas.json')));
+    const reference=exported.nodes.find(n=>n.id==='texture').properties.imagePath;
+    assert.match(reference,/^res:\/\/assets\/generated\/atlas-.*\.png$/);
+    assert.deepEqual(fs.readFileSync(path.join(result.output,reference.slice(6))),Buffer.from(data.split(',')[1],'base64'));
+    assert.deepEqual(fs.readFileSync(file),original);
+    assert.equal(fs.existsSync(path.join(root,'missing.png')),false);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
 test('build overlays unsaved edits, retains unopened transitions, selects startup, and preserves source', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'roku-native-'));
   try {

@@ -3,9 +3,11 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const sampleMode = process.argv.includes('--sample');
+const testgeMode = process.argv.includes('--testge');
 const coordinatesMode = process.argv.includes('--coordinates');
 const fixtureRoot = path.join(root, sampleMode ? '.visual-editor/sample-test-' + process.pid : '.visual-editor/engine-smoke-' + process.pid);
 if(sampleMode){fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.join(root,'samples/collect-the-stars'),fixtureRoot,{recursive:true});}
+if(testgeMode){fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.resolve(root,'../TestGE'),fixtureRoot,{recursive:true});}
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function node(id, type, parentId, x, y, properties = {}) {
   return { id, name: id, type, parentId, children: [], visible: true, zIndex: 0, transform: { x, y, scaleX: 1, scaleY: 1, rotation: 0 }, properties, components: [] };
@@ -54,7 +56,7 @@ function pngChunk(type, data) {
 }
 const dimensions = Buffer.alloc(13); dimensions.writeUInt32BE(1, 0); dimensions.writeUInt32BE(1, 4); dimensions[8] = 8; dimensions[9] = 6;
 fs.writeFileSync(path.join(fixtureRoot, 'images/pixel.png'), Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), pngChunk('IHDR', dimensions), pngChunk('IDAT', require('node:zlib').deflateSync(Buffer.from([0, 0, 80, 255, 255]))), pngChunk('IEND', Buffer.alloc(0))]));
-if (!sampleMode) fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
+if (!sampleMode && !testgeMode) fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
 async function main() {
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(require('electron'), ['.', '--engine-smoke-test', '--remote-debugging-port=0'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -97,12 +99,48 @@ async function main() {
     }
     await evaluate(sessionId, `void window.electronAPI.openProjectInEditor(${JSON.stringify(fixtureRoot)}); true`);
     for (let attempt = 0; ; attempt++) {
-      if (await evaluate(sessionId, 'typeof state!=="undefined" && state.sceneState?.scene?.name===' + JSON.stringify(sampleMode ? 'CollectStars' : 'SmokeScene') + ' && !!document.getElementById("btn-test-simulator")')) break;
+      if (await evaluate(sessionId, 'typeof state!=="undefined" && state.sceneState?.scene?.name===' + JSON.stringify(testgeMode ? 'MainScene' : sampleMode ? 'CollectStars' : 'SmokeScene') + ' && !!document.getElementById("btn-test-simulator")')) break;
       if (attempt >= 60) throw new Error('Scene editor did not initialize');
       await delay(500);
     }
     console.log('EDITOR', JSON.stringify(await evaluate(sessionId, '({title:document.title,scene:typeof state!=="undefined"?state.sceneState.scene.name:null,projectRoot:state.projectRoot,status:state.status,logs:state.logs.slice(-8),viewportError:window.__viewportInitError?.message,konva:typeof Konva,buildButton:!!document.getElementById("btn-test-simulator")})')));
     if (errors.length) throw new Error(errors.join('\n'));
+    if (testgeMode) {
+      let texture;
+      for(let attempt=0;attempt<40;attempt++) {
+        texture=await evaluate(sessionId,'(()=>{const n=getNodes().find(n=>n.type==="TextureRect"),img=state.imageCache.get(n?.id);return {loaded:!!img?.complete&&img.naturalWidth>0,width:img?.naturalWidth,height:img?.naturalHeight};})()');
+        if(texture.loaded)break;
+        await delay(250);
+      }
+      if(!texture?.loaded)throw new Error('TestGE texture was not restored in the editor');
+      console.log('TESTGE_EDITOR_TEXTURE',JSON.stringify(texture));
+      const layout=await evaluate(sessionId,`(async()=>{
+        const saved=serializeScene();
+        try {
+          const n=getNodes().find(n=>n.type==='TextureRect');
+          selectNode(n.id);await new Promise(resolve=>setTimeout(resolve,200));
+          const shape=shapeRefs.get(n.id);
+          for(let i=0;i<20;i++) {
+            captureTransformerSession();shape.scaleX(shape.scaleX()*1.05);shape.scaleY(shape.scaleY()*.95);
+            const left=shape.x()-shape.offsetX()*shape.scaleX(),top=shape.y()-shape.offsetY()*shape.scaleY();
+            syncSelectedNodesFromShapes();
+            if(Math.abs(n.transform.x-n.transform.pivotX*n.transform.scaleX-left)>.001||Math.abs(n.transform.y-n.transform.pivotY*n.transform.scaleY-top)>.001)throw new Error('Resize drift at iteration '+i);
+          }
+          refreshInspector({force:true});
+          const titles=Array.from(document.querySelectorAll('#inspector .anchor-preset-btn,#inspector .anchor-stretch-btn')).map(b=>b.title);
+          if(titles.length!==16)throw new Error('Expected all 16 anchor controls');
+          for(const title of titles) {
+            refreshInspector({force:true});
+            Array.from(document.querySelectorAll('#inspector .anchor-preset-btn,#inspector .anchor-stretch-btn')).find(b=>b.title===title).click();
+            const once=JSON.stringify({transform:n.transform,properties:n.properties});
+            for(let i=0;i<10;i++)RGEUIEditor.applyAnchorLayout();
+            if(JSON.stringify({transform:n.transform,properties:n.properties})!==once)throw new Error('Anchor drift: '+title);
+          }
+          return {resizes:20,presets:titles.length,passed:true};
+        } finally {applySceneSnapshot(saved,'Restored TestGE after layout checks');}
+      })()`);
+      console.log('TESTGE_LAYOUT',JSON.stringify(layout));
+    }
     if (process.argv.includes('--ui')) {
       await require('./check-editor-ui.cjs')({ send, evaluate, sessionId, errors, fixtureRoot });
       await evaluate(sessionId, 'window.electronAPI.closeWindow(); true');
@@ -139,6 +177,24 @@ async function main() {
     }
     console.log('SIMULATOR', JSON.stringify(snapshot));
     if (!snapshot.painted || !snapshot.state?.startsWith('Running') || /runtime error|compile error|error:/i.test(snapshot.logs) || errors.length) throw new Error('Engine simulator failed: ' + JSON.stringify({ snapshot, errors }));
+    if (testgeMode) {
+      await delay(1000);
+      const colors=await evaluate(attached.sessionId,'(()=>{const d=brs.getDisplayBuffer().getContext("2d").getImageData(0,0,1280,720).data,s=new Set();for(let i=0;i<d.length;i+=16)s.add(d[i]+","+d[i+1]+","+d[i+2]);return s.size;})()');
+      if(colors<100)throw new Error('TestGE framebuffer lacks texture colors: '+colors);
+      const output=path.join(root,'.visual-editor/artifacts/testge');fs.mkdirSync(output,{recursive:true});
+      const screenshot=await send('Page.captureScreenshot',{},attached.sessionId);
+      fs.writeFileSync(path.join(output,'simulator.png'),Buffer.from(screenshot.data,'base64'));
+      console.log('TESTGE_SIMULATOR_TEXTURE',JSON.stringify({colors,output}));
+      await send('Target.closeTarget',{targetId:preview.targetId});
+      await evaluate(sessionId,'window.electronAPI.returnToProjectManager(); true');
+      for(let attempt=0;attempt<40;attempt++) {
+        if(await evaluate(sessionId,'!!document.getElementById("pm-close-btn")'))break;
+        await delay(250);
+      }
+      await evaluate(sessionId,'document.getElementById("pm-close-btn").click(); true').catch(()=>{});
+      if(child.exitCode===null)await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('Manager Close did not exit the app')),5000);child.once('exit',()=>{clearTimeout(timer);resolve();});});
+      console.log('MANAGER_CLOSE passed');return;
+    }
     if (coordinatesMode) {
       await delay(1000);
       const pixels=await evaluate(attached.sessionId,`(()=>{const ctx=brs.getDisplayBuffer().getContext('2d');const p=(x,y)=>Array.from(ctx.getImageData(x,y,1,1).data);return {sprite:p(530,350),beforeSprite:p(500,350),afterSprite:p(690,350),panel:p(350,80),outsidePanel:p(470,80)};})()`);

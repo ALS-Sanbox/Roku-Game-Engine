@@ -204,64 +204,19 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   // Parent space: if the node's parent is a UI node, use parent.properties.width/height.
   //              if the parent is a CanvasLayer (or none), use the preview resolution.
   function applyAnchorLayout() {
-    const meta = getUiMeta();
-    const { w: resW, h: resH } = previewRes(meta);
-    const all  = getNodes();
-    const byId = new Map(all.map(n => [n.id, n]));
-
-    for (const node of all) {
-      const p = node.properties;
-      if (!p) continue;
-
-      // Only process nodes that have anchor properties (all UI nodes do after migration)
-      const aL = Number(p.anchorLeft   ?? 0);
-      const aT = Number(p.anchorTop    ?? 0);
-      const aR = Number(p.anchorRight  ?? 0);
-      const aB = Number(p.anchorBottom ?? 0);
-      const mL = Number(p.marginLeft   ?? 0);
-      const mT = Number(p.marginTop    ?? 0);
-      const mR = Number(p.marginRight  ?? 0);
-      const mB = Number(p.marginBottom ?? 0);
-
-      // Skip nodes with all-zero anchors — they use manual transform.x/y
-      if (aL === 0 && aT === 0 && aR === 0 && aB === 0 &&
-          mL === 0 && mT === 0 && mR === 0 && mB === 0) continue;
-
-      // Determine parent dimensions
-      const parent = node.parentId ? byId.get(node.parentId) : null;
-      let pw, ph;
-      if (parent && parent.type !== 'CanvasLayer' && parent.properties?.width != null) {
-        pw = Math.max(1, Number(parent.properties.width));
-        ph = Math.max(1, Number(parent.properties.height));
-      } else {
-        // Root node or child of CanvasLayer — use canvas resolution as parent space
-        pw = resW;
-        ph = resH;
-      }
-
-      // Compute edges in parent space
-      const left   = pw * aL + mL;
-      const top    = ph * aT + mT;
-      const right  = pw * aR + mR;
-      const bottom = ph * aB + mB;
-
-      const newX = left;
-      const newY = top;
-      const newW = Math.max(1, right - left);
-      const newH = Math.max(1, bottom - top);
-
-      // Only write if anchors actually constrain size/position
-      // (i.e. when left !== right or top !== bottom in anchor space)
-      node.transform.x   = Math.round(newX);
-      node.transform.y   = Math.round(newY);
-      // Only override width/height when anchors create a meaningful span
-      if (aL !== aR || mL !== 0 || mR !== 0) {
-        p.width  = newW;
-      }
-      if (aT !== aB || mT !== 0 || mB !== 0) {
-        p.height = newH;
-      }
+    const { w: resW, h: resH } = previewRes(getUiMeta());
+    const all = getNodes(), byId = new Map(all.map(n => [n.id, n]));
+    const visited = new Set();
+    function visit(node) {
+      if (visited.has(node.id)) return;
+      visited.add(node.id);
+      const parent = byId.get(node.parentId);
+      if (parent) visit(parent);
+      const width = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.width) || resW : resW;
+      const height = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.height) || resH : resH;
+      RGE_ROOT.RGELayoutGeometry.layout(node, width, height);
     }
+    all.forEach(visit);
   }
 
   // Apply Godot-style layout to all layout containers in the scene.
@@ -463,16 +418,21 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   // Returns the absolute logical position of a node by walking up ancestors.
   // Accepts an optional pre-built map to avoid redundant getNodes() calls.
   function nodeAbsPos(node, byId) {
-    const map = byId || _getNodeByIdMap();
-    let ax = 0, ay = 0, cur = node, depth = 0;
-    while (cur && depth++ < 32) {
-      ax += Number(cur.transform?.x ?? 0);
-      ay += Number(cur.transform?.y ?? 0);
-      const par = map.get(cur.parentId);
-      if (!par || par.type === 'CanvasLayer') break;
-      cur = par;
+    const map = byId || _getNodeByIdMap(), ancestors = [];
+    let cur = node;
+    while (cur && ancestors.length < 32) {
+      ancestors.unshift(cur);
+      if (cur.type === 'CanvasLayer') break;
+      cur = map.get(cur.parentId);
     }
-    return { x: ax, y: ay };
+    let x = 0, y = 0, scaleX = 1, scaleY = 1;
+    for (const ancestor of ancestors) {
+      const t = ancestor.transform || {}, sx = Number(t.scaleX) || 1, sy = Number(t.scaleY) || 1;
+      x += ((Number(t.x) || 0) - (Number(t.pivotX) || 0) * sx) * scaleX;
+      y += ((Number(t.y) || 0) - (Number(t.pivotY) || 0) * sy) * scaleY;
+      scaleX *= sx; scaleY *= sy;
+    }
+    return { x, y, scaleX, scaleY };
   }
 
   function nodeScreenRect(node, byId) {
@@ -480,7 +440,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     const abs = nodeAbsPos(node, byId);
     const w   = Math.max(1, Number(node.properties?.width  ?? 80));
     const h   = Math.max(1, Number(node.properties?.height ?? 40));
-    return { x: pr.x + abs.x * pr.scale, y: pr.y + abs.y * pr.scale, w: w * pr.scale, h: h * pr.scale };
+    return { x: pr.x + abs.x * pr.scale, y: pr.y + abs.y * pr.scale, w: w * pr.scale * abs.scaleX, h: h * pr.scale * abs.scaleY };
   }
 
   // ───────────────────────── snapping ─────────────────────────────────────
@@ -894,6 +854,14 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         ctx.restore();
         return;
       case 'Label':          _drawLabel(ctx, node, sr, pr);          break;
+      case 'TextureRect': {
+        const image = bridge()?.getNodeImage?.(node.id);
+        if (image?.complete && image.naturalWidth > 0) {
+          const rect = RGE_ROOT.RGELayoutGeometry.textureRect(image.naturalWidth, image.naturalHeight, sr.w, sr.h, node.properties?.fitMode || 'contain', node.properties?.sourceRect);
+          if (rect.crop.width > 0 && rect.crop.height > 0) ctx.drawImage(image, rect.crop.x, rect.crop.y, rect.crop.width, rect.crop.height, sr.x + rect.x, sr.y + rect.y, rect.width, rect.height);
+        }
+        break;
+      }
       case 'Button':         _drawButton(ctx, node, sr, pr);         break;
       case 'CircleButton':   _drawCircleButton(ctx, node, sr, pr);   break;
       case 'TriangleButton': _drawTriangleButton(ctx, node, sr, pr); break;
@@ -1266,6 +1234,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         _drag.handle = handle;
         _drag.start  = {
           px: sx, py: sy,
+          parentId: selNode.parentId,
+          pivotX: Number(selNode.transform?.pivotX) || 0,
+          pivotY: Number(selNode.transform?.pivotY) || 0,
           nodeX: Number(selNode.transform?.x ?? 0),
           nodeY: Number(selNode.transform?.y ?? 0),
           nodeW: Number(selNode.properties?.width  ?? 80),
@@ -1401,13 +1372,10 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     const sel = selectedNode(); if (!sel) return;
 
     if (_drag.mode === 'move') {
-      // New absolute position in game units
-      const newAbsX = ds.absX + dx;
-      const newAbsY = ds.absY + dy;
-      // Convert absolute → local by subtracting parent's absolute position
+      // Apply the pointer delta in parent space, retaining the authored pivot.
       const parentAbs = ds.parentId ? nodeAbsPos(getNode(ds.parentId) || {}) : { x: 0, y: 0 };
-      const rawLocalX = newAbsX - parentAbs.x;
-      const rawLocalY = newAbsY - parentAbs.y;
+      const rawLocalX = ds.nodeX + dx / (parentAbs.scaleX || 1);
+      const rawLocalY = ds.nodeY + dy / (parentAbs.scaleY || 1);
       const snapped = snap(rawLocalX, rawLocalY, ds.nodeW, ds.nodeH, sel.id);
       _snapLines = snapped.lines;
       sel.transform.x = snapped.x;
@@ -1415,33 +1383,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       _patchInspectorInputs(sel.id, snapped.x, snapped.y, undefined, undefined);
 
     } else if (_drag.mode === 'resize') {
-      const h  = _drag.handle;
-      let { nodeX:ox, nodeY:oy, nodeW:ow, nodeH:oh } = ds;
-      let nx = ox, ny = oy, nw = ow, nh = oh;
-
-      if (h.includes('e')) nw = snapVal(Math.max(MIN_NODE_DIM, ow + dx));
-      if (h.includes('s')) nh = snapVal(Math.max(MIN_NODE_DIM, oh + dy));
-      if (h.includes('w')) { nw = snapVal(Math.max(MIN_NODE_DIM, ow - dx)); nx = snapVal(ox + (ow - nw)); }
-      if (h.includes('n')) { nh = snapVal(Math.max(MIN_NODE_DIM, oh - dy)); ny = snapVal(oy + (oh - nh)); }
-
-      // Multi-mode snap on the dragged edge position
-      if (h.includes('e') || h.includes('w')) {
-        const edgeX = h.includes('e') ? nx + nw : nx;
-        const snapped = snap(edgeX, ny, 0, nh, sel.id);
-        _snapLines = snapped.lines.filter(l => l.x1 === l.x2); // only vertical lines
-      }
-      if (h.includes('s') || h.includes('n')) {
-        const edgeY = h.includes('s') ? ny + nh : ny;
-        const snapped = snap(nx, edgeY, nw, 0, sel.id);
-        _snapLines = (_snapLines || []).concat(snapped.lines.filter(l => l.y1 === l.y2));
-      }
-
-      sel.transform.x          = nx;
-      sel.transform.y          = ny;
-      sel.properties            = sel.properties || {};
-      sel.properties.width      = nw;
-      sel.properties.height     = nh;
-      _patchInspectorInputs(sel.id, nx, ny, nw, nh);
+      const parent = ds.parentId ? nodeAbsPos(getNode(ds.parentId) || {}) : {};
+      RGE_ROOT.RGELayoutGeometry.resize(sel, ds, dx / (parent.scaleX || 1), dy / (parent.scaleY || 1), _drag.handle, snapVal, MIN_NODE_DIM);
+      _patchInspectorInputs(sel.id, sel.transform.x, sel.transform.y, sel.properties.width, sel.properties.height);
     }
 
     markDirty();
@@ -1492,6 +1436,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     if (sel) {
       // Re-layout containers: if the moved/resized node is a container, its
       // children need repositioning; if it's a child, nothing changes (blocked above).
+      b.syncNodeAnchorOffsets?.(sel);
       applyContainerLayout();
       b.pushHistory(_drag.mode === 'move' ? `Move ${sel.name}` : `Resize ${sel.name}`);
       // Only refresh what actually changed: inspector (position values) and

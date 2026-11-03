@@ -81,7 +81,37 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
     region = m.LoadImageAsset(props.imagePath)
     if region <> invalid then
       if width > 0 and height > 0 then
-        m.screen.DrawScaledObject(x, y, width / region.GetWidth(), height / region.GetHeight(), region)
+        sourceX = 0.0 : sourceY = 0.0
+        sourceW = region.GetWidth() * 1.0 : sourceH = region.GetHeight() * 1.0
+        bitmap = region
+        if type(region) = "roRegion" then
+          bitmap = region.GetBitmap()
+          sourceX = region.GetX() : sourceY = region.GetY()
+        end if
+        if props.sourceRect <> invalid then
+          rr = props.sourceRect
+          if _BRS_NumCoalesce(rr.w, 0) > 0 and _BRS_NumCoalesce(rr.h, 0) > 0 then
+            sourceX = sourceX + _BRS_NumCoalesce(rr.x, 0) : sourceY = sourceY + _BRS_NumCoalesce(rr.y, 0)
+            sourceW = rr.w : sourceH = rr.h
+          end if
+        end if
+        drawX = x * 1.0 : drawY = y * 1.0 : drawW = width * 1.0 : drawH = height * 1.0
+        mode = props.fitMode
+        if mode = invalid or mode = "" then mode = "contain"
+        if mode = "contain" then
+          factor = width / sourceW
+          if height / sourceH < factor then factor = height / sourceH
+          drawW = sourceW * factor : drawH = sourceH * factor
+          drawX = drawX + (width - drawW) / 2 : drawY = drawY + (height - drawH) / 2
+        else if mode = "cover" then
+          factor = width / sourceW
+          if height / sourceH > factor then factor = height / sourceH
+          cropW = width / factor : cropH = height / factor
+          sourceX = sourceX + (sourceW - cropW) / 2 : sourceY = sourceY + (sourceH - cropH) / 2
+          sourceW = cropW : sourceH = cropH
+        end if
+        textureRegion = CreateObject("roRegion", bitmap, Int(sourceX), Int(sourceY), Int(sourceW), Int(sourceH))
+        if textureRegion <> invalid then m.screen.DrawScaledObject(Int(drawX), Int(drawY), drawW / textureRegion.GetWidth(), drawH / textureRegion.GetHeight(), textureRegion)
       else
         m.screen.DrawObject(x, y, region)
       end if
