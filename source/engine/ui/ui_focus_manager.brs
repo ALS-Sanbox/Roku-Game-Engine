@@ -86,6 +86,7 @@ sub RokuEngine_RebuildFocusables()
     if not m.scene.nodeMap.DoesExist(nodeId) then continue for
     node = m.scene.nodeMap[nodeId]
     if node = invalid then continue for
+    if not m.IsNodeFocusable(node) then continue for
 
     ' Visibility + opacity gate
     tf = m.GetNodeScreenTransform(nodeId)

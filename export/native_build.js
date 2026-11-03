@@ -104,6 +104,15 @@ function buildNativeProject(payload, options = {}) {
     }
   }
   scenes = scenes.map(s => rewriteSvg(s, projectRoot, output, conversions));
+  // Editor previews hydrate images as data URLs. Durable packaged paths are
+  // sufficient at runtime; retaining the preview bytes repeats whole atlases.
+  for (const scene of scenes) for (const node of scene.runtimeScene.nodes) {
+    const props = node.properties || {};
+    if (props.imageDataUrl && /^(res:\/\/|pkg:\/)/.test(props.imagePath || '')) {
+      const relative = props.imagePath.replace(/^(res:\/\/|pkg:\/)/, '').split('#')[0];
+      if (fs.existsSync(path.join(output, relative))) props.imageDataUrl = '';
+    }
+  }
   const metadata = buildClassicExportMetadataFiles(scenes, { projectRoot, exportOptions: payload.exportOptions || { bakeTerrain: payload.bakeTerrain !== false } });
   for (const scene of metadata.scenePayloads) fs.writeFileSync(path.join(output, 'assets/scenes', scene.sceneName + '.json'), scene.json);
   for (const [file, key] of Object.entries({ spriteframes: 'spriteframesJson', spritesheets: 'spritesheetsJson', tilesets: 'tilesetsJson', audio: 'audioJson', resources: 'resourcesJson', ui_screens: 'uiScreensJson', ui_transition_presets: 'uiTransitionPresetsJson', ui_option_defs: 'uiOptionDefsJson', ui_high_score_table: 'uiHighScoreTableJson', nine_slice_styles: 'nineSliceStylesJson' })) if (metadata[key]) fs.writeFileSync(path.join(output, 'assets', file + '.json'), metadata[key]);

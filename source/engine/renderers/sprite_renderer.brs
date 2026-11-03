@@ -2,6 +2,7 @@
 
 sub RokuEngine_SyncCompositorSprites()
   if m.scene = invalid then return
+  if m.scene.hasWorldNodes = false then return
   m.UpdateWorldTransforms(m.scene)
   if m.compositorSprites = invalid then m.compositorSprites = {}
 

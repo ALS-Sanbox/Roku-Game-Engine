@@ -87,6 +87,7 @@ end sub
 
 sub RokuEngine_RenderPassWorldDebug()
   if m.scene = invalid then return
+  if m.scene.hasWorldNodes = false then return
   traversalIds = m.GetRenderTraversalNodeIds()
   for each nodeId in traversalIds
     if m.scene.nodeMap.DoesExist(nodeId) then

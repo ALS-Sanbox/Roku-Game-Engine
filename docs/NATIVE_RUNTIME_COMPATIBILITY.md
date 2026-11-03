@@ -31,6 +31,10 @@ The original Electron scene editor is the application launched by `npm start`. F
 
 ## Validation scope
 
+`projects/MOL` converts Messenger of Light into 215 editable engine nodes and pooled sprite templates, retaining its original 22-day simulation in components. `npm.cmd run test:mol` checks editor save/reopen, native export, the original regression tests, remote navigation, movement/fire, pause/resume and final-game screens. Test-only encounter/delivery checkpoints cover victory and score entry without claiming a full campaign playthrough. See [the project guide](../projects/MOL/README.md).
+
+Runtime JSON loads with case-insensitive members so scripted edits replace camel-case properties. Canvas-only scenes skip world sprite/transform work, and UI traversal stays cached until scene structure changes. TextureRect tint and opacity support the converted effects; world sprite limitations above still apply.
+
 `npm test` checks packaging, preservation of edits, resource metadata and native build validation. `npm run check:runtime` checks all canonical BrightScript in the source scope. `npm run test:browser` opens the actual Electron editor and a simulator window and checks startup errors and native frame-buffer pixels for a moving camera target, fixed HUD and correctly sized texture.
 
 `npm.cmd run test:browser-suite` also checks static zoom/bounds, parent scale, pivots, anchors, sample gameplay/restart and package equivalence. Results and logs are stored under `.visual-editor/artifacts/results/`.

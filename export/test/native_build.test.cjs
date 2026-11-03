@@ -26,6 +26,24 @@ test('legacy embedded atlas images become packaged textures without modifying th
     assert.equal(fs.existsSync(path.join(root,'missing.png')),false);
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
+test('packaged textures omit duplicate editor preview data without changing the source', () => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'roku-preview-'));
+  try {
+    const data='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
+    const bytes=Buffer.from(data.split(',')[1],'base64');
+    fs.writeFileSync(path.join(root,'texture.png'),bytes);
+    const doc=scene('Preview');
+    doc.nodes.push({id:'texture',name:'Texture',type:'TextureRect',parentId:'root',children:[],transform:{},properties:{imagePath:'res://texture.png',imageDataUrl:data},components:[]});
+    doc.nodes[0].children=['texture'];
+    const file=path.join(root,'Preview.rkscene');fs.writeFileSync(file,JSON.stringify(doc));
+    const original=fs.readFileSync(file);
+    const result=buildNativeProject({projectRoot:root},{buildRoot:path.join(root,'.builds')});
+    const exported=JSON.parse(fs.readFileSync(path.join(result.output,'assets/scenes/Preview.json')));
+    assert.ok(!exported.nodes.find(n=>n.id==='texture').properties.imageDataUrl);
+    assert.deepEqual(fs.readFileSync(path.join(result.output,'texture.png')),bytes);
+    assert.deepEqual(fs.readFileSync(file),original);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
 test('build overlays unsaved edits, retains unopened transitions, selects startup, and preserves source', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'roku-native-'));
   try {

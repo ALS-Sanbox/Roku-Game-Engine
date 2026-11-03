@@ -79,6 +79,10 @@ sub RokuEngine_RefreshSceneCaches()
   m.scene.nodeMap = m.BuildNodeMap(m.scene.doc.nodes)
   m.scene.childrenByParent = m.BuildChildrenMap(m.scene.doc.nodes)
   m.scene.namedNodeMap = m.BuildNamedNodeMap(m.scene.doc.nodes)
+  m.scene.hasWorldNodes = false
+  for each node in m.scene.doc.nodes
+    if node <> invalid and RokuEngine_IsWorldNodeType(node.type) then m.scene.hasWorldNodes = true
+  end for
   m.EnsureTransformRuntime(m.scene)
   m.MarkPhaseCachesDirty()
   if m.scene.ui <> invalid then m.scene.ui.focusDirty = true

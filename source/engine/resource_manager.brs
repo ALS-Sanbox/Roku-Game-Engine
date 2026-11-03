@@ -77,7 +77,8 @@ function RokuEngine_Resources_GetJsonDocument(path as String) as Dynamic
   if m.jsonCache.DoesExist(path) then return m.jsonCache[path]
   raw = ReadAsciiFile(path)
   if raw = invalid or raw = "" then return invalid
-  parsed = ParseJson(raw)
+  ' Runtime documents are edited through BrightScript's case-insensitive members.
+  parsed = ParseJson(raw, "i")
   if parsed = invalid then return invalid
   m.jsonCache[path] = parsed
   return parsed

@@ -16,6 +16,7 @@ sub RokuEngine_RenderUiPass()
     if m.scene.nodeMap <> invalid and m.scene.nodeMap.DoesExist(nodeId) then
       node = m.scene.nodeMap[nodeId]
       if node <> invalid then
+        if node.visible = false then continue for
         screen_tf = m.GetNodeScreenTransform(nodeId)
         ' Visibility filtering
         if screen_tf.visible = false then continue for
@@ -111,7 +112,9 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
           sourceW = cropW : sourceH = cropH
         end if
         textureRegion = CreateObject("roRegion", bitmap, Int(sourceX), Int(sourceY), Int(sourceW), Int(sourceH))
-        if textureRegion <> invalid then m.screen.DrawScaledObject(Int(drawX), Int(drawY), drawW / textureRegion.GetWidth(), drawH / textureRegion.GetHeight(), textureRegion)
+        tint = "#ffffff"
+        if props.tint <> invalid and props.tint <> "" then tint = props.tint
+        if textureRegion <> invalid then m.screen.DrawScaledObject(Int(drawX), Int(drawY), drawW / textureRegion.GetWidth(), drawH / textureRegion.GetHeight(), textureRegion, RokuEngine_HexToRgba(tint, opacity))
       else
         m.screen.DrawObject(x, y, region)
       end if

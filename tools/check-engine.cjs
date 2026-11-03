@@ -4,10 +4,57 @@ const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const sampleMode = process.argv.includes('--sample');
 const testgeMode = process.argv.includes('--testge');
+const molMode = process.argv.includes('--mol');
 const coordinatesMode = process.argv.includes('--coordinates');
 const fixtureRoot = path.join(root, sampleMode ? '.visual-editor/sample-test-' + process.pid : '.visual-editor/engine-smoke-' + process.pid);
 if(sampleMode){fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.join(root,'samples/collect-the-stars'),fixtureRoot,{recursive:true});}
 if(testgeMode){fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.resolve(root,'../TestGE'),fixtureRoot,{recursive:true});}
+if(molMode){
+  fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.join(root,'projects/MOL'),fixtureRoot,{recursive:true});
+  const validation=path.join(fixtureRoot,'components/validation');fs.mkdirSync(validation,{recursive:true});
+  const calls=[];
+  for(const name of ['game_test','frontend_test','audio_test']){
+    let source=fs.readFileSync(path.join(fixtureRoot,'tests',name+'.brs'),'utf8');
+    const names=[...source.matchAll(/^(?:sub|function)\s+(\w+)\s*\(/gmi)].map(m=>m[1]);
+    for(const functionName of names)source=source.replace(new RegExp('\\b'+functionName+'\\b','gi'),'MOLValidation_'+name+'_'+functionName);
+    fs.writeFileSync(path.join(validation,name+'.brs'),source);calls.push('  MOLValidation_'+name+'_Main()');
+  }
+  fs.writeFileSync(path.join(validation,'validate.brs'),'sub RokuScript_components_validation_validate_Ready(context as Object)\n'+calls.join('\n')+'\nend sub\n'+`
+sub RokuScript_components_validation_validate_Update(context as Object)
+  state = context.scene.runtime.mol
+  if state.game.mode = "playing" and state.validationPoolChecked <> true
+    visible = 0
+    for each kind in state.pools
+      for each node in state.pools[kind]
+        if node.parentId <> "Playfield" then print "FAIL: MOL runtime clone parent"
+        tf = context.engine.GetNodeScreenTransform(node.id)
+        if tf.visible then visible = visible + 1
+      end for
+    end for
+    if visible > 0
+      print "PASS: MOL runtime clones leave hidden template layer"
+      state.validationPoolChecked = true
+    end if
+  end if
+  down = context.engine.inputState.heldActions.options = true or context.engine.inputState.pressedActions.options = true
+  if down and state.validationOptionDown <> true
+    g = state.game
+    if g.day = 22 and g.mode = "playing"
+      g.enemies = [] : g.hostile = [] : g.firing = false
+      print "MOL_VALIDATION final encounter cleared"
+    else if g.mode = "delivering"
+      g.delivery.time = 5 : g.score = 123456
+      print "MOL_VALIDATION delivery checkpoint"
+    end if
+  end if
+  state.validationOptionDown = down
+end sub
+`);
+  const file=path.join(fixtureRoot,'MOL.rkscene'),doc=JSON.parse(fs.readFileSync(file));
+  doc.nodes[0].components[0].debugLogging=true;
+  doc.nodes[0].components.push({type:'ScriptComponent',enabled:true,scriptPath:'res://components/validation/validate.brs'});
+  fs.writeFileSync(file,JSON.stringify(doc));
+}
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function node(id, type, parentId, x, y, properties = {}) {
   return { id, name: id, type, parentId, children: [], visible: true, zIndex: 0, transform: { x, y, scaleX: 1, scaleY: 1, rotation: 0 }, properties, components: [] };
@@ -56,7 +103,7 @@ function pngChunk(type, data) {
 }
 const dimensions = Buffer.alloc(13); dimensions.writeUInt32BE(1, 0); dimensions.writeUInt32BE(1, 4); dimensions[8] = 8; dimensions[9] = 6;
 fs.writeFileSync(path.join(fixtureRoot, 'images/pixel.png'), Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), pngChunk('IHDR', dimensions), pngChunk('IDAT', require('node:zlib').deflateSync(Buffer.from([0, 0, 80, 255, 255]))), pngChunk('IEND', Buffer.alloc(0))]));
-if (!sampleMode && !testgeMode) fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
+if (!sampleMode && !testgeMode && !molMode) fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
 async function main() {
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(require('electron'), ['.', '--engine-smoke-test', '--remote-debugging-port=0'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -99,7 +146,7 @@ async function main() {
     }
     await evaluate(sessionId, `void window.electronAPI.openProjectInEditor(${JSON.stringify(fixtureRoot)}); true`);
     for (let attempt = 0; ; attempt++) {
-      if (await evaluate(sessionId, 'typeof state!=="undefined" && state.sceneState?.scene?.name===' + JSON.stringify(testgeMode ? 'MainScene' : sampleMode ? 'CollectStars' : 'SmokeScene') + ' && !!document.getElementById("btn-test-simulator")')) break;
+      if (await evaluate(sessionId, 'typeof state!=="undefined" && state.sceneState?.scene?.name===' + JSON.stringify(molMode ? 'MOL' : testgeMode ? 'MainScene' : sampleMode ? 'CollectStars' : 'SmokeScene') + ' && !!document.getElementById("btn-test-simulator")')) break;
       if (attempt >= 60) throw new Error('Scene editor did not initialize');
       await delay(500);
     }
@@ -146,6 +193,17 @@ async function main() {
       await evaluate(sessionId, 'window.electronAPI.closeWindow(); true');
       return;
     }
+    if(molMode){
+      const edited=await evaluate(sessionId,`(async()=>{getNode('Player').properties.width=72;getNode('Version').properties.text='EDITABLE ENGINE PROJECT';if(!await saveProject())throw new Error('MOL project save failed');return true;})()`);
+      await evaluate(sessionId,`void window.electronAPI.openProjectInEditor(${JSON.stringify(fixtureRoot)});true`);
+      let reopened=false;
+      for(let attempt=0;attempt<60;attempt++){
+        try{reopened=await evaluate(sessionId,'typeof state!=="undefined" && getNode("Player")?.properties.width===72 && getNode("Version")?.properties.text==="EDITABLE ENGINE PROJECT"');}catch{}
+        if(reopened)break;await delay(250);
+      }
+      if(!reopened)throw new Error('MOL editable scene did not survive save/reopen');
+      console.log('MOL_SAVE_REOPEN',JSON.stringify({edited,reopened}));
+    }
     if (sampleMode) {
       const saved = await evaluate(sessionId, `(async()=>{
         getNode('player').transform.x=210;
@@ -170,13 +228,17 @@ async function main() {
     const attached = await send('Target.attachToTarget', { targetId: preview.targetId, flatten: true });
     await send('Runtime.enable', {}, attached.sessionId);
     let snapshot;
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < (molMode?120:30); i++) {
       await delay(500);
       snapshot = await evaluate(attached.sessionId, '({state:document.getElementById("state")?.textContent,logs:document.getElementById("logs")?.textContent,painted:document.getElementById("display")?.getContext("2d").getImageData(0,0,1280,720).data.some((v,i)=>i%4!==3&&v>0),isolated:crossOriginIsolated})');
       if (snapshot.painted || snapshot.state?.includes('error') || snapshot.state === 'Game stopped.') break;
     }
     console.log('SIMULATOR', JSON.stringify(snapshot));
     if (!snapshot.painted || !snapshot.state?.startsWith('Running') || /runtime error|compile error|error:/i.test(snapshot.logs) || errors.length) throw new Error('Engine simulator failed: ' + JSON.stringify({ snapshot, errors }));
+    if(molMode){
+      await require('./check-mol-project.cjs')({send,evaluate,sessionId,previewSession:attached.sessionId,build:result,errors});
+      await send('Target.closeTarget',{targetId:preview.targetId});await evaluate(sessionId,'window.electronAPI.closeWindow();true');return;
+    }
     if (testgeMode) {
       await delay(1000);
       const colors=await evaluate(attached.sessionId,'(()=>{const d=brs.getDisplayBuffer().getContext("2d").getImageData(0,0,1280,720).data,s=new Set();for(let i=0;i<d.length;i+=16)s.add(d[i]+","+d[i+1]+","+d[i+2]);return s.size;})()');

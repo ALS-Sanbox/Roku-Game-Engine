@@ -29,7 +29,9 @@ Camera following, static camera zoom/bounds, parent scale, sprite pivots, UI anc
 
 Open `samples/collect-the-stars` in the project manager for an editable game with Title, Game and Win screens. Press Select to start, hold Right to collect four stars, then press Select to restart. Its BrightScript behavior lives in `components/behaviors/collect.brs`.
 
-See [the compatibility report](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for implemented fixes, required rework and testing limits. MOL and DOM can run as native ZIPs in the simulator; converting their drawing code into editable engine scenes remains separate work.
+Open [projects/MOL](projects/MOL/README.md) for Messenger of Light converted into a self-contained engine project: editable screens, HUD, player and object templates backed by its original 22-day gameplay simulation. Open `MOL.rkscene` and press F5 to play.
+
+See [the compatibility report](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for implemented fixes, required rework and testing limits. DOM can run as a native ZIP in the simulator; converting its drawing code into editable engine scenes remains separate work.
 
 ## Simulator
 
@@ -45,6 +47,7 @@ npm.cmd run check:runtime
 npm.cmd run test:browser
 npm.cmd run test:browser-suite
 npm.cmd run test:ui
+npm.cmd run test:mol
 ```
 
 The UI audit checks dock tabs, button bindings, resource actions, collapsible inspector sections, numeric controls and scrolling at a short editor size. It opens Project Settings at 700×420 and checks its tabs, scrolling and saved settings using an isolated fixture project. Reports and screenshots go to `.visual-editor/artifacts/ui/`. Native file pickers and uploads to a physical Roku require manual checks.

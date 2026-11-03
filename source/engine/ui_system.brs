@@ -22,6 +22,7 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
   ancestors = []
   current = m.scene.nodeMap[nodeId]
   while current <> invalid
+    if current.visible = false then result.visible = false : return result
     ancestors.Unshift(current)
     ' CanvasLayer resets world ancestry: HUD coordinates never inherit camera.
     if current.type = "CanvasLayer" then exit while
@@ -187,7 +188,8 @@ sub RokuEngine_RebuildUiRuntime()
   end for
 
   m.scene.ui.traversalIds = sorted
-  m.scene.ui.focusDirty = true
+  m.scene.ui.focusDirty = false
+  if m.focus <> invalid then m.focus.dirty = true
 end sub
 
 ' ── Public accessor ───────────────────────────────────────────────────────────

@@ -126,6 +126,8 @@ end sub
 
 sub RokuEngine_UpdateWorldTransforms(scene as Object)
   if scene = invalid then return
+  ' Canvas-only scenes calculate their transforms in the UI renderer.
+  if scene.hasWorldNodes = false then scene.worldTransformsDirty = false : return
   m.EnsureTransformRuntime(scene)
   transforms = scene.runtime.transforms
   if transforms = invalid then return
