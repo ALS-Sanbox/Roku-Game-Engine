@@ -4,7 +4,7 @@ function RokuEngine_NormalizeScriptPath(scriptPath as Dynamic) as String
   if scriptPath = invalid then return ""
   value = RokuEngine_Trim(RokuEngine_ToString(scriptPath))
   if value = "" then return ""
-  if Left(value, 6) = "pkg:/" then return "res://" + Mid(value, 6)
+  if Left(value, 5) = "pkg:/" then return "res://" + Mid(value, 6)
   if Left(value, 1) = "/" then return "res://" + Mid(value, 2)
   if Left(value, 6) <> "res://" then return "res://" + value
   return value

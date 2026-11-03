@@ -56,7 +56,14 @@ function RokuEngine_NormalizeActionMap(actionMap as Dynamic) as Object
   for each actionName in defaultMap
     buttonName = defaultMap[actionName]
     if source.DoesExist(actionName) and source[actionName] <> invalid and source[actionName] <> "" then buttonName = source[actionName]
-    normalized[actionName] = LCase(RokuEngine_Trim(RokuEngine_ToString(buttonName)))
+    normalized[actionName] = RokuEngine_CodeToDefaultButtonName(RokuEngine_ButtonNameToCode(buttonName))
+    if normalized[actionName] = "" then normalized[actionName] = defaultMap[actionName]
+  end for
+  for each actionName in source
+    if not defaultMap.DoesExist(actionName) then
+      buttonName = RokuEngine_CodeToDefaultButtonName(RokuEngine_ButtonNameToCode(source[actionName]))
+      if buttonName <> "" then normalized[actionName] = buttonName
+    end if
   end for
   return normalized
 end function
