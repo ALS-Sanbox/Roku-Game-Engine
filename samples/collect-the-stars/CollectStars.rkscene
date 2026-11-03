@@ -1,0 +1,561 @@
+{
+  "formatVersion": 2,
+  "scene": {
+    "name": "CollectStars",
+    "rootNodeId": "root"
+  },
+  "nodes": [
+    {
+      "id": "root",
+      "type": "SceneRoot",
+      "name": "root",
+      "parentId": null,
+      "children": [
+        "world",
+        "camera",
+        "Title",
+        "Game",
+        "Win"
+      ],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {},
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "world",
+      "type": "Node2D",
+      "name": "world",
+      "parentId": "root",
+      "children": [
+        "player",
+        "star1",
+        "star2",
+        "star3"
+      ],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {},
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "player",
+      "type": "Node2D",
+      "name": "player",
+      "parentId": "world",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 200,
+        "y": 300,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 48,
+        "height": 48,
+        "tint": "#45d6a4"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "type": "Collider2DComponent",
+          "enabled": true,
+          "width": 48,
+          "height": 48,
+          "isTrigger": true
+        },
+        {
+          "type": "ScriptComponent",
+          "enabled": true,
+          "scriptPath": "res://components/behaviors/collect.brs",
+          "speed": 240
+        }
+      ]
+    },
+    {
+      "id": "camera",
+      "type": "Camera2D",
+      "name": "camera",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "current": true,
+        "enabled": true,
+        "followTargetName": "player",
+        "followLerp": 1,
+        "zoom": 1
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Title",
+      "type": "CanvasLayer",
+      "name": "Title",
+      "parentId": "root",
+      "children": [
+        "titlePanel",
+        "titleLabel",
+        "instructions",
+        "start"
+      ],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "uiScreenName": "Title",
+        "startupScreen": true
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "titlePanel",
+      "type": "Panel",
+      "name": "titlePanel",
+      "parentId": "Title",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 1280,
+        "height": 720,
+        "color": "#101d35",
+        "anchorPreset": "full_rect"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "titleLabel",
+      "type": "Label",
+      "name": "titleLabel",
+      "parentId": "Title",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 320,
+        "y": 180,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 640,
+        "height": 80,
+        "text": "COLLECT THE STARS",
+        "textColor": "#ffd166",
+        "fontSize": 40,
+        "align": "center"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "instructions",
+      "type": "Label",
+      "name": "instructions",
+      "parentId": "Title",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 220,
+        "y": 280,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 840,
+        "height": 70,
+        "text": "Move with the remote. Collect every gold star.",
+        "textColor": "#ffffff",
+        "fontSize": 24,
+        "align": "center"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "start",
+      "type": "Button",
+      "name": "start",
+      "parentId": "Title",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 480,
+        "y": 420,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 320,
+        "height": 64,
+        "text": "START",
+        "action": "transition_screen:Game",
+        "defaultFocus": true,
+        "focusMode": "all"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Game",
+      "type": "CanvasLayer",
+      "name": "Game",
+      "parentId": "root",
+      "children": [
+        "hudPanel",
+        "scoreLabel"
+      ],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "uiScreenName": "Game"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "hudPanel",
+      "type": "Panel",
+      "name": "hudPanel",
+      "parentId": "Game",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 16,
+        "y": 16,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 420,
+        "height": 80,
+        "color": "#1a2944"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "scoreLabel",
+      "type": "Label",
+      "name": "scoreLabel",
+      "parentId": "Game",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 30,
+        "y": 24,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 400,
+        "height": 60,
+        "text": "Stars: 0",
+        "textColor": "#ffd166",
+        "fontSize": 26
+      },
+      "metadata": {
+        "scoreLabel": true
+      },
+      "components": []
+    },
+    {
+      "id": "Win",
+      "type": "CanvasLayer",
+      "name": "Win",
+      "parentId": "root",
+      "children": [
+        "winPanel",
+        "winLabel",
+        "restart"
+      ],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "uiScreenName": "Win"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "winPanel",
+      "type": "Panel",
+      "name": "winPanel",
+      "parentId": "Win",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 1280,
+        "height": 720,
+        "color": "#102b25",
+        "anchorPreset": "full_rect"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "winLabel",
+      "type": "Label",
+      "name": "winLabel",
+      "parentId": "Win",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 320,
+        "y": 200,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 640,
+        "height": 100,
+        "text": "YOU COLLECTED EVERY STAR!",
+        "textColor": "#ffd166",
+        "fontSize": 32,
+        "align": "center"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "restart",
+      "type": "Button",
+      "name": "restart",
+      "parentId": "Win",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 480,
+        "y": 400,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 320,
+        "height": 64,
+        "text": "PLAY AGAIN",
+        "action": "transition_scene:CollectStars",
+        "defaultFocus": true,
+        "focusMode": "all"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "star1",
+      "type": "Sprite2D",
+      "name": "star1",
+      "parentId": "world",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 400,
+        "y": 300,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 40,
+        "height": 40,
+        "imagePath": "res://assets/star.svg"
+      },
+      "metadata": {
+        "collectible": true
+      },
+      "components": [
+        {
+          "type": "Collider2DComponent",
+          "enabled": true,
+          "width": 40,
+          "height": 40,
+          "isTrigger": true
+        }
+      ]
+    },
+    {
+      "id": "star2",
+      "type": "Sprite2D",
+      "name": "star2",
+      "parentId": "world",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 660,
+        "y": 300,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 40,
+        "height": 40,
+        "imagePath": "res://assets/star.svg"
+      },
+      "metadata": {
+        "collectible": true
+      },
+      "components": [
+        {
+          "type": "Collider2DComponent",
+          "enabled": true,
+          "width": 40,
+          "height": 40,
+          "isTrigger": true
+        }
+      ]
+    },
+    {
+      "id": "star3",
+      "type": "Sprite2D",
+      "name": "star3",
+      "parentId": "world",
+      "children": [],
+      "visible": true,
+      "zIndex": 0,
+      "transform": {
+        "x": 920,
+        "y": 300,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 40,
+        "height": 40,
+        "imagePath": "res://assets/star.svg"
+      },
+      "metadata": {
+        "collectible": true
+      },
+      "components": [
+        {
+          "type": "Collider2DComponent",
+          "enabled": true,
+          "width": 40,
+          "height": 40,
+          "isTrigger": true
+        }
+      ]
+    }
+  ]
+}

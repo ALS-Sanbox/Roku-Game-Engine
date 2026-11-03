@@ -11,6 +11,7 @@
     "simulator": "node visual-editor/simulator-server.js",
     "simulator:setup": "node visual-editor/setup-simulator.js",
     "test:browser": "node tools/check-engine.cjs",
+    "test:browser-suite": "node tools/check-browser-suite.cjs",
     "test:visual-browser": "node visual-editor/check-browser.js",
     "test": "node --test visual-editor/test/*.test.js export/test/*.test.cjs"
   },
@@ -18,6 +19,7 @@
     "node": ">=22.12"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "brighterscript": "^0.73.8",
     "electron": "^45.2.1",
     "konva": "^9.3.22"

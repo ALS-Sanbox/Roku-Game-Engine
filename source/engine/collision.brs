@@ -62,7 +62,8 @@ function RokuCollision_GetNodeCollider(node as Object) as Dynamic
     mask = "default"
     if component.layer <> invalid and component.layer <> "" then layer = component.layer
     if component.mask <> invalid and component.mask <> "" then mask = component.mask
-    return { nodeId: node.id, x: world.x + offsetX * scaleX, y: world.y + offsetY * scaleY, width: Abs(colliderWidth * scaleX), height: Abs(colliderHeight * scaleY), isTrigger: isTrigger, layer: layer, mask: mask }
+    rect = RokuEngine_WorldRect(world, colliderWidth, colliderHeight, offsetX, offsetY)
+    return { nodeId: node.id, x: rect.x, y: rect.y, width: rect.width, height: rect.height, isTrigger: isTrigger, layer: layer, mask: mask }
   end for
   return invalid
 end function
@@ -123,13 +124,14 @@ function RokuCollision_BuildTileMapColliders(node as Object) as Object
     if parts.Count() < 2 then continue for
     col = Int(parts[0])
     row = Int(parts[1])
+    rect = RokuEngine_WorldRect(world, tileWidth, tileHeight, col * tileWidth, row * tileHeight)
     colliders.Push({
       nodeId: node.id
       colliderId: node.id + "#tile#" + cellKey
-      x: world.x + col * cellWidth
-      y: world.y + row * cellHeight
-      width: cellWidth
-      height: cellHeight
+      x: rect.x
+      y: rect.y
+      width: rect.width
+      height: rect.height
       isTrigger: false
       layer: "default"
       mask: "default"

@@ -25,7 +25,9 @@ F5 uses current in-memory scenes. Save the project separately to preserve scene 
 
 ## Camera and UI compatibility
 
-Basic camera following, fixed-position panels/labels and UI texture sizing have a simulator regression test. Advanced camera and UI authoring features are not all implemented in the native runtime. Builds report known gaps as warnings.
+Camera following, static camera zoom/bounds, parent scale, sprite pivots, UI anchors and texture sizing have simulator regression checks. Advanced camera and UI authoring features are not all implemented in the native runtime. Builds report known gaps as warnings. Referenced SVG artwork is rasterized during the native build.
+
+Open `samples/collect-the-stars` in the project manager for an editable game with Title, Game and Win screens. Press Select to start, hold Right to collect four stars, then press Select to restart. Its BrightScript behavior lives in `components/behaviors/collect.brs`.
 
 See [the compatibility report](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for implemented fixes, required rework and testing limits. MOL and DOM can run as native ZIPs in the simulator; converting their drawing code into editable engine scenes remains separate work.
 
@@ -41,9 +43,10 @@ See [the compatibility report](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for impleme
 npm.cmd test
 npm.cmd run check:runtime
 npm.cmd run test:browser
+npm.cmd run test:browser-suite
 ```
 
-The browser check opens hidden Electron windows, loads a fixture scene in the actual editor, builds native BrightScript and checks camera-follow, HUD and texture pixels in the simulator's frame buffer. Generated profiles and projects stay under ignored `.visual-editor/`. These are focused checks, not exhaustive gameplay or device validation.
+The browser check opens hidden Electron windows, loads a fixture scene in the actual editor, builds native BrightScript and checks camera-follow, HUD and texture pixels in the simulator's frame buffer. The full browser suite also checks coordinates and sample gameplay, restart, and package equivalence across simulator, export and sideload builds. Logs and results are written to `.visual-editor/artifacts/results/`. Generated profiles and projects stay under ignored `.visual-editor/`. These are focused checks, not exhaustive gameplay or device validation.
 
 ## Update GitHub
 

@@ -144,6 +144,7 @@ sub RGE_UI_ChangeScreen(screenName as String)
   ' Push new
   m._SM_PushStack(screenName)
   m._SM_SetScreenVisible(screenName, true)
+  print "RokuEngine UI: "; screenName
   m._SM_FireEvent("UIScreen_Enter", screenName, prev)
   m.SetFocusToScreen(screenName)
 end sub

@@ -1451,6 +1451,7 @@ function normalizeProjectSettings(settings = {}, projectRoot = '') {
   const screen = settings && typeof settings.screen === 'object' && !Array.isArray(settings.screen) ? settings.screen : {};
   return {
     projectName: String(settings.projectName || fallbackName).trim() || 'RokuEngine Game',
+    startupScene: String(settings.startupScene || ''),
     input: {
       movement: String(input.movement || 'standard').trim() || 'standard',
       action: String(input.action || 'ok').trim() || 'ok',
@@ -1640,23 +1641,24 @@ async function exportRokuProject() {
     projectRoot = chosen.rootPath;
     state.projectRoot = projectRoot;
   }
-  const saved = await saveProjectToRoot(projectRoot, { forceRepath: false });
-  if (!saved) return false;
   if (!window.electronAPI?.exportRokuProject) {
     setStatus('Roku export is not available.', true);
     return false;
   }
   const payload = {
+    ...getNativeBuildSnapshot(),
     projectRoot,
     projectTitle: state.projectSettings?.projectName || (projectRoot.split(/[\/]/).pop() || 'RokuEngine Game'),
     exportOptions: { bakeTerrain: true },
     scenes: state.scenes.map((sceneEntry) => ({
+      filePath: sceneEntry?.documentState?.currentScenePath || '',
       sceneName: sceneEntry?.sceneState?.scene?.name || sceneEntry?.name || 'Scene',
       runtimeScene: sceneEntry?.sceneState || {},
       editorState: sceneEntry?.editorState || {}
     }))
   };
   const result = await window.electronAPI.exportRokuProject(payload);
+  showBuildDiagnostics(result.diagnostics || []);
   if (!result?.success) {
     setStatus(`Roku export failed: ${result?.reason || 'Unknown error'}`, true);
     return false;
@@ -1682,6 +1684,22 @@ async function exportRokuProject() {
 }
 
 let simulatorBuildInProgress = false;
+function getNativeBuildSnapshot() {
+  flushTerrainDirtyCells();
+  persistActiveSceneEntry();
+  return { projectRoot: state.projectRoot, projectTitle: state.projectSettings.projectName, settings: state.projectSettings, startupScene: state.projectSettings.startupScene || state.scenes[0]?.sceneState?.scene?.name,
+    scenes: state.scenes.map(entry => ({ filePath: entry.documentState?.currentScenePath || '', sceneName: entry.sceneState.scene.name, runtimeScene: entry.sceneState, editorState: entry.editorState })) };
+}
+function showBuildDiagnostics(diagnostics) {
+  let panel = document.getElementById('native-build-diagnostics');
+  if (!panel) { panel = document.createElement('dialog'); panel.id = 'native-build-diagnostics'; panel.style.cssText = 'width: min(900px,90vw);max-height:70vh;background:#182330;color:#e4eef9;border:1px solid #678;padding:20px;overflow:auto'; document.body.append(panel); }
+  panel.replaceChildren();
+  const heading = document.createElement('h2'); heading.textContent = 'Native build diagnostics'; panel.append(heading);
+  const close = document.createElement('button'); close.textContent = 'Close'; close.onclick = () => panel.close(); panel.append(close);
+  for (const d of diagnostics) { const row = document.createElement('p'); row.textContent = `${d.severity.toUpperCase()} ${d.code}: ${[d.scene,d.node,d.property,d.path,d.line].filter(Boolean).join(' / ')} — ${d.message}`; panel.append(row); appendLog(row.textContent); }
+  if (!diagnostics.length) { const row = document.createElement('p'); row.textContent = 'No build diagnostics.'; panel.append(row); }
+  if (diagnostics.length && !panel.open) panel.showModal();
+}
 async function testInRokuSimulator() {
   if (simulatorBuildInProgress) return;
   simulatorBuildInProgress = true;
@@ -1696,11 +1714,8 @@ async function testInRokuSimulator() {
       state.projectRoot = projectRoot;
     }
     setStatus('Building native BrightScript game for the simulator…');
-    const result = await window.electronAPI.testInSimulator({
-      projectRoot,
-      projectTitle: state.projectSettings.projectName,
-      scenes: state.scenes.map(entry => ({ sceneName: entry.sceneState.scene.name, runtimeScene: entry.sceneState, editorState: entry.editorState }))
-    });
+    const result = await window.electronAPI.testInSimulator({ ...getNativeBuildSnapshot(), projectRoot });
+    showBuildDiagnostics(result.diagnostics || []);
     if (!result.success) throw new Error(result.reason);
     for (const warning of result.warnings || []) appendLog('Roku compatibility: ' + warning);
     setStatus(`Simulator opened. ${result.warnings.length} compatibility warning(s). ZIP: ${result.zipPath}`, { tone: result.warnings.length ? 'warning' : 'normal' });
@@ -3419,6 +3434,8 @@ function startInlineSceneRename(index = state.activeSceneIndex) {
 }
 
 function renderSceneTabs() {
+  const startup = document.getElementById('startup-scene-select');
+  if (startup) { startup.replaceChildren(); for (const entry of state.scenes) { const name = entry.sceneState.scene.name; startup.append(new Option(name,name)); } startup.value = state.projectSettings.startupScene || state.scenes[0]?.sceneState?.scene?.name || ''; }
   if (!sceneTabsEl) return;
   sceneTabsEl.innerHTML = '';
   state.scenes.forEach((sceneEntry, index) => {
@@ -19006,6 +19023,7 @@ document.addEventListener('keydown', (e) => {
 
 // ── Done ──────────────────────────────────────────────────────────────────
 console.info('[RGE v49] Architecture stabilisation modules loaded. Alt+Shift+P = perf monitor, Alt+Shift+T = run tests.');
+document.getElementById('startup-scene-select')?.addEventListener('change', event => { state.projectSettings.startupScene = event.target.value; state.document.dirty = true; });
 document.getElementById('menu-test-simulator')?.addEventListener('click', () => void testInRokuSimulator());
 document.getElementById('btn-test-simulator')?.addEventListener('click', () => void testInRokuSimulator());
 document.addEventListener('keydown', event => {

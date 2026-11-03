@@ -27,5 +27,6 @@ test('advanced editor-only camera/UI settings produce explicit native warnings',
     { name: 'Camera', type: 'Camera2D', properties: { zoom: 2 } },
     { name: 'Menu', type: 'TextureRect', properties: { imagePath: 'res://menu.svg', clipContent: true, anchorPreset: 'center' }, transform: { rotation: 10, pivotX: 20, scaleX: 2 } }
   ] } }]);
-  for (const feature of ['CameraPath2D', 'zoom', 'clipping', 'PNG', 'anchor', 'rotation', 'pivot', 'scale']) assert.ok(warnings.some(w => w.includes(feature)), feature);
+  assert.ok(!warnings.some(w => /zoom is not applied|anchor layout needs|pivots are not applied/.test(w)));
+  for (const feature of ['CameraPath2D', 'clipping', 'rotation']) assert.ok(warnings.some(w => w.includes(feature)), feature);
 });

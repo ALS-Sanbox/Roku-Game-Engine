@@ -8,11 +8,11 @@ const os = require('os');
 const http = require('http');
 const { execFileSync } = require('child_process');
 const { writeClassicRuntimeFiles } = require('./export/classic2d_export');
-const { buildClassicExportMetadataFiles } = require('./export/runtime_manifest_builder');
+const { sanitizeBrightScriptIdentifier, buildScriptHookBaseName } = require('./export/user_scripts');
 const { buildSimulatorProject } = require('./export/simulator_build');
 const { registerSimulatorPackage, stopSimulatorHost } = require('./export/simulator_host');
 const engineSmokeTest = process.argv.includes('--engine-smoke-test');
-if (engineSmokeTest) app.setPath('userData', path.join(__dirname, '.visual-editor/electron-test-profile'));
+if (engineSmokeTest) app.setPath('userData', path.join(__dirname, '.visual-editor/electron-test-profile-' + process.pid));
 
 let mainWindow = null;
 let settingsWindow = null;
@@ -53,6 +53,7 @@ function normalizeProjectSettings(settings = {}, projectRoot = getProjectRoot())
   const screen = settings && typeof settings.screen === 'object' && !Array.isArray(settings.screen) ? settings.screen : {};
   return {
     projectName: String(settings.projectName || defaults.projectName).trim() || defaults.projectName,
+    startupScene: String(settings.startupScene || ''),
     input: {
       movement: String(input.movement || defaults.input.movement).trim() || defaults.input.movement,
       action: String(input.action || defaults.input.action).trim() || defaults.input.action,
@@ -769,6 +770,8 @@ function openEditorForProject(projectRoot) {
   mainWindow.loadFile(path.join(__dirname, 'index.html'), { query: { projectRoot: normalizedRoot } });
 }
 
+let editorBuildSnapshot={};
+function getEditorBuildSnapshot(){return editorBuildSnapshot;}
 function createWindow() {
   mainWindow = new BrowserWindow({
     show: !engineSmokeTest,
@@ -806,13 +809,12 @@ app.on('before-quit', stopSimulatorHost);
 ipcMain.handle('test-in-simulator', async (_event, payload = {}) => {
   try {
     const projectRoot = path.resolve(payload.projectRoot || getProjectRoot());
-    const scenes = payload.scenes?.length ? payload.scenes : sideloadGatherScenes(projectRoot);
-    const result = buildSimulatorProject({ ...payload, projectRoot, scenes, settings: readProjectSettings(projectRoot) }, { copyScripts: copyProjectBrightScriptFiles });
+    const result = buildSimulatorProject({ ...payload, projectRoot });
     const url = await registerSimulatorPackage(result.zipPath, payload.projectTitle || 'RokuEngine Game');
     const preview = new BrowserWindow({ show: !engineSmokeTest, width: 1360, height: 1000, title: 'Roku Game Simulator', backgroundColor: '#10151d', webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } });
     await preview.loadURL(url);
     return { ...result, url };
-  } catch (error) { return { success: false, reason: error.message }; }
+  } catch (error) { return { success: false, reason: error.message, diagnostics: error.diagnostics || [] }; }
 });
 
 app.on('activate', () => {
@@ -1463,7 +1465,7 @@ function writeProjectMainScript(projectRoot, settings = {}, startupSceneName = '
     startupSceneName: resolvedStartupScene,
     projectName: settings.projectName || path.basename(normalizedRoot) || 'RokuEngine Game'
   });
-  syncProjectRuntimeScripts(normalizedRoot);
+
   return mainPath;
 }
 
@@ -1494,161 +1496,6 @@ function walkFilesRecursive(dirPath, visit) {
       visit(fullPath);
     }
   }
-}
-
-function sanitizeBrightScriptIdentifier(value = '') {
-  return String(value || '')
-    .replace(/[^A-Za-z0-9_]/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^([^A-Za-z_]+)/, '') || 'Script';
-}
-
-function buildScriptHookBaseName(projectRelativePath = '') {
-  const normalized = normalizeRelativePath(projectRelativePath).replace(/^\/+/, '');
-  const withoutExt = normalized.replace(/\.brs$/i, '');
-  return `RokuScript_${sanitizeBrightScriptIdentifier(withoutExt)}`;
-}
-
-function buildUserScriptRegistrySource(scriptEntries = []) {
-  const lines = [
-    "' user_scripts_registry.brs - generated from project scripts",
-    '',
-    'function RokuEngine_UserScriptDispatch(scriptPath as String, entryPoint as String, context as Object) as Boolean'
-  ];
-  if (!scriptEntries.length) {
-    lines.push('  return false', 'end function', '');
-    return lines.join('\n');
-  }
-  scriptEntries.forEach((entry, index) => {
-    const prefix = index === 0 ? '  if' : '  else if';
-    lines.push(`${prefix} scriptPath = ${JSON.stringify(entry.scriptPath)} then`);
-    lines.push('    eventKey = LCase(Trim(Str(entryPoint)))');
-    const orderedHooks = [
-      ['Ready', 'ready'],
-      ['Init', 'init'],
-      ['SceneEnter', 'sceneenter'],
-      ['PreUpdate', 'preupdate'],
-      ['PhysicsUpdate', 'physicsupdate'],
-      ['Update', 'update'],
-      ['LateUpdate', 'lateupdate'],
-      ['PostUpdate', 'postupdate'],
-      ['Input', 'input'],
-      ['SceneExit', 'sceneexit'],
-      ['CollisionEnter', 'collisionenter'],
-      ['CollisionStay', 'collisionstay'],
-      ['CollisionExit', 'collisionexit'],
-      ['Collision', 'collision']
-    ].filter(([hookName]) => entry.hookMap?.[hookName]);
-    if (!orderedHooks.length) {
-      lines.push('      return false');
-      return;
-    }
-    orderedHooks.forEach(([hookName, eventKey], hookIndex) => {
-      const branch = hookIndex === 0 ? '    if' : '    else if';
-      lines.push(`${branch} eventKey = ${JSON.stringify(eventKey)} then`);
-      lines.push(`      ${entry.baseName}_${hookName}(context)`);
-      lines.push('      return true');
-    });
-    lines.push('    end if');
-  });
-  lines.push('  end if', '  return false', 'end function', '');
-  return lines.join('\n');
-}
-
-function collectProjectBrightScriptFiles(projectRoot) {
-  const rootPath = path.resolve(projectRoot || getProjectRoot() || __dirname);
-  const scriptRoots = [
-    path.join(rootPath, 'components'),
-    path.join(rootPath, 'source')
-  ];
-  const entries = [];
-  const seen = new Set();
-  scriptRoots.forEach((scriptRoot) => {
-    walkFilesRecursive(scriptRoot, (fullPath) => {
-      if (!/\.brs$/i.test(fullPath)) return;
-      const normalizedRelative = normalizeRelativePath(path.relative(rootPath, fullPath));
-      if (!normalizedRelative || seen.has(normalizedRelative)) return;
-      if (/^source\/main\.brs$/i.test(normalizedRelative)) return;
-      if (/^source\/engine\//i.test(normalizedRelative)) return;
-      if (/^source\/game_scripts\//i.test(normalizedRelative)) return;
-      seen.add(normalizedRelative);
-      const baseName = buildScriptHookBaseName(normalizedRelative);
-      const sourceText = fs.readFileSync(fullPath, 'utf8');
-      const hookMap = {
-        Ready: sourceText.includes(`${baseName}_Ready`),
-        Init: sourceText.includes(`${baseName}_Init`),
-        SceneEnter: sourceText.includes(`${baseName}_SceneEnter`),
-        PreUpdate: sourceText.includes(`${baseName}_PreUpdate`),
-        PhysicsUpdate: sourceText.includes(`${baseName}_PhysicsUpdate`),
-        Update: sourceText.includes(`${baseName}_Update`),
-        LateUpdate: sourceText.includes(`${baseName}_LateUpdate`),
-        PostUpdate: sourceText.includes(`${baseName}_PostUpdate`),
-        Input: sourceText.includes(`${baseName}_Input`),
-        SceneExit: sourceText.includes(`${baseName}_SceneExit`),
-        Collision: sourceText.includes(`${baseName}_Collision`),
-        CollisionEnter: sourceText.includes(`${baseName}_CollisionEnter`),
-        CollisionStay: sourceText.includes(`${baseName}_CollisionStay`),
-        CollisionExit: sourceText.includes(`${baseName}_CollisionExit`)
-      };
-      const hasAnyHookFunctions = Object.values(hookMap).some(Boolean);
-      entries.push({
-        absolutePath: fullPath,
-        relativePath: normalizedRelative,
-        scriptPath: `res://${normalizedRelative}`,
-        baseName,
-        hookMap,
-        hasAnyHookFunctions,
-        exportRelativePath: `source/game_scripts/${sanitizeBrightScriptIdentifier(normalizedRelative.replace(/\.brs$/i, ''))}.brs`
-      });
-    });
-  });
-  entries.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-  return entries;
-}
-
-function syncProjectRuntimeScripts(projectRoot) {
-  const rootPath = path.resolve(projectRoot || getProjectRoot() || __dirname);
-  const scriptEntries = collectProjectBrightScriptFiles(rootPath);
-  const runtimeScriptsRoot = path.join(rootPath, 'source', 'game_scripts');
-  ensureDir(runtimeScriptsRoot);
-  const expectedPaths = new Set();
-  scriptEntries.forEach((entry) => {
-    const targetPath = path.join(rootPath, entry.exportRelativePath);
-    expectedPaths.add(path.resolve(targetPath));
-    ensureDir(path.dirname(targetPath));
-    fs.copyFileSync(entry.absolutePath, targetPath);
-  });
-  if (fs.existsSync(runtimeScriptsRoot)) {
-    walkFilesRecursive(runtimeScriptsRoot, (fullPath) => {
-      const resolved = path.resolve(fullPath);
-      if (!expectedPaths.has(resolved) && /\.brs$/i.test(fullPath)) fs.rmSync(fullPath, { force: true });
-    });
-  }
-  fs.writeFileSync(
-    path.join(rootPath, 'source', 'engine', 'user_scripts_registry.brs'),
-    buildUserScriptRegistrySource(scriptEntries.filter((entry) => entry.hasAnyHookFunctions)),
-    'utf8'
-  );
-  return scriptEntries;
-}
-
-function copyProjectBrightScriptFiles(projectRoot, exportRoot) {
-  const scriptEntries = collectProjectBrightScriptFiles(projectRoot);
-  scriptEntries.forEach((entry) => {
-    const targetPath = path.join(exportRoot, entry.exportRelativePath);
-    ensureDir(path.dirname(targetPath));
-    fs.copyFileSync(entry.absolutePath, targetPath);
-  });
-  fs.writeFileSync(
-    path.join(exportRoot, 'source', 'engine', 'user_scripts_registry.brs'),
-    buildUserScriptRegistrySource(scriptEntries.filter((entry) => entry.hasAnyHookFunctions)),
-    'utf8'
-  );
-  return scriptEntries;
-}
-
-function writeExportMetadata(exportRoot, metadata = {}) {
-  fs.writeFileSync(path.join(exportRoot, 'rokuengine-export.json'), JSON.stringify(metadata, null, 2), 'utf8');
 }
 
 ipcMain.handle('import-project-asset', async (_event, payload = {}) => {
@@ -1742,7 +1589,7 @@ ipcMain.handle('create-project-item', async (_event, payload = {}) => {
     } else if (kind === 'brightscript') {
       const scriptName = path.basename(targetPath);
       fs.writeFileSync(targetPath, buildPlainBrightScriptTemplate(normalizeRelativePath(path.relative(getProjectRoot(), targetPath))), 'utf8');
-      syncProjectRuntimeScripts(getProjectRoot());
+
     } else if (kind === 'main_script') {
       const scriptName = path.basename(targetPath, path.extname(targetPath));
       if (fs.existsSync(targetPath)) return { success: false, reason: 'already_exists' };
@@ -1770,7 +1617,7 @@ ipcMain.handle('create-project-item', async (_event, payload = {}) => {
       }
       fs.writeFileSync(xmlPath, xml, 'utf8');
       fs.writeFileSync(brsPath, brs, 'utf8');
-      syncProjectRuntimeScripts(getProjectRoot());
+
       notifyProjectFilesChanged();
       return {
         success: true,
@@ -1804,7 +1651,7 @@ ipcMain.handle('rename-project-item', async (_event, payload = {}) => {
       const nextEditStatePath = getEditStatePath(nextPath);
       if (!fs.existsSync(nextEditStatePath)) fs.renameSync(currentEditStatePath, nextEditStatePath);
     }
-    syncProjectRuntimeScripts(getProjectRoot());
+
     notifyProjectFilesChanged();
     return { success: true, oldPath: currentPath, path: nextPath, name: path.basename(nextPath) };
   } catch (error) {
@@ -1821,7 +1668,7 @@ ipcMain.handle('delete-project-item', async (_event, payload = {}) => {
     else fs.rmSync(targetPath, { force: true });
     const editStatePath = getEditStatePath(targetPath);
     if (fs.existsSync(editStatePath)) fs.rmSync(editStatePath, { force: true });
-    syncProjectRuntimeScripts(getProjectRoot());
+
     notifyProjectFilesChanged();
     return { success: true, path: targetPath };
   } catch (error) {
@@ -1861,97 +1708,7 @@ ipcMain.handle('choose-project-folder', async () => {
   return { success: true, rootPath: currentProjectRoot };
 });
 
-ipcMain.handle('export-roku-project', async (_event, payload = {}) => {
-  let exportRoot = '';
-  try {
-    const projectRoot = path.resolve(String(payload.projectRoot || getProjectRoot() || __dirname));
-    const scenes = Array.isArray(payload.scenes) && payload.scenes.length ? payload.scenes : sideloadGatherScenes(projectRoot);
-    if (!scenes.length) return { success: false, reason: 'missing_scenes' };
-
-    const bundleBaseName = getExportBundleBaseName(payload.projectTitle || path.basename(projectRoot), projectRoot);
-    const buildRoot = path.join(projectRoot, 'build');
-    const stagingRoot = path.join(buildRoot, `${bundleBaseName}-roku-staging`);
-    const defaultZipPath = path.join(buildRoot, `${bundleBaseName}.zip`);
-    ensureDir(buildRoot);
-
-    const chosen = await dialog.showSaveDialog(mainWindow, {
-      title: 'Export Game Zip',
-      defaultPath: defaultZipPath,
-      filters: [{ name: 'Zip Archive', extensions: ['zip'] }],
-      properties: ['createDirectory']
-    });
-    if (chosen.canceled || !chosen.filePath) return { success: false, reason: 'canceled' };
-    const zipPath = /\.zip$/i.test(chosen.filePath) ? path.resolve(chosen.filePath) : path.resolve(`${chosen.filePath}.zip`);
-
-    removeDirectoryRecursive(stagingRoot);
-    exportRoot = stagingRoot;
-    ensureDir(exportRoot);
-    ensureDir(path.join(exportRoot, 'source'));
-    ensureDir(path.join(exportRoot, 'images'));
-    ensureDir(path.join(exportRoot, 'audio'));
-    ensureDir(path.join(exportRoot, 'assets'));
-    ensureDir(path.join(exportRoot, 'assets', 'scenes'));
-    ensureDir(path.join(exportRoot, 'assets', 'images'));
-    ensureDir(path.join(exportRoot, 'assets', 'audio'));
-    ensureDir(path.join(exportRoot, 'assets', 'spritesheets'));
-
-    const exportedScenes = [];
-    const copyPairs = [
-      ['assets', 'assets'],
-      ['images', 'images'],
-      ['audio', 'audio']
-    ];
-    for (const [fromRel, toRel] of copyPairs) {
-      copyDirectoryRecursive(path.join(projectRoot, fromRel), path.join(exportRoot, toRel));
-    }
-
-    const metadataFiles = buildClassicExportMetadataFiles(scenes, { projectRoot, exportOptions: payload.exportOptions || { bakeTerrain: true } });
-    for (const sceneEntry of metadataFiles.scenePayloads) {
-      fs.writeFileSync(path.join(exportRoot, 'assets', 'scenes', `${sceneEntry.sceneName}.json`), sceneEntry.json, 'utf8');
-      if (!exportedScenes.includes(sceneEntry.sceneName)) exportedScenes.push(sceneEntry.sceneName);
-    }
-    if (!exportedScenes.length) return { success: false, reason: 'no_exportable_scenes' };
-
-    fs.writeFileSync(path.join(exportRoot, 'assets', 'spriteframes.json'), metadataFiles.spriteframesJson, 'utf8');
-    fs.writeFileSync(path.join(exportRoot, 'assets', 'spritesheets.json'), metadataFiles.spritesheetsJson, 'utf8');
-    fs.writeFileSync(path.join(exportRoot, 'assets', 'tilesets.json'), metadataFiles.tilesetsJson, 'utf8');
-    fs.writeFileSync(path.join(exportRoot, 'assets', 'audio.json'), metadataFiles.audioJson, 'utf8');
-    fs.writeFileSync(path.join(exportRoot, 'assets', 'resources.json'), metadataFiles.resourcesJson, 'utf8');
-    fs.writeFileSync(path.join(exportRoot, 'assets', 'project_settings.json'), JSON.stringify(normalizeProjectSettings(readProjectSettings(projectRoot), projectRoot), null, 2), 'utf8');
-
-    fs.writeFileSync(path.join(exportRoot, 'manifest'), buildManifestContent({
-      title: payload.projectTitle || path.basename(projectRoot),
-      majorVersion: payload.majorVersion,
-      minorVersion: payload.minorVersion
-    }), 'utf8');
-    writeClassicRuntimeFiles(exportRoot, {
-      startupSceneName: exportedScenes[0] || 'MainScene',
-      projectName: payload.projectTitle || path.basename(projectRoot)
-    });
-    const exportedScriptEntries = copyProjectBrightScriptFiles(projectRoot, exportRoot);
-
-    writeExportMetadata(exportRoot, {
-      scriptCount: exportedScriptEntries.length,
-      exportedAt: new Date().toISOString(),
-      projectRoot,
-      runtime: 'classic-2d',
-      renderer: 'roScreen+roCompositor',
-      sceneCount: exportedScenes.length,
-      scenes: exportedScenes,
-      zipPath,
-      warnings: metadataFiles.warnings || [],
-      exportOptions: payload.exportOptions || { bakeTerrain: true }
-    });
-
-    zipDirectoryContents(exportRoot, zipPath);
-    return { success: true, exportRoot, zipPath, scenes: exportedScenes, runtime: 'classic-2d' };
-  } catch (error) {
-    return { success: false, reason: error.message };
-  } finally {
-    if (exportRoot) removeDirectoryRecursive(exportRoot);
-  }
-});
-
+ipcMain.handle('export-roku-project', async (_event,payload={})=>{try{const root=path.resolve(payload.projectRoot||getProjectRoot());const chosen=engineSmokeTest&&payload.destination?{filePath:payload.destination}:await dialog.showSaveDialog(mainWindow,{title:'Export Roku Game',defaultPath:path.join(app.getPath('downloads'),getExportBundleBaseName(payload.projectTitle||path.basename(root),root)+'.zip'),filters:[{name:'Roku ZIP',extensions:['zip']}]});if(chosen.canceled||!chosen.filePath)return {success:false,reason:'canceled'};const result=buildSimulatorProject({...payload,projectRoot:root});const destination=chosen.filePath.endsWith('.zip')?chosen.filePath:chosen.filePath+'.zip';fs.mkdirSync(path.dirname(destination),{recursive:true});fs.copyFileSync(result.zipPath,destination);return {...result,zipPath:destination};}catch(error){return {success:false,reason:error.message,diagnostics:error.diagnostics||[]};}});
 
 ipcMain.handle('open-in-explorer', async (_event, targetPath) => {
   if (!targetPath) return { success: false, reason: 'missing_target_path' };
@@ -2053,87 +1810,7 @@ ipcMain.handle('sideload-ping', async (_event, payload = {}) => {
   });
 });
 
-ipcMain.handle('sideload-build', async (_event, payload = {}) => {
-  try {
-    const projectRoot = path.resolve(getProjectRoot() || __dirname);
-    const sceneFiles  = sideloadGatherScenes(projectRoot);
-    if (!sceneFiles.length) return { success: false, reason: 'no_scenes_found' };
-
-    const bundleName  = getExportBundleBaseName(path.basename(projectRoot), projectRoot);
-    const buildRoot   = path.join(projectRoot, 'build');
-    const stagingRoot = path.join(buildRoot, `${bundleName}-sideload-staging`);
-    const zipPath     = path.join(buildRoot, `${bundleName}-sideload.zip`);
-
-    ensureDir(buildRoot);
-    sideloadRmrf(stagingRoot);
-    ensureDir(stagingRoot);
-    for (const sub of ['assets', 'images', 'audio']) {
-      sideloadCopyDir(path.join(projectRoot, sub), path.join(stagingRoot, sub));
-    }
-    ensureDir(path.join(stagingRoot, 'source'));
-    ensureDir(path.join(stagingRoot, 'assets', 'scenes'));
-
-    const projectSettings = normalizeProjectSettings(readProjectSettings(projectRoot), projectRoot);
-    const metadataFiles   = buildClassicExportMetadataFiles(sceneFiles, {
-      projectRoot,
-      exportOptions: { bakeTerrain: payload.bakeTerrain !== false },
-    });
-
-    const exportedScenes = [];
-    for (const scene of metadataFiles.scenePayloads) {
-      fs.writeFileSync(
-        path.join(stagingRoot, 'assets', 'scenes', `${scene.sceneName}.json`),
-        scene.json, 'utf8'
-      );
-      if (!exportedScenes.includes(scene.sceneName)) exportedScenes.push(scene.sceneName);
-    }
-    if (!exportedScenes.length) return { success: false, reason: 'no_exportable_scenes' };
-
-    const metaMap = {
-      'assets/spriteframes.json':      metadataFiles.spriteframesJson,
-      'assets/spritesheets.json':      metadataFiles.spritesheetsJson,
-      'assets/tilesets.json':          metadataFiles.tilesetsJson,
-      'assets/audio.json':             metadataFiles.audioJson,
-      'assets/resources.json':         metadataFiles.resourcesJson,
-      'assets/project_settings.json':  JSON.stringify(projectSettings, null, 2),
-    };
-    for (const [rel, content] of Object.entries(metaMap)) {
-      fs.writeFileSync(path.join(stagingRoot, rel), content, 'utf8');
-    }
-
-    fs.writeFileSync(
-      path.join(stagingRoot, 'manifest'),
-      buildManifestContent({
-        title:        projectSettings.projectName || path.basename(projectRoot),
-        majorVersion: payload.majorVersion || 1,
-        minorVersion: payload.minorVersion || 0,
-      }),
-      'utf8'
-    );
-
-    writeClassicRuntimeFiles(stagingRoot, {
-      startupSceneName: exportedScenes[0] || 'MainScene',
-      projectName:      projectSettings.projectName || path.basename(projectRoot),
-    });
-
-    const scriptEntries = copyProjectBrightScriptFiles(projectRoot, stagingRoot);
-
-    sideloadZip(stagingRoot, zipPath);
-    sideloadRmrf(stagingRoot);
-
-    const zipStat = fs.existsSync(zipPath) ? fs.statSync(zipPath) : null;
-    return {
-      success:     true,
-      zipPath,
-      zipBytes:    zipStat ? zipStat.size : 0,
-      scenes:      exportedScenes,
-      scriptCount: scriptEntries.length,
-      warnings:    metadataFiles.warnings || [],
-    };
-  } catch (error) {
-    return { success: false, reason: error.message };
-  }
-});
+ipcMain.handle('sideload-build',async (_event,payload={})=>{try{if(mainWindow&&!mainWindow.isDestroyed()&&!mainWindow.webContents.getURL().includes('project_manager')) editorBuildSnapshot=await mainWindow.webContents.executeJavaScript('getNativeBuildSnapshot()');return buildSimulatorProject({...getEditorBuildSnapshot(),...payload,projectRoot:payload.projectRoot||getProjectRoot()});}catch(error){return {success:false,reason:error.message,diagnostics:error.diagnostics||[]};}});
 
 ipcMain.handle('sideload-delete', async (_event, payload = {}) => {
   const { ip, user = 'rokudev', pass } = payload;

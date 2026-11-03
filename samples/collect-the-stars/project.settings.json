@@ -1,0 +1,20 @@
+{
+  "projectName": "Collect the Stars",
+  "startupScene": "CollectStars",
+  "screen": {
+    "width": 1280,
+    "height": 720,
+    "mode": "720p"
+  },
+  "input": {
+    "actionMap": {
+      "move_up": "up",
+      "move_down": "down",
+      "move_left": "left",
+      "move_right": "right",
+      "action": "ok",
+      "pause": "play",
+      "back": "back"
+    }
+  }
+}

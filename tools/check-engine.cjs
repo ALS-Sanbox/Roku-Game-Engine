@@ -2,7 +2,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const fixtureRoot = path.join(root, '.visual-editor/engine-smoke-project');
+const sampleMode = process.argv.includes('--sample');
+const coordinatesMode = process.argv.includes('--coordinates');
+const fixtureRoot = path.join(root, sampleMode ? '.visual-editor/sample-test-' + process.pid : '.visual-editor/engine-smoke-' + process.pid);
+if(sampleMode){fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.join(root,'samples/collect-the-stars'),fixtureRoot,{recursive:true});}
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function node(id, type, parentId, x, y, properties = {}) {
   return { id, name: id, type, parentId, children: [], visible: true, zIndex: 0, transform: { x, y, scaleX: 1, scaleY: 1, rotation: 0 }, properties, components: [] };
@@ -18,8 +21,31 @@ const scene = { formatVersion: 2, scene: { name: 'SmokeScene', rootNodeId: 'root
   node('texture', 'TextureRect', 'hud', 500, 150, { width: 80, height: 80, imagePath: 'res://images/pixel.png', opacity: 1 })
 ] };
 scene.nodes.find(n => n.id === 'player').components = [{ type: 'MoveComponent', enabled: true, vx: 60, vy: 0 }];
+if (coordinatesMode) {
+  scene.nodes = [node('root','SceneRoot',null,0,0),
+    node('parent','Node2D','root',400,250,{width:0,height:0}),
+    node('sprite','Sprite2D','parent',100,50,{width:40,height:40,imagePath:'res://images/pixel.png'}),
+    node('camera','Camera2D','root',640,360,{current:true,enabled:true,zoom:2,cameraBounds:true,boundsX:320,boundsY:180,boundsWidth:640,boundsHeight:360}),
+    node('hud','CanvasLayer','parent',0,0),
+    node('container','Control','hud',100,50,{width:200,height:100}),
+    node('panel','Panel','container',0,0,{width:60,height:20,color:'#224466',anchorLeft:1,anchorRight:1,marginLeft:-80,marginTop:10})];
+  scene.nodes.find(n=>n.id==='parent').transform.scaleX=2;
+  scene.nodes.find(n=>n.id==='parent').transform.scaleY=2;
+  scene.nodes.find(n=>n.id==='sprite').transform.pivotX=10;
+  scene.nodes.find(n=>n.id==='sprite').transform.pivotY=10;
+  scene.nodes.find(n=>n.id==='container').transform.scaleX=2;
+  scene.nodes.find(n=>n.id==='container').transform.scaleY=2;
+}
+
 for (const n of scene.nodes) n.children = scene.nodes.filter(c => c.parentId === n.id).map(c => c.id);
 fs.mkdirSync(fixtureRoot, { recursive: true });
+if(coordinatesMode){
+  fs.mkdirSync(path.join(fixtureRoot,'components'),{recursive:true});
+  fs.copyFileSync(path.join(root,'tools/fixtures/coordinates.brs'),path.join(fixtureRoot,'components/coordinates.brs'));
+  scene.nodes.find(n=>n.id==='root').components=[{type:'ScriptComponent',enabled:true,scriptPath:'res://components/coordinates.brs'}];
+  scene.nodes.find(n=>n.id==='sprite').components=[{type:'Collider2DComponent',enabled:true,width:40,height:40,isTrigger:true}];
+}
+
 fs.mkdirSync(path.join(fixtureRoot, 'images'), { recursive: true });
 function pngChunk(type, data) {
   const name = Buffer.from(type), header = Buffer.alloc(4), crc = Buffer.alloc(4); header.writeUInt32BE(data.length);
@@ -28,7 +54,7 @@ function pngChunk(type, data) {
 }
 const dimensions = Buffer.alloc(13); dimensions.writeUInt32BE(1, 0); dimensions.writeUInt32BE(1, 4); dimensions[8] = 8; dimensions[9] = 6;
 fs.writeFileSync(path.join(fixtureRoot, 'images/pixel.png'), Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), pngChunk('IHDR', dimensions), pngChunk('IDAT', require('node:zlib').deflateSync(Buffer.from([0, 0, 80, 255, 255]))), pngChunk('IEND', Buffer.alloc(0))]));
-fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
+if (!sampleMode) fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
 async function main() {
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
   const child = spawn(require('electron'), ['.', '--engine-smoke-test', '--remote-debugging-port=0'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -55,7 +81,7 @@ async function main() {
       });
     }
     const evaluate = async (session, expression) => {
-      const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, session);
+      const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, session).catch(e=>{throw new Error(e.message+' evaluating '+expression.slice(0,180));});
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
       return result.result.value;
     };
@@ -64,10 +90,25 @@ async function main() {
     const page = targets.targetInfos.find(t => t.type === 'page');
     const { sessionId } = await send('Target.attachToTarget', { targetId: page.targetId, flatten: true });
     await send('Runtime.enable', {}, sessionId);
-    await evaluate(sessionId, `window.electronAPI.openProjectInEditor(${JSON.stringify(fixtureRoot)})`);
+    await evaluate(sessionId, `void window.electronAPI.openProjectInEditor(${JSON.stringify(fixtureRoot)}); true`);
     await delay(2500);
     console.log('EDITOR', JSON.stringify(await evaluate(sessionId, '({title:document.title,scene:typeof state!=="undefined"?state.sceneState.scene.name:null,projectRoot:state.projectRoot,status:state.status,logs:state.logs.slice(-8),viewportError:window.__viewportInitError?.message,konva:typeof Konva,buildButton:!!document.getElementById("btn-test-simulator")})')));
     if (errors.length) throw new Error(errors.join('\n'));
+    if (sampleMode) {
+      const saved = await evaluate(sessionId, `(async()=>{
+        getNode('player').transform.x=210;
+        getNode('instructions').properties.text='Edited in the desktop editor';
+        duplicateNode('star1');
+        const copy=state.sceneState.nodes.find(n=>n.metadata?.collectible&&n.id!=='star1'&&n.id!=='star2'&&n.id!=='star3');
+        copy.transform.x=500;copy.transform.y=300;
+        if(!await saveProject())throw new Error('Project save failed');
+        getNode('player').transform.x=999;
+        await openProjectFromRoot(state.projectRoot);
+        return {x:getNode('player').transform.x,text:getNode('instructions').properties.text,count:state.sceneState.nodes.filter(n=>n.metadata?.collectible).length};
+      })()`);
+      if(saved.x!==210||saved.text!=='Edited in the desktop editor'||saved.count!==4)throw new Error('Save/reopen failed: '+JSON.stringify(saved));
+      console.log('SAVE_REOPEN',JSON.stringify(saved));
+    }
     const result = await evaluate(sessionId, 'testInRokuSimulator()');
     console.log('BUILD', JSON.stringify(result));
     if (!result?.success) throw new Error('Build & Test failed: ' + await evaluate(sessionId, 'state.status'));
@@ -84,6 +125,42 @@ async function main() {
     }
     console.log('SIMULATOR', JSON.stringify(snapshot));
     if (!snapshot.painted || !snapshot.state?.startsWith('Running') || /runtime error|compile error|error:/i.test(snapshot.logs) || errors.length) throw new Error('Engine simulator failed: ' + JSON.stringify({ snapshot, errors }));
+    if (coordinatesMode) {
+      await delay(1000);
+      const pixels=await evaluate(attached.sessionId,`(()=>{const ctx=brs.getDisplayBuffer().getContext('2d');const p=(x,y)=>Array.from(ctx.getImageData(x,y,1,1).data);return {sprite:p(530,350),beforeSprite:p(500,350),afterSprite:p(690,350),panel:p(350,80),outsidePanel:p(470,80)};})()`);
+      const coordinateLogs=await evaluate(attached.sessionId,'document.getElementById("logs").textContent');
+      if(!coordinateLogs.includes('COORDINATE_MODEL passed')||coordinateLogs.includes('COORDINATE_FAILURE'))throw new Error(coordinateLogs);
+      console.log('STATIC_ZOOM_BOUNDS_PIVOT_ANCHORS',JSON.stringify(pixels));
+      if(JSON.stringify(pixels.sprite.slice(0,3))!=='[0,80,255]'||JSON.stringify(pixels.panel.slice(0,3))!=='[34,68,102]'||pixels.beforeSprite[2]===255||pixels.afterSprite[2]===255||pixels.outsidePanel[1]===68)throw new Error('Coordinate framebuffer mismatch');
+      await send('Target.closeTarget',{targetId:preview.targetId});await evaluate(sessionId,'window.electronAPI.closeWindow(); true');return;
+    }
+    if (sampleMode) {
+      async function waitFor(expression, message, timeout=15000) {const end=Date.now()+timeout;while(Date.now()<end){if(await evaluate(attached.sessionId,expression))return;await delay(200);}throw new Error(message+': '+await evaluate(attached.sessionId,'document.getElementById("logs").textContent'));}
+      await waitFor('document.getElementById("logs").textContent.includes("UI: Title")','Title did not initialize');
+      await evaluate(attached.sessionId,'brs.sendKeyPress("select",60)');
+      await waitFor('document.getElementById("logs").textContent.includes("UI: Game")','Start button did not activate Game');
+      await delay(500);
+      await evaluate(attached.sessionId,'brs.sendKeyDown("right")');
+      await waitFor('document.getElementById("logs").textContent.includes("score= 4") || document.getElementById("logs").textContent.includes("score=4")','Collection did not reach 4',90000);
+      await evaluate(attached.sessionId,'brs.sendKeyUp("right")');
+      await waitFor('document.getElementById("logs").textContent.includes("UI: Win")','Win screen did not activate');
+      await waitFor('brs.getDisplayBuffer().getContext("2d").getImageData(100,150,1,1).data[1]===43','Win framebuffer did not draw');
+      const win=await evaluate(attached.sessionId,'Array.from(brs.getDisplayBuffer().getContext("2d").getImageData(100,150,1,1).data)');
+      console.log('SAMPLE_WIN',JSON.stringify(win));
+      if(win[1]!==43)throw new Error('Win framebuffer mismatch');
+      await delay(500);await evaluate(attached.sessionId,'brs.sendKeyPress("select",60)');
+      await waitFor('document.getElementById("logs").textContent.split("UI: Title").length>=3','Restart did not reload Title');
+      console.log('SAMPLE_GAMEPLAY',await evaluate(attached.sessionId,'document.getElementById("logs").textContent'));
+      const snapshot=await evaluate(sessionId,'getNativeBuildSnapshot()');
+      const destination=path.join(fixtureRoot,'exported.zip');
+      const exported=await evaluate(sessionId,'window.electronAPI.exportRokuProject('+JSON.stringify({...snapshot,destination})+')');
+      const sideload=await evaluate(sessionId,'window.electronAPI.sideloadBuild({})');
+      if(!exported.success||!sideload.success)throw new Error('Build consumer failed: '+JSON.stringify({exported,sideload}));
+      const {packageFiles}=require('../visual-editor/roku-package');const fingerprint=dir=>Object.fromEntries(packageFiles(dir).filter(f=>f!=='build-result.json').map(f=>[f,require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(dir,f))).digest('hex')]));
+      if(JSON.stringify(fingerprint(result.output))!==JSON.stringify(fingerprint(exported.output))||JSON.stringify(fingerprint(result.output))!==JSON.stringify(fingerprint(sideload.output)))throw new Error('Native package consumer mismatch');
+      console.log('BUILD_EQUIVALENCE passed');
+      await send('Target.closeTarget',{targetId:preview.targetId});await evaluate(sessionId,'window.electronAPI.closeWindow(); true');return;
+    }
     await delay(1000);
     const pixelExpression = '(()=>{const c=brs.getDisplayBuffer(),ctx=c.getContext("2d"),pixel=(x,y)=>Array.from(ctx.getImageData(Math.floor(c.width*x/1280),Math.floor(c.height*y/720),1,1).data);return {player:pixel(640,360),sprite:pixel(740,360),hud:pixel(390,100),texture:pixel(550,190),outsideTexture:pixel(600,190),state:document.getElementById("state").textContent};})()';
     const first = await evaluate(attached.sessionId, pixelExpression); await delay(800); const second = await evaluate(attached.sessionId, pixelExpression);

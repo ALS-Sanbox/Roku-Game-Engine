@@ -1,0 +1,26 @@
+{
+  "editorVersion": 2,
+  "uiScreens": [
+    {
+      "name": "Title",
+      "rootNodeIds": [
+        "Title"
+      ],
+      "startupScreen": true
+    },
+    {
+      "name": "Game",
+      "rootNodeIds": [
+        "Game"
+      ],
+      "startupScreen": false
+    },
+    {
+      "name": "Win",
+      "rootNodeIds": [
+        "Win"
+      ],
+      "startupScreen": false
+    }
+  ]
+}

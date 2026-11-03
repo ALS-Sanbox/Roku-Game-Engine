@@ -331,7 +331,7 @@ function validateExportBundle(runtimeScene, editorState, textures, uiScreens, ui
           actionStr.startsWith('transition_screen:')) {
         const prefix = actionStr.startsWith('transition_screen:') ? 'transition_screen:' :
                        actionStr.startsWith('pushscreen:') ? 'pushscreen:' : 'screen:';
-        const target = actionStr.slice(prefix.length).trim();
+        const target = String(props[actionProp]).trim().slice(prefix.length).trim();
         if (target && !screenNames.has(target)) {
           warnings.push(`WARN_MISSING_SCREEN: ${loc} ${actionProp}="${actionStr}" targets screen "${target}" which has no CanvasLayer assignment.`);
         }

@@ -17,49 +17,52 @@ end function
 ' Returns a transform AA {x, y, scaleX, scaleY, opacity, visible}.
 
 function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
-  result = {x: 0, y: 0, scaleX: 1.0, scaleY: 1.0, opacity: 1.0, visible: true}
-  if m.scene = invalid then return result
-  if m.scene.nodeMap = invalid or not m.scene.nodeMap.DoesExist(nodeId) then return result
-
-  node = m.scene.nodeMap[nodeId]
-  if node = invalid then return result
-
-  ' Accumulate transform up through ancestors
+  result = {x: 0.0, y: 0.0, width: m.width * 1.0, height: m.height * 1.0, scaleX: 1.0, scaleY: 1.0, opacity: 1.0, visible: true}
+  if m.scene = invalid or not m.scene.nodeMap.DoesExist(nodeId) then return result
   ancestors = []
-  current = node
+  current = m.scene.nodeMap[nodeId]
   while current <> invalid
     ancestors.Unshift(current)
-    if current.parentId = invalid or current.parentId = "" then exit while
-    if m.scene.nodeMap.DoesExist(current.parentId) then
-      current = m.scene.nodeMap[current.parentId]
-    else
-      exit while
-    end if
+    ' CanvasLayer resets world ancestry: HUD coordinates never inherit camera.
+    if current.type = "CanvasLayer" then exit while
+    if current.parentId = invalid or not m.scene.nodeMap.DoesExist(current.parentId) then exit while
+    current = m.scene.nodeMap[current.parentId]
   end while
-
-  accX = 0.0
-  accY = 0.0
-  accOpacity = 1.0
-  accVisible = true
-
   for each ancestor in ancestors
-    if ancestor = invalid then continue for
     t = ancestor.transform
     if t = invalid then t = {}
-    accX = accX + _BRS_IntOr(t.x, 0)
-    accY = accY + _BRS_IntOr(t.y, 0)
-    if ancestor.properties <> invalid and ancestor.properties.opacity <> invalid then
-      accOpacity = accOpacity * RokuEngine_ToFloat(ancestor.properties.opacity)
+    p = ancestor.properties
+    if p = invalid then p = {}
+    x = _BRS_NumCoalesce(t.x, 0)
+    y = _BRS_NumCoalesce(t.y, 0)
+    w = _BRS_NumCoalesce(p.width, result.width)
+    h = _BRS_NumCoalesce(p.height, result.height)
+    if ancestor.type = "CanvasLayer" then
+      w = m.width : h = m.height
+    else
+      al = _BRS_NumCoalesce(p.anchorLeft, 0) : ar = _BRS_NumCoalesce(p.anchorRight, 0)
+      at = _BRS_NumCoalesce(p.anchorTop, 0) : ab = _BRS_NumCoalesce(p.anchorBottom, 0)
+      ml = _BRS_NumCoalesce(p.marginLeft, 0) : mr = _BRS_NumCoalesce(p.marginRight, 0)
+      mt = _BRS_NumCoalesce(p.marginTop, 0) : mb = _BRS_NumCoalesce(p.marginBottom, 0)
+      if p.anchorPreset <> invalid and p.anchorPreset <> "" and p.anchorPreset <> "top_left" and al = 0 and ar = 0 and at = 0 and ab = 0 then
+        anchors = RokuEngine_ResolveAnchorPreset(p.anchorPreset)
+        al = anchors.left : ar = anchors.right : at = anchors.top : ab = anchors.bottom
+      end if
+      if al <> 0 or ar <> 0 or at <> 0 or ab <> 0 or ml <> 0 or mr <> 0 or mt <> 0 or mb <> 0 then
+        x = al * result.width + ml
+        y = at * result.height + mt
+        if ar <> al then w = (ar - al) * result.width + mr - ml
+        if ab <> at then h = (ab - at) * result.height + mb - mt
+      end if
     end if
-    if ancestor.visible = false then accVisible = false
+    sx = _BRS_NumCoalesce(t.scaleX, 1) : sy = _BRS_NumCoalesce(t.scaleY, 1)
+    result.x = result.x + (x - _BRS_NumCoalesce(t.pivotX, 0) * sx) * result.scaleX
+    result.y = result.y + (y - _BRS_NumCoalesce(t.pivotY, 0) * sy) * result.scaleY
+    result.scaleX = result.scaleX * sx : result.scaleY = result.scaleY * sy
+    result.width = w : result.height = h
+    result.opacity = result.opacity * _BRS_NumCoalesce(p.opacity, 1)
+    if ancestor.visible = false then result.visible = false
   end for
-
-  result.x = accX
-  result.y = accY
-  result.scaleX = 1.0
-  result.scaleY = 1.0
-  result.opacity = accOpacity
-  result.visible = accVisible
   return result
 end function
 

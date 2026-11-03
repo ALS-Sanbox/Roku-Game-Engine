@@ -104,11 +104,10 @@ end sub
 sub RokuEngine_HandleInputEvent(msg as Object)
   if msg = invalid then return
   code = msg.GetInt()
-  isPress = true
-  isRelease = false
-  if msg.isPress <> invalid then isPress = msg.isPress()
-  if msg.isRelease <> invalid then isRelease = msg.isRelease()
-  if isRelease then isPress = false
+  ' roUniversalControlEvent encodes key release as button code + 100.
+  isRelease = code >= 100
+  if isRelease then code = code - 100
+  isPress = not isRelease
   m.HandleButtonCode(code, isPress, isRelease)
 end sub
 

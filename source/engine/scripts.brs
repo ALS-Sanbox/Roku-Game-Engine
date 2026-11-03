@@ -54,6 +54,6 @@ sub RokuEngine_InvokeNodeScripts(node as Object, eventName as String, dt as Dyna
   if type(components) <> "roArray" then return
   for each component in components
     if component = invalid or component.enabled = false then continue for
-    if component.type = "ScriptComponent" then RokuEngine_InvokeScriptComponent(node, component, eventName, dt, extra)
+    if component.type = "ScriptComponent" then m.InvokeScriptComponent(node, component, eventName, dt, extra)
   end for
 end sub

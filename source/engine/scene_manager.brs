@@ -21,6 +21,8 @@ function RokuEngine_LoadScene(sceneName as String) as Object
     rootNodeId: sceneDoc.scene.rootNodeId
     cameraX: 0.0
     cameraY: 0.0
+    cameraZoom: 1.0
+    cameraInitialized: false
     backgroundColor: &h101820FF
     paused: false
     physicsPaused: false
@@ -178,52 +180,55 @@ sub RokuEngine_ApplyCameraFollow(dt as Float)
   if cameraNode = invalid or cameraNode.properties = invalid then return
   props = cameraNode.properties
   if props.enabled = false then return
+  zoom = 1.0
+  if props.zoom <> invalid then zoom = props.zoom
+  if zoom < 0.1 then zoom = 0.1
+  if zoom > 10 then zoom = 10
+  m.scene.cameraZoom = zoom
+  viewWidth = m.width / zoom
+  viewHeight = m.height / zoom
+  m.UpdateWorldTransforms(m.scene)
+  cameraWorld = m.GetWorldTransform(cameraNode.id)
+  desiredX = cameraWorld.x - viewWidth * 0.5
+  desiredY = cameraWorld.y - viewHeight * 0.5
   targetName = ""
   if props.followTargetName <> invalid then targetName = RokuEngine_Trim(RokuEngine_ToString(props.followTargetName))
-  if targetName = "" then return
-  targetNode = m.FindNodeByName(targetName)
-  if targetNode = invalid then return
-
-  m.UpdateWorldTransforms(m.scene)
-  targetWorld = m.GetWorldTransform(targetNode.id)
-  targetProps = targetNode.properties
-  if targetProps = invalid then targetProps = {}
-  targetWidth = 0.0
-  targetHeight = 0.0
-  if targetProps.width <> invalid then targetWidth = targetProps.width
-  if targetProps.height <> invalid then targetHeight = targetProps.height
-
-  offsetX = 0.0
-  offsetY = 0.0
-  if props.offsetX <> invalid then offsetX = props.offsetX
-  if props.offsetY <> invalid then offsetY = props.offsetY
-  desiredX = targetWorld.x + (targetWidth * 0.5) + offsetX - (m.width * 0.5)
-  desiredY = targetWorld.y + (targetHeight * 0.5) + offsetY - (m.height * 0.5)
-
-  deadzoneW = 0.0
-  deadzoneH = 0.0
-  if props.deadzoneWidth <> invalid then deadzoneW = props.deadzoneWidth
-  if props.deadzoneHeight <> invalid then deadzoneH = props.deadzoneHeight
-  if deadzoneW > 0 then
-    camCenterX = m.scene.cameraX + (m.width * 0.5)
-    if Abs((targetWorld.x + targetWidth * 0.5) - camCenterX) <= deadzoneW * 0.5 then desiredX = m.scene.cameraX
+  targetNode = invalid
+  if targetName <> "" then targetNode = m.FindNodeByName(targetName)
+  if targetNode <> invalid then
+    targetWorld = m.GetWorldTransform(targetNode.id)
+    targetWidth = _BRS_NumCoalesce(targetNode.properties.width, 0)
+    targetHeight = _BRS_NumCoalesce(targetNode.properties.height, 0)
+    rect = RokuEngine_WorldRect(targetWorld, targetWidth, targetHeight)
+    desiredX = rect.x + rect.width * 0.5 - viewWidth * 0.5
+    desiredY = rect.y + rect.height * 0.5 - viewHeight * 0.5
+    dw = _BRS_NumCoalesce(props.deadzoneWidth, 0)
+    dh = _BRS_NumCoalesce(props.deadzoneHeight, 0)
+    if dw > 0 and Abs(desiredX - m.scene.cameraX) <= dw * 0.5 then desiredX = m.scene.cameraX
+    if dh > 0 and Abs(desiredY - m.scene.cameraY) <= dh * 0.5 then desiredY = m.scene.cameraY
   end if
-  if deadzoneH > 0 then
-    camCenterY = m.scene.cameraY + (m.height * 0.5)
-    if Abs((targetWorld.y + targetHeight * 0.5) - camCenterY) <= deadzoneH * 0.5 then desiredY = m.scene.cameraY
-  end if
-
-  lerp = 1.0
-  if props.followLerp <> invalid then lerp = props.followLerp
+  desiredX = desiredX + _BRS_NumCoalesce(props.offsetX, 0)
+  desiredY = desiredY + _BRS_NumCoalesce(props.offsetY, 0)
+  lerp = _BRS_NumCoalesce(props.followLerp, 1)
   if lerp < 0 then lerp = 0
   if lerp > 1 then lerp = 1
-  if lerp >= 1 then
-    m.scene.cameraX = desiredX
-    m.scene.cameraY = desiredY
-  else
-    m.scene.cameraX = m.scene.cameraX + ((desiredX - m.scene.cameraX) * lerp)
-    m.scene.cameraY = m.scene.cameraY + ((desiredY - m.scene.cameraY) * lerp)
+  if lerp > 0 and lerp < 1 then lerp = 1 - (1 - lerp) ^ (dt * 60)
+  if not m.scene.cameraInitialized or targetNode = invalid then lerp = 1
+  m.scene.cameraX = m.scene.cameraX + (desiredX - m.scene.cameraX) * lerp
+  m.scene.cameraY = m.scene.cameraY + (desiredY - m.scene.cameraY) * lerp
+  if props.cameraBounds = true and props.boundsWidth <> invalid and props.boundsHeight <> invalid then
+    left = _BRS_NumCoalesce(props.boundsX, 0)
+    top = _BRS_NumCoalesce(props.boundsY, 0)
+    right = left + props.boundsWidth - viewWidth
+    bottom = top + props.boundsHeight - viewHeight
+    if right < left then right = left
+    if bottom < top then bottom = top
+    if m.scene.cameraX < left then m.scene.cameraX = left
+    if m.scene.cameraY < top then m.scene.cameraY = top
+    if m.scene.cameraX > right then m.scene.cameraX = right
+    if m.scene.cameraY > bottom then m.scene.cameraY = bottom
   end if
+  m.scene.cameraInitialized = true
 end sub
 
 sub RokuEngine_QueueSceneChange(mode as String, sceneName = invalid as Dynamic)

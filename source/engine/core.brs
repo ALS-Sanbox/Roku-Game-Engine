@@ -441,6 +441,7 @@ sub RokuEngine_RemoveNodeCompositorSprite(node as Object)
   if spriteState <> invalid and spriteState.member <> invalid then
     spriteState.member.Remove()
   end if
+  if spriteState <> invalid and spriteState.scaledBytes <> invalid and m.scaledSpriteBytes <> invalid then m.scaledSpriteBytes = m.scaledSpriteBytes - spriteState.scaledBytes
   runtime.spriteState = invalid
   if m.compositorSprites <> invalid and node.id <> invalid and m.compositorSprites.DoesExist(node.id) then
     m.compositorSprites.Delete(node.id)
@@ -457,6 +458,7 @@ sub RokuEngine_RemoveAllCompositorSprites()
     if member <> invalid then member.Remove()
   end for
   m.compositorSprites = {}
+  m.scaledSpriteBytes = 0
 end sub
 
 function RokuEngine_GetNodeCollider(node as Object) as Dynamic

@@ -38,8 +38,8 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
   y = Int(screenTransform.y)
   width  = 0
   height = 0
-  if props.width  <> invalid then width  = Int(props.width  * screenTransform.scaleX)
-  if props.height <> invalid then height = Int(props.height * screenTransform.scaleY)
+  width = Int(screenTransform.width * screenTransform.scaleX)
+  height = Int(screenTransform.height * screenTransform.scaleY)
 
   opacity = screenTransform.opacity
   runtime = m.EnsureNodeRuntime(node)

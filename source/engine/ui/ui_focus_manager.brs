@@ -286,6 +286,7 @@ function _FM_GetNodeRect(node as Object, nodeId as String) as Object
     if props.width  <> invalid then w = RokuEngine_ToFloat(props.width)
     if props.height <> invalid then h = RokuEngine_ToFloat(props.height)
   end if
+  w = tf.width * tf.scaleX : h = tf.height * tf.scaleY
   return { x: tf.x, y: tf.y, w: w, h: h, cx: tf.x + w * 0.5, cy: tf.y + h * 0.5 }
 end function
 
@@ -313,6 +314,8 @@ sub RokuEngine_HandleFocusInput(event as Object)
   if actionName = "" then return
 
   m.InitializeFocusManager()
+
+  if m.GetFocusedNode() = invalid and actionName <> "back" then return
 
   ' Directional navigation
   if actionName = "move_up"    then m.MoveFocusDirection("up")    : event.consumed = true : return
@@ -406,28 +409,28 @@ sub _FM_DispatchNamedAction(actionStr as String)
 
   ' Scene change: "scene:SceneName"
   if Left(action, 6) = "scene:" then
-    sceneName = RokuEngine_Trim(Mid(action, 7))
+    sceneName = RokuEngine_Trim(Mid(actionStr, 7))
     if sceneName <> "" then m.QueueSceneChange(sceneName)
     return
   end if
 
   ' Push scene: "push:SceneName"
   if Left(action, 5) = "push:" then
-    sceneName = RokuEngine_Trim(Mid(action, 6))
+    sceneName = RokuEngine_Trim(Mid(actionStr, 6))
     if sceneName <> "" then m.PushScene(sceneName)
     return
   end if
 
   ' UI Screen change: "screen:ScreenName"
   if Left(action, 7) = "screen:" then
-    screenName = RokuEngine_Trim(Mid(action, 8))
+    screenName = RokuEngine_Trim(Mid(actionStr, 8))
     if screenName <> "" then m.RGE_UI_ChangeScreen(screenName)
     return
   end if
 
   ' UI Screen push: "pushscreen:ScreenName"
   if Left(action, 11) = "pushscreen:" then
-    screenName = RokuEngine_Trim(Mid(action, 12))
+    screenName = RokuEngine_Trim(Mid(actionStr, 12))
     if screenName <> "" then m.RGE_UI_PushScreen(screenName)
     return
   end if
@@ -440,14 +443,14 @@ sub _FM_DispatchNamedAction(actionStr as String)
 
   ' UI Transition to screen: "transition_screen:ScreenName" (uses default fade)
   if Left(action, 18) = "transition_screen:" then
-    screenName = RokuEngine_Trim(Mid(action, 19))
+    screenName = RokuEngine_Trim(Mid(actionStr, 19))
     if screenName <> "" then m.RGE_UI_TransitionToScreen(screenName, invalid)
     return
   end if
 
   ' UI Transition to scene: "transition_scene:SceneName"
   if Left(action, 17) = "transition_scene:" then
-    sceneName = RokuEngine_Trim(Mid(action, 18))
+    sceneName = RokuEngine_Trim(Mid(actionStr, 18))
     if sceneName <> "" then m.RGE_UI_TransitionToScene(sceneName, invalid)
     return
   end if
@@ -455,7 +458,7 @@ sub _FM_DispatchNamedAction(actionStr as String)
   ' Script event: fire a custom SceneExit-style event that scripts can handle
   ' "custom:EventName" — emits the event to all ScriptComponent listeners
   if Left(action, 7) = "custom:" then
-    eventName = RokuEngine_Trim(Mid(action, 8))
+    eventName = RokuEngine_Trim(Mid(actionStr, 8))
     if eventName <> "" then
       m.RunScriptHooks(0.0, { name: eventName, phase: "ui_action", action: actionStr })
     end if
@@ -464,14 +467,14 @@ sub _FM_DispatchNamedAction(actionStr as String)
 
   ' Cycle option value: "option_cycle:optionKey"
   if Left(action, 13) = "option_cycle:" then
-    optKey = RokuEngine_Trim(Mid(action, 14))
+    optKey = RokuEngine_Trim(Mid(actionStr, 14))
     if optKey <> "" then m.RGE_Options_Cycle(optKey)
     return
   end if
 
   ' Set option: "option_set:optionKey=value"
   if Left(action, 11) = "option_set:" then
-    rest = RokuEngine_Trim(Mid(action, 12))
+    rest = RokuEngine_Trim(Mid(actionStr, 12))
     eqIdx = InStr(rest, "=")
     if eqIdx > 0 then
       optKey = Left(rest, eqIdx - 1)
