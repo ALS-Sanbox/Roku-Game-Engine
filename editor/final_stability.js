@@ -38,8 +38,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
     input.addEventListener('wheel', (event) => {
       if (document.activeElement !== input) return;
-      event.preventDefault();
-    }, { passive: false });
+      // Release number stepping while letting the wheel scroll the panel.
+      input.blur();
+    }, { passive: true });
 
     input.addEventListener('blur', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));

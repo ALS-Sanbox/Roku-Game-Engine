@@ -2245,6 +2245,7 @@ function bindDockUI() {
       const name = btn.dataset.sectionName || btn.textContent.trim();
       const isNowCollapsed = !section.classList.contains('collapsed');
       section.classList.toggle('collapsed', isNowCollapsed);
+      btn.setAttribute('aria-expanded', String(!isNowCollapsed));
       if (isNowCollapsed) state.ui.inspectorCollapsed.add(name);
       else state.ui.inspectorCollapsed.delete(name);
     });
@@ -4802,6 +4803,11 @@ function refreshInspector(opts) {
 
   if (node.type === 'CameraPath2D') {
     const sec=document.createElement('section');sec.className='inspector-section';
+    const toggle=document.createElement('button');
+    toggle.className='section-toggle';toggle.type='button';toggle.textContent='Path Points';
+    toggle.dataset.sectionName='Path Points';
+    if(state.ui.inspectorCollapsed.has('Path Points'))sec.classList.add('collapsed');
+    sec.appendChild(toggle);
     const body=document.createElement('div');body.className='section-body';
     const btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:6px;margin-bottom:4px;';
     const btn=document.createElement('button');btn.textContent='+ Add Point';btn.className='mini-btn';
@@ -4960,7 +4966,6 @@ function buildNodeComponentsSection(node) {
 
   const body = document.createElement('div');
   body.className = 'section-body';
-  body.style.display = 'flex';
   body.style.flexDirection = 'column';
   body.style.gap = '8px';
 
@@ -5819,11 +5824,25 @@ function buildField(node, field) {
           _nudge(dir);
           timer = setTimeout(repeat, 60);
         }, 400);
-        const stop = () => { clearTimeout(timer); document.removeEventListener('pointerup', stop); };
+        const stop = () => {
+          clearTimeout(timer);
+          document.removeEventListener('pointerup', stop);
+          document.removeEventListener('pointercancel', stop);
+          window.removeEventListener('blur', stop);
+          _commit();
+        };
         document.addEventListener('pointerup', stop);
+        document.addEventListener('pointercancel', stop);
+        window.addEventListener('blur', stop);
       };
       upBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); _startRepeat(+1); });
       dnBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); _startRepeat(-1); });
+      [upBtn, dnBtn].forEach((button, index) => button.addEventListener('click', (event) => {
+        if (event.detail !== 0) return;
+        rememberFieldStart(node.id, field.key);
+        _nudge(index === 0 ? 1 : -1);
+        _commit();
+      }));
 
       wrap.appendChild(numWrap);
       input = null; // prevent the generic `if (input)` append below
@@ -6710,7 +6729,6 @@ function buildCameraTargetGroupInspector(node, container) {
 
 // ── CameraTargetGroup Runtime ──────────────────────────────────────────────────
 
-/**
 // ── CameraZone2D Inspector ─────────────────────────────────────────────────────
 
 function buildCameraZoneInspector(node, container) {
@@ -12515,7 +12533,6 @@ bindSceneActions = function() {
   };
   ['tm-tile-w','tm-tile-h'].forEach((id) => bindOnceById(id, 'wheel', `${id}WheelLock`, (event) => {
     if (document.activeElement === event.currentTarget) event.currentTarget.blur();
-    event.preventDefault();
   }));
   ['tm-tile-w','tm-tile-h'].forEach((id) => bindOnceById(id, 'change', id, () => {
     const node = getSelectedTileMapNode();
@@ -16243,7 +16260,7 @@ renderTilesetsPanel = function() {
     const btn = document.getElementById(id);
     if (!btn) return;
     btn.classList.toggle('active', !!state.tilesetTerrainEditor[stateKey]);
-    btn.addEventListener('click', () => {
+    bindClick(id, () => {
       state.tilesetTerrainEditor[stateKey] = !state.tilesetTerrainEditor[stateKey];
       btn.classList.toggle('active', !!state.tilesetTerrainEditor[stateKey]);
       updateTilesetSheetPaletteHighlights(tsPaletteGridEl, selected, selected?.selectedTileIndex ?? 0);
@@ -16253,8 +16270,9 @@ renderTilesetsPanel = function() {
   bindOverlayBtn('ts-overlay-collision', 'overlayCollision');
 
   const selectWithRulesBtn = document.getElementById('ts-select-rules-all');
+  if (selectWithRulesBtn) selectWithRulesBtn.disabled = !selected;
   if (selectWithRulesBtn && selected) {
-    selectWithRulesBtn.addEventListener('click', () => {
+    bindClick('ts-select-rules-all', () => {
       const sets = Array.isArray(selected.terrainSets) ? selected.terrainSets : [];
       const tileIndices = new Set();
       sets.forEach((set) => (set.rules || []).forEach((rule) => {
@@ -16268,8 +16286,9 @@ renderTilesetsPanel = function() {
     });
   }
   const clearSelBtn = document.getElementById('ts-select-clear');
+  if (clearSelBtn) clearSelBtn.disabled = !selected;
   if (clearSelBtn && selected) {
-    clearSelBtn.addEventListener('click', () => {
+    bindClick('ts-select-clear', () => {
       const primary = selected?.selectedTileIndex ?? 0;
       setSelectedTilesetTerrainTileIndices([primary], primary);
       updateTilesetSheetPaletteHighlights(tsPaletteGridEl, selected, primary);
@@ -18489,6 +18508,7 @@ const TilePhysicsEditor = (() => {
 // PROJECT LOADING OVERLAY CONTROLLER
 // ══════════════════════════════════════════════════════════════════════
 const ProjectLoader = (() => {
+  let loadVersion = 0;
   const STEPS = ['settings', 'files', 'scenes', 'assets'];
   const STEP_WEIGHTS = { settings: 10, files: 20, scenes: 50, assets: 20 };
   let _overlay = null, _bar = null, _nameEl = null, _statusEl = null;
@@ -18534,6 +18554,7 @@ const ProjectLoader = (() => {
   }
 
   function show(projectName) {
+    loadVersion += 1;
     _completedSteps.clear();
     _activeStep = null;
     const { overlay, bar, nameEl, statusEl } = _els();
@@ -18559,6 +18580,7 @@ const ProjectLoader = (() => {
   }
 
   function done(statusText) {
+    const completedVersion = loadVersion;
     if (_activeStep) {
       _completedSteps.add(_activeStep);
       _updateStep(_activeStep, 'done');
@@ -18570,11 +18592,12 @@ const ProjectLoader = (() => {
     if (statusEl && statusText) statusEl.textContent = statusText;
     // Short pause so the user sees 100% before fade-out
     setTimeout(() => {
-      if (!overlay) return;
+      if (!overlay || completedVersion !== loadVersion) return;
       overlay.classList.add('is-dismissing');
-      overlay.addEventListener('transitionend', () => {
-        overlay.classList.remove('is-visible', 'is-dismissing');
-      }, { once: true });
+      // Hidden windows and disabled transitions may never emit transitionend.
+      setTimeout(() => {
+        if (completedVersion === loadVersion) overlay.classList.remove('is-visible', 'is-dismissing');
+      }, 400);
     }, 420);
   }
 

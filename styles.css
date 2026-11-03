@@ -46,6 +46,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
+body { display: flex; flex-direction: column; }
 button { cursor: pointer; background: none; border: none; }
 input, select, textarea {
   background: var(--bg);
@@ -96,9 +97,11 @@ textarea { resize: vertical; min-height: 80px; }
 
 /* ── Toolbar ─────────────────────────────────────────────────────────── */
 .toolbar {
-  height: var(--toolbar-h);
+  min-height: var(--toolbar-h);
+  height: auto;
   display: flex; align-items: center; gap: 2px;
-  padding: 0 8px;
+  flex-wrap: wrap;
+  padding: 4px 8px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -157,7 +160,10 @@ textarea { resize: vertical; min-height: 80px; }
   border-radius: 6px;
   box-shadow: 0 12px 30px rgba(0,0,0,0.35);
   z-index: 200;
+  max-height: calc(100vh - var(--titlebar-h) - var(--toolbar-h) - 12px);
+  overflow-y: auto;
 }
+.toolbar-menu-dropdown > * { flex-shrink: 0; }
 .toolbar-menu-item {
   width: 100%;
   min-height: 28px;
@@ -186,7 +192,8 @@ textarea { resize: vertical; min-height: 80px; }
 .app-shell {
   display: flex;
   flex-direction: row;
-  height: calc(100vh - var(--titlebar-h) - var(--toolbar-h) - var(--statusbar-h));
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -624,6 +631,7 @@ textarea { resize: vertical; min-height: 80px; }
 
 /* Inspector sections */
 .inspector-section {
+  flex-shrink: 0;
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
@@ -650,16 +658,17 @@ textarea { resize: vertical; min-height: 80px; }
   max-height: min(42vh, 360px);
   overflow-y: auto;
 }
+.section-body > * { flex-shrink: 0; }
 /* Components section should fill available height since cards can be tall */
 .inspector-section--components {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 .inspector-section--components .section-body {
-  flex: 1;
+  flex: 0 0 auto;
   max-height: none;
   overflow-y: auto;
 }
@@ -3780,6 +3789,7 @@ details.tr-section[open] > summary.tr-section-title::before {
   pointer-events: all;
 }
 .proj-loading-overlay.is-dismissing {
+  pointer-events: none;
   opacity: 0;
   visibility: hidden;
 }
@@ -4407,7 +4417,7 @@ details.ui-sidebar-details:not([open]) .ui-sidebar-summary::before { content: '�
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
   min-width: 0;
 }
 
@@ -4485,6 +4495,7 @@ details.ui-sidebar-details:not([open]) .ui-sidebar-summary::before { content: '�
 /* ── Canvas area ─────────────────────────────────────────────────────── */
 .nse-canvas-area {
   flex: 1;
+  min-height: 160px;
   position: relative;
   overflow: hidden;
 }

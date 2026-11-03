@@ -1769,6 +1769,13 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   }
 
   function bindDeleteButton() {
+    const refresh = document.getElementById('ui-btn-refresh-canvas');
+    if (refresh) refresh.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      recenterCanvas();
+      forceRefresh('refresh-button');
+    });
     const btn = document.getElementById('ui-btn-delete-node');
     if (!btn) return;
     btn.addEventListener('click', () => {

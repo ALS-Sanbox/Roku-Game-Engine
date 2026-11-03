@@ -593,15 +593,23 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     MENU_TABS.forEach((meta) => {
       const tab = allTabButtons().find((t) => getTabKey(t) === meta.key);
       const row = document.createElement('button');
-      const visible = isTabVisible(meta.key);
+      const mainScene = meta.key === 'game' && !!qs('#scene-tabs .scene-tab');
+      const visible = mainScene || isTabVisible(meta.key);
       row.type = 'button';
       row.className = `tabs-menu-item ${visible ? 'is-visible' : 'is-hidden'}`;
-      row.disabled = !tab;
+      row.disabled = !tab && !mainScene;
       row.dataset.tabKey = meta.key;
       row.innerHTML = `<span class="tabs-menu-tab-name"></span><span class="tabs-menu-state"></span><span class="tabs-menu-hide" title="Hide tab" aria-label="Hide tab">×</span>`;
       row.querySelector('.tabs-menu-tab-name').textContent = meta.label;
       row.querySelector('.tabs-menu-state').textContent = visible ? 'Shown' : 'Hidden';
+      if (mainScene) row.querySelector('.tabs-menu-hide').hidden = true;
       row.addEventListener('click', (e) => {
+        if (mainScene) {
+          RGE_ROOT.RGEActivateWorkspace?.('game', { force: true });
+          qs('#tabs-menu-dropdown')?.classList.add('hidden');
+          qs('#btn-tabs-menu')?.setAttribute('aria-expanded', 'false');
+          return;
+        }
         const clickedHide = e.target.closest('.tabs-menu-hide');
         const currentTab = allTabButtons().find((t) => getTabKey(t) === meta.key);
         // Bug 7 fix: always close the dropdown after any row interaction

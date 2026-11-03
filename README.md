@@ -44,7 +44,10 @@ npm.cmd test
 npm.cmd run check:runtime
 npm.cmd run test:browser
 npm.cmd run test:browser-suite
+npm.cmd run test:ui
 ```
+
+The UI audit checks dock tabs, button bindings, resource actions, collapsible inspector sections, numeric controls and scrolling at a short editor size. It opens Project Settings at 700×420 and checks its tabs, scrolling and saved settings using an isolated fixture project. Reports and screenshots go to `.visual-editor/artifacts/ui/`. Native file pickers and uploads to a physical Roku require manual checks.
 
 With the visual server running (`npm.cmd run start:visual`), `npm.cmd run test:visual-browser` play-tests neighboring `MOL/roku` and `DOM/roku` projects in Chrome. It checks start, movement/fire input, stable pause frames and resume, and saves screenshots and reports to `.visual-editor/artifacts/native-games/`. Both projects are required; their original source files are preserved.
 

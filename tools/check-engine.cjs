@@ -103,6 +103,11 @@ async function main() {
     }
     console.log('EDITOR', JSON.stringify(await evaluate(sessionId, '({title:document.title,scene:typeof state!=="undefined"?state.sceneState.scene.name:null,projectRoot:state.projectRoot,status:state.status,logs:state.logs.slice(-8),viewportError:window.__viewportInitError?.message,konva:typeof Konva,buildButton:!!document.getElementById("btn-test-simulator")})')));
     if (errors.length) throw new Error(errors.join('\n'));
+    if (process.argv.includes('--ui')) {
+      await require('./check-editor-ui.cjs')({ send, evaluate, sessionId, errors, fixtureRoot });
+      await evaluate(sessionId, 'window.electronAPI.closeWindow(); true');
+      return;
+    }
     if (sampleMode) {
       const saved = await evaluate(sessionId, `(async()=>{
         getNode('player').transform.x=210;
