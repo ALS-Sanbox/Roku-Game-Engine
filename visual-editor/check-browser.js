@@ -2,6 +2,9 @@
 // Optional real-browser smoke check; requires a running editor and Chrome.
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+const artifacts = path.resolve(__dirname, '../.visual-editor/artifacts/native-games');
 const base = process.env.RGE_EDITOR_URL || 'http://127.0.0.1:4173';
 const chrome = process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const profile = path.resolve(__dirname, '../.visual-editor/browser-check-' + Date.now());
@@ -10,6 +13,8 @@ async function main() {
   const page = await (await fetch(base)).text();
   const token = page.match(/name="editor-token" content="([^"]+)"/)[1];
   const projects = await (await fetch(base + '/api/projects', { headers: { 'x-editor-token': token } })).json();
+  for (const name of ['MOL', 'DOM']) if (!projects.some(p => p.name === name)) throw new Error('Required play-test project missing: ' + name);
+  fs.mkdirSync(artifacts, { recursive: true });
   const child = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
   let socket;
   try {
@@ -55,6 +60,52 @@ async function main() {
       }
       console.log(JSON.stringify({ game: project.name, ...result, errors }));
       if (!result?.state?.startsWith('Running') || errors.length || !result.isolated || !result.painted) throw new Error(project.name + ' browser startup failed.');
+      async function evaluate(expression) {
+        const response = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+        if (response.exceptionDetails) throw new Error(JSON.stringify(response.exceptionDetails));
+        return response.result.value;
+      }
+      async function capture(stage) {
+        const data = await evaluate('(()=>{const buffer=brs.getDisplayBuffer(),canvas=document.createElement("canvas");canvas.width=buffer.width;canvas.height=buffer.height;canvas.getContext("2d").drawImage(buffer,0,0);return canvas.toDataURL("image/png").split(",")[1];})()');
+        const png = Buffer.from(data, 'base64');
+        fs.writeFileSync(path.join(artifacts, project.name + '-' + stage + '.png'), png);
+        return crypto.createHash('sha256').update(png).digest('hex');
+      }
+      async function press(key) { await evaluate('brs.sendKeyPress(' + JSON.stringify(key) + ', 100)'); await pause(500); }
+      // DOM paints a loading screen while building its maze. A painted frame
+      // alone does not mean that its input loop is ready.
+      async function waitForMaze() {
+        if (project.name !== 'DOM') return;
+        const deadline = Date.now() + 90000;
+        while (await evaluate('(()=>{const p=brs.getDisplayBuffer().getContext("2d").getImageData(310,300,1,1).data;return p[0]===8&&p[1]===23&&p[2]===42;})()')) {
+          if (Date.now() > deadline) throw new Error('DOM maze loading timed out');
+          await pause(500);
+        }
+      }
+      await waitForMaze();
+      const frames = { title: await capture('title') };
+      await press('select');
+      await waitForMaze();
+      // MOL's first launch enters its story introduction; Select skips it.
+      if (project.name === 'MOL') await press('select');
+      await pause(1500);
+      frames.started = await capture('started');
+      await evaluate('brs.sendKeyDown("right")'); await pause(700); await evaluate('brs.sendKeyUp("right")');
+      await press('select');
+      frames.action = await capture('action');
+      await press('play');
+      frames.paused = await capture('paused');
+      await pause(700);
+      frames.pausedSettled = await capture('paused-settled');
+      if (frames.paused !== frames.pausedSettled) throw new Error(project.name + ' did not hold a stable paused frame');
+      await press('play'); await pause(1000);
+      frames.resumed = await capture('resumed');
+      if (frames.title === frames.started || frames.paused === frames.resumed) throw new Error(project.name + ' start/resume did not change the framebuffer');
+      const final = await evaluate('({state:document.getElementById("state").textContent,logs:document.getElementById("logs").textContent})');
+      const report = { game: project.name, frames, ...final, errors };
+      fs.writeFileSync(path.join(artifacts, project.name + '.json'), JSON.stringify(report, null, 2));
+      if (!final.state.startsWith('Running') || /runtime error|compile error|error:/i.test(final.logs) || errors.length) throw new Error(project.name + ' gameplay failed: ' + JSON.stringify(report));
+      console.log('PLAY_TEST', JSON.stringify({ game: project.name, frames, passed: true }));
       await send('Target.closeTarget', { targetId });
     }
     await send('Browser.close');

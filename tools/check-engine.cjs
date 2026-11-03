@@ -90,8 +90,17 @@ async function main() {
     const page = targets.targetInfos.find(t => t.type === 'page');
     const { sessionId } = await send('Target.attachToTarget', { targetId: page.targetId, flatten: true });
     await send('Runtime.enable', {}, sessionId);
+    for (let attempt = 0; ; attempt++) {
+      if (await evaluate(sessionId, '!!window.electronAPI?.openProjectInEditor')) break;
+      if (attempt >= 60) throw new Error('Project manager did not initialize');
+      await delay(500);
+    }
     await evaluate(sessionId, `void window.electronAPI.openProjectInEditor(${JSON.stringify(fixtureRoot)}); true`);
-    await delay(2500);
+    for (let attempt = 0; ; attempt++) {
+      if (await evaluate(sessionId, 'typeof state!=="undefined" && state.sceneState?.scene?.name===' + JSON.stringify(sampleMode ? 'CollectStars' : 'SmokeScene') + ' && !!document.getElementById("btn-test-simulator")')) break;
+      if (attempt >= 60) throw new Error('Scene editor did not initialize');
+      await delay(500);
+    }
     console.log('EDITOR', JSON.stringify(await evaluate(sessionId, '({title:document.title,scene:typeof state!=="undefined"?state.sceneState.scene.name:null,projectRoot:state.projectRoot,status:state.status,logs:state.logs.slice(-8),viewportError:window.__viewportInitError?.message,konva:typeof Konva,buildButton:!!document.getElementById("btn-test-simulator")})')));
     if (errors.length) throw new Error(errors.join('\n'));
     if (sampleMode) {

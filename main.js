@@ -6,9 +6,8 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const http = require('http');
-const { execFileSync } = require('child_process');
 const { writeClassicRuntimeFiles } = require('./export/classic2d_export');
-const { sanitizeBrightScriptIdentifier, buildScriptHookBaseName } = require('./export/user_scripts');
+const { buildScriptHookBaseName } = require('./export/user_scripts');
 const { buildSimulatorProject } = require('./export/simulator_build');
 const { registerSimulatorPackage, stopSimulatorHost } = require('./export/simulator_host');
 const engineSmokeTest = process.argv.includes('--engine-smoke-test');
@@ -970,16 +969,6 @@ ipcMain.on('window-maximize', () => {
   else mainWindow.maximize();
 });
 
-function normalizeRelativePath(filePath) {
-  return String(filePath || '').replace(/\\/g, '/');
-}
-
-function makeProjectRelativePath(filePath) {
-  if (!filePath) return '';
-  const baseDir = currentProjectRoot || __dirname;
-  return normalizeRelativePath(path.relative(baseDir, filePath) || path.basename(filePath));
-}
-
 function filePathToDataUrl(filePath) {
   const ext = path.extname(filePath).toLowerCase().slice(1);
   const mimeMap = {
@@ -1469,22 +1458,6 @@ function writeProjectMainScript(projectRoot, settings = {}, startupSceneName = '
   return mainPath;
 }
 
-function buildManifestContent(options = {}) {
-  const title = String(options.title || 'RokuEngine Game').trim() || 'RokuEngine Game';
-  const major = Number.isFinite(Number(options.majorVersion)) ? Number(options.majorVersion) : 1;
-  const minor = Number.isFinite(Number(options.minorVersion)) ? Number(options.minorVersion) : 0;
-  return `title=${title}
-major_version=${major}
-minor_version=${minor}
-build_version=1
-mm_icon_focus_hd=pkg:/images/StoreLogo.png
-mm_icon_focus_sd=pkg:/images/StoreLogo.png
-splash_screen_hd=pkg:/images/SplashScreen.png
-splash_screen_sd=pkg:/images/SplashScreen.png
-ui_resolutions=hd
-`;
-}
-
 function walkFilesRecursive(dirPath, visit) {
   if (!dirPath || !fs.existsSync(dirPath)) return;
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -1899,64 +1872,6 @@ ipcMain.handle('sideload-upload', async (event, payload = {}) => {
 });
 
 // ── Sideload helpers ──────────────────────────────────────────────────────────
-
-function sideloadGatherScenes(projectRoot) {
-  const seen    = new Map();
-  const scenesDir = path.join(projectRoot, 'assets', 'scenes');
-  const walk = (dir) => {
-    if (!fs.existsSync(dir)) return;
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) { walk(full); continue; }
-      if (!/\.(rkscene|json)$/i.test(entry.name)) continue;
-      try {
-        const doc   = JSON.parse(fs.readFileSync(full, 'utf8'));
-        const sName = doc.sceneState?.scene?.name || path.basename(entry.name, path.extname(entry.name));
-        if (!seen.has(sName)) seen.set(sName, { filePath: full, sceneName: sName, doc });
-      } catch (_) { /* skip malformed */ }
-    }
-  };
-  walk(scenesDir);
-  walk(projectRoot);
-  return [...seen.values()];
-}
-
-function sideloadCopyDir(src, dest) {
-  if (!fs.existsSync(src)) return;
-  ensureDir(dest);
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, entry.name);
-    const d = path.join(dest, entry.name);
-    if (entry.isDirectory()) sideloadCopyDir(s, d);
-    else fs.copyFileSync(s, d);
-  }
-}
-
-function sideloadRmrf(dirPath) {
-  if (!fs.existsSync(dirPath)) return;
-  try {
-    fs.rmSync(dirPath, { recursive: true, force: true });
-  } catch (_) {
-    for (const e of fs.readdirSync(dirPath, { withFileTypes: true })) {
-      const full = path.join(dirPath, e.name);
-      if (e.isDirectory()) sideloadRmrf(full);
-      else fs.unlinkSync(full);
-    }
-    fs.rmdirSync(dirPath);
-  }
-}
-
-function sideloadZip(srcDir, destZip) {
-  if (fs.existsSync(destZip)) fs.unlinkSync(destZip);
-  if (process.platform === 'win32') {
-    execFileSync('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      `Compress-Archive -Path '${srcDir}\\*' -DestinationPath '${destZip}'`,
-    ], { timeout: 60000 });
-  } else {
-    execFileSync('zip', ['-r', destZip, '.'], { cwd: srcDir, timeout: 60000 });
-  }
-}
 
 function sideloadFmtBytes(b) {
   if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';

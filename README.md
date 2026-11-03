@@ -46,6 +46,8 @@ npm.cmd run test:browser
 npm.cmd run test:browser-suite
 ```
 
+With the visual server running (`npm.cmd run start:visual`), `npm.cmd run test:visual-browser` play-tests neighboring `MOL/roku` and `DOM/roku` projects in Chrome. It checks start, movement/fire input, stable pause frames and resume, and saves screenshots and reports to `.visual-editor/artifacts/native-games/`. Both projects are required; their original source files are preserved.
+
 The browser check opens hidden Electron windows, loads a fixture scene in the actual editor, builds native BrightScript and checks camera-follow, HUD and texture pixels in the simulator's frame buffer. The full browser suite also checks coordinates and sample gameplay, restart, and package equivalence across simulator, export and sideload builds. Logs and results are written to `.visual-editor/artifacts/results/`. Generated profiles and projects stay under ignored `.visual-editor/`. These are focused checks, not exhaustive gameplay or device validation.
 
 ## Update GitHub
