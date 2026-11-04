@@ -76,7 +76,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
     end for
 
   else if node.type = "Label" then
-    m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, props.fontSize, props.align, props.valign, opacity)
+    m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, props.fontSize, props.align, props.valign, opacity, props)
 
   else if node.type = "TextureRect" then
     region = m.LoadImageAsset(props.imagePath)
@@ -131,7 +131,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
       style = RokuEngine_ResolveNineSliceStyle(m, RokuEngine_Trim(RokuEngine_ToString(props.nineSliceStyleId)))
       if style <> invalid then
         RokuEngine_DrawNineSliceStyled(m.screen, m, node, style, x, y, width, height, opacity)
-        m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), "center", "center", opacity)
+        m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), _BRS_StrCoalesce(props.align, "center"), _BRS_StrCoalesce(props.valign, "center"), opacity, props)
         return
       end if
     end if
@@ -146,7 +146,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
     borderColor = RokuEngine_ApplyAlpha(btnBorderColor, opacity)
     m.screen.DrawRect(x, y, width, height, fillColor)
     RokuEngine_DrawUiOutlineRect(m.screen, x, y, width, height, borderColor)
-    m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), "center", "center", opacity)
+    m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), _BRS_StrCoalesce(props.align, "center"), _BRS_StrCoalesce(props.valign, "center"), opacity, props)
 
   else if node.type = "NineSlicePanel" then
     ' Try named style first, then inline slice props
@@ -285,7 +285,7 @@ sub RokuEngine_DrawUiText(textValue as Dynamic, x as Integer, y as Integer, colo
   m.screen.DrawText(RokuEngine_Trim(RokuEngine_ToString(textValue)), x, y, color, font)
 end sub
 
-sub RokuEngine_DrawUiTextAligned(textValue as Dynamic, x as Integer, y as Integer, w as Integer, h as Integer, colorHex as Dynamic, fontSize as Dynamic, align as Dynamic, valign as Dynamic, opacity as Dynamic)
+sub RokuEngine_DrawUiTextAligned(textValue as Dynamic, x as Integer, y as Integer, w as Integer, h as Integer, colorHex as Dynamic, fontSize as Dynamic, align as Dynamic, valign as Dynamic, opacity as Dynamic, textStyle = invalid as Dynamic)
   if m.screen = invalid then return
   if fontSize = invalid then fontSize = 22
   if align = invalid or align = "" then align = "left"
@@ -293,24 +293,47 @@ sub RokuEngine_DrawUiTextAligned(textValue as Dynamic, x as Integer, y as Intege
   if opacity = invalid then opacity = 1.0
   if m.uiFontRegistry = invalid then m.uiFontRegistry = CreateObject("roFontRegistry")
   fontRegistry = m.uiFontRegistry
-  font = fontRegistry.GetDefaultFont(fontSize, false, false)
+  bold = false : italic = false : family = "" : fontPath = ""
+  if textStyle <> invalid
+    bold = textStyle.fontBold = true : italic = textStyle.fontItalic = true
+    family = _BRS_StrCoalesce(textStyle.fontFamily, "")
+    fontPath = _BRS_StrCoalesce(textStyle.fontPath, "")
+  end if
+  if m.uiRegisteredFonts = invalid then m.uiRegisteredFonts = {}
+  if fontPath <> ""
+    if not m.uiRegisteredFonts.DoesExist(fontPath)
+      pkgPath = fontPath
+      if Left(pkgPath, 6) = "res://" then pkgPath = "pkg:/" + Mid(pkgPath, 7)
+      m.uiRegisteredFonts[fontPath] = ""
+      if fontRegistry.Register(pkgPath)
+        families = fontRegistry.GetFamilies()
+        if families.Count() > 0 then m.uiRegisteredFonts[fontPath] = families[families.Count() - 1]
+      end if
+    end if
+    if family = "" then family = m.uiRegisteredFonts[fontPath]
+  end if
+  font = invalid
+  if family <> "" then font = fontRegistry.GetFont(family, Int(fontSize), bold, italic)
+  if font = invalid then font = fontRegistry.GetDefaultFont(fontSize, bold, italic)
   if font = invalid then font = fontRegistry.GetDefaultFont()
   color = RokuEngine_HexToRgba(_BRS_StrCoalesce(colorHex, "#ffffff"), opacity)
   text = _BRS_StrCoalesce(textValue, "")
 
   ' Compute text dimensions for alignment
-  textW = font.GetOneLineWidth(text, w)
   textH = font.GetOneLineHeight()
-
-  tx = x + 8
-  if align = "center" then tx = x + Int((w - textW) / 2)
-  if align = "right"  then tx = x + w - textW - 8
-
+  lines = text.Replace(Chr(13), "").Split(Chr(10))
+  blockH = textH * lines.Count()
   ty = y + 8
-  if valign = "center" then ty = y + Int((h - textH) / 2)
-  if valign = "bottom" then ty = y + h - textH - 4
-
-  m.screen.DrawText(text, tx, ty, color, font)
+  if valign = "center" then ty = y + Int((h - blockH) / 2)
+  if valign = "bottom" then ty = y + h - blockH - 4
+  for each line in lines
+    textW = font.GetOneLineWidth(line, w)
+    tx = x + 8
+    if align = "center" then tx = x + Int((w - textW) / 2)
+    if align = "right" then tx = x + w - textW - 8
+    m.screen.DrawText(line, tx, ty, color, font)
+    ty = ty + textH
+  end for
 end sub
 
 ' ── Drawing utilities ─────────────────────────────────────────────────────────

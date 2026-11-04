@@ -373,12 +373,12 @@ end sub
 sub _FM_FlushActionQueue()
   if m.focus = invalid or m.focus.actionQueue = invalid then return
   for each entry in m.focus.actionQueue
-    if entry <> invalid then m._FM_DispatchNamedAction(entry.action)
+    if entry <> invalid then m._FM_DispatchNamedAction(entry.action, entry.nodeId)
   end for
   m.focus.actionQueue = []
 end sub
 
-sub _FM_DispatchNamedAction(actionStr as String)
+sub _FM_DispatchNamedAction(actionStr as String, sourceNodeId = "" as String)
   if actionStr = invalid or actionStr = "" then return
   action = LCase(RokuEngine_Trim(actionStr))
 
@@ -461,7 +461,7 @@ sub _FM_DispatchNamedAction(actionStr as String)
   if Left(action, 7) = "custom:" then
     eventName = RokuEngine_Trim(Mid(actionStr, 8))
     if eventName <> "" then
-      m.RunScriptHooks(0.0, { name: eventName, phase: "ui_action", action: actionStr })
+      m.RunScriptHooks(0.0, { name: eventName, phase: "ui_action", action: actionStr, nodeId: sourceNodeId })
     end if
     return
   end if

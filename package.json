@@ -14,6 +14,11 @@
     "test:browser-suite": "node tools/check-browser-suite.cjs",
     "test:ui": "node tools/check-engine.cjs --ui",
     "test:mol": "node tools/check-engine.cjs --mol",
+    "test:ui-screens": "node tools/check-engine.cjs --mol-ui",
+    "test:typography": "node tools/check-engine.cjs --typography",
+    "test:scripts": "node tools/check-engine.cjs --mol-ui --scripts",
+    "test:script-actions": "node tools/check-engine.cjs --script-actions",
+    "test:slicing": "node tools/check-engine.cjs --slicing",
     "test:visual-browser": "node visual-editor/check-browser.js",
     "test": "node --test visual-editor/test/*.test.js export/test/*.test.cjs"
   },

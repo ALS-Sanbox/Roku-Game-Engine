@@ -22,7 +22,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     { key: 'scene', label: 'Scene Tab', defaultDock: 'left-bottom' },
     { key: 'filesystem', label: 'File System', defaultDock: 'left-top' },
     { key: 'game', label: 'Main Scene', defaultDock: 'center' },
-    { key: 'ui', label: 'UI Screens', defaultDock: 'bottom' },
+    { key: 'ui', label: 'UI Screens', defaultDock: 'center' },
+    { key: 'scripts', label: 'Scripts', defaultDock: 'center' },
+    { key: 'slicer', label: 'Sprite Slicer', defaultDock: 'center' },
     { key: 'inspector', label: 'Inspector', defaultDock: 'right' },
     { key: 'node-info', label: 'Tile Opts', defaultDock: 'right' },
     { key: 'output', label: 'Output', defaultDock: 'bottom' },
@@ -51,7 +53,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       'dock-panel-node-info', 'dock-panel-node', 'dock-panel-spriteframes', 'dock-panel-transitions',
       'dock-panel-tilesets', 'dock-panel-uitemplates',
       'dock-panel-optscores', 'dock-panel-nineslice', 'dock-panel-tilemaps',
-      'dock-panel-camera-preview'
+      'dock-panel-camera-preview', 'script-editor-wrap', 'sprite-slicer-wrap'
     ],
   };
   let draggedTab = null;
@@ -312,7 +314,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     // only locks the UI Components's internal split layout.
     Object.assign(wrap.style, {
       display: 'grid',
-      gridTemplateColumns: '230px minmax(240px, 1fr)',
+      gridTemplateColumns: '220px minmax(160px, 1fr) 240px',
       gridTemplateRows: 'minmax(0, 1fr)',
       width: '100%',
       height: '100%',
@@ -356,6 +358,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
   function runPanelSideEffects(key) {
     if (!key) return;
+    if (key === 'scripts') RGE_ROOT.RGEScriptEditor?.refresh();
 
     // UI Components draws selection / resize handles directly on its own canvas.
     // When any non-UI tab becomes active, explicitly deactivate and clear that
@@ -707,6 +710,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   }
 
   function init() {
+    RGE_ROOT.RGEShowDockTab = showTabInDock;
     ensureHiddenHost();
     ensurePanelIdsAndTargets();
     wrapWorkspaceActivator();

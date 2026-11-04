@@ -987,6 +987,7 @@ sub RokuEngine_RunScriptHooks(dt as Float, event as Dynamic)
   phaseName = ""
   if event <> invalid and event.name <> invalid then eventName = RokuEngine_Trim(RokuEngine_ToString(event.name))
   if event <> invalid and event.phase <> invalid then phaseName = RokuEngine_Trim(RokuEngine_ToString(event.phase))
+  if phaseName = "ui_action" then eventName = "Action"
 
   if eventName = "Input" then
     m.RunComponentPhase("input", dt, event)

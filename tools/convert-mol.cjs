@@ -2,7 +2,7 @@
 // One-time import. Never overwrite a project that has been edited afterwards.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const source=path.resolve(process.argv[2]||path.join(__dirname,'../../MOL/roku'));
-const output=path.resolve(__dirname,'../projects/MOL');
+const output=path.resolve(process.argv[3]||path.join(__dirname,'../.visual-editor/converted-projects/MOL'));
 if(fs.existsSync(path.join(output,'MOL.rkscene')))throw new Error('MOL engine project already exists. Import refuses to overwrite your edits.');
 for(const folder of ['images','audio','source'])if(!fs.existsSync(path.join(source,folder)))throw new Error('Missing MOL source folder: '+folder);
 fs.mkdirSync(path.join(output,'components/game'),{recursive:true});
@@ -94,6 +94,7 @@ const close=image('AngelClose','Templates',0,0,120,120,'sprites.png',110,{x:256,
 image('DeliveryHome','Playfield',0,0,540,960,'home.png',200).visible=false;
 for(const node of nodes)node.children=nodes.filter(child=>child.parentId===node.id).map(child=>child.id);
 const scene={formatVersion:2,scene:{name:'MOL',rootNodeId:'root'},nodes};
+require('./link-mol-scripts.cjs').linkMolScripts(scene);
 fs.writeFileSync(path.join(output,'MOL.rkscene'),JSON.stringify(scene,null,2));
 fs.writeFileSync(path.join(output,'MOL.rkscene.editstate'),JSON.stringify({editorVersion:2,selection:{selectedIds:['Player'],selectedId:'Player'},expandedTreeNodes:{root:true,World:true,Playfield:true,HUD:true,Menu:true},uiScreens:[],uiMeta:{resolution:'1280x720',snap:{enabled:true,gridSize:8}},spritesheets:[]},null,2));
 fs.writeFileSync(path.join(output,'project.settings.json'),JSON.stringify({projectName:'Messenger of Light - Engine Edition',startupScene:'MOL',screen:{width:1280,height:720,mode:'720p'},input:{actionMap:{move_up:'up',move_down:'down',move_left:'left',move_right:'right',action:'ok',pause:'play',back:'back'}}},null,2));

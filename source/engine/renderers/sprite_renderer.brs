@@ -60,21 +60,42 @@ sub RokuEngine_SyncNodeSprite(nodeId as String, active as Object, layer as Integ
       if bitmap = invalid then
         m.RemoveNodeCompositorSprite(node)
       else
+        sourceX = 0 : sourceY = 0 : sourceW = bitmap.GetWidth() : sourceH = bitmap.GetHeight()
+        sourceBitmap = bitmap
+        baseX = 0 : baseY = 0
+        if type(bitmap) = "roRegion" then
+          sourceBitmap = bitmap.GetBitmap()
+          baseX = bitmap.GetX() : baseY = bitmap.GetY()
+        end if
+        if props.sourceRect <> invalid then
+          crop = props.sourceRect
+          if crop.w <> invalid and crop.h <> invalid and crop.w > 0 and crop.h > 0 then
+            if crop.x <> invalid then sourceX = Int(crop.x)
+            if crop.y <> invalid then sourceY = Int(crop.y)
+            if sourceX < 0 then sourceX = 0
+            if sourceY < 0 then sourceY = 0
+            if sourceX >= sourceW then sourceX = sourceW - 1
+            if sourceY >= sourceH then sourceY = sourceH - 1
+            sourceW = sourceW - sourceX : sourceH = sourceH - sourceY
+            if crop.w < sourceW then sourceW = Int(crop.w)
+            if crop.h < sourceH then sourceH = Int(crop.h)
+          end if
+        end if
         textureKey = "sprite|"
         if props.imagePath <> invalid then textureKey = textureKey + props.imagePath
+        textureKey = textureKey + "|" + sourceX.ToStr() + "," + sourceY.ToStr() + "," + sourceW.ToStr() + "," + sourceH.ToStr()
         needsCreate = (spriteState.member = invalid or spriteState.kind <> "sprite" or spriteState.textureKey <> textureKey or spriteState.layer <> layer)
         if needsCreate then
           m.RemoveNodeCompositorSprite(node)
           spriteState = m.EnsureSpriteNodeRuntime(node)
-          drawable = bitmap
-          if type(bitmap) = "roBitmap" then drawable = CreateObject("roRegion", bitmap, 0, 0, bitmap.GetWidth(), bitmap.GetHeight())
+          drawable = CreateObject("roRegion", sourceBitmap, baseX + sourceX, baseY + sourceY, sourceW, sourceH)
           spriteState.member = m.compositor.NewSprite(drawX, drawY, drawable, layer)
           spriteState.sourceRegion = drawable
           spriteState.kind = "sprite"
           spriteState.textureKey = textureKey
           spriteState.layer = layer
-          spriteState.baseWidth = bitmap.GetWidth()
-          spriteState.baseHeight = bitmap.GetHeight()
+          spriteState.baseWidth = sourceW
+          spriteState.baseHeight = sourceH
           m.compositorSprites[node.id] = spriteState.member
         end if
         m.ApplySpriteTransform(node, world, spriteState, drawX, drawY)

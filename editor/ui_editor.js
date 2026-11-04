@@ -89,6 +89,201 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   function selectedId() { return bridge()?.getSelectedId() ?? null; }
   function selectedNode() { const id = selectedId(); return id ? getNode(id) : null; }
 
+  let _screenId = '';
+  let _search = '';
+  let _expanded = true;
+  let _dockPlaceholder = null;
+  const _view = {zoom:null, panX:0, panY:0};
+  const _collapsed = new Set();
+  const _propertySections = new Map();
+
+  function screenLayers() { return uiNodes().filter(n => n.type === 'CanvasLayer'); }
+  function belongsToScreen(node) {
+    if (!_screenId) return true;
+    const visited = new Set();
+    while (node && !visited.has(node.id)) {
+      if (node.id === _screenId) return true;
+      visited.add(node.id); node = getNode(node.parentId);
+    }
+    return false;
+  }
+  function previewNodeVisible(node, meta) {
+    if (!belongsToScreen(node)) return false;
+    const visited = new Set();
+    while (node && !visited.has(node.id)) {
+      if (node.id === _screenId) return true; // Preview hidden screens without changing saved visibility.
+      if (node.visible === false || isNodeHiddenByLayer(node, meta)) return false;
+      visited.add(node.id); node = getNode(node.parentId);
+    }
+    return true;
+  }
+  function renderScreenBrowser() {
+    const select = document.getElementById('ui-screen-select');
+    if (!select) return;
+    const layers = screenLayers();
+    if (_screenId && !layers.some(n => n.id === _screenId)) _screenId = '';
+    select.replaceChildren(new Option('All layers', ''));
+    for (const layer of layers) select.add(new Option(layer.name || layer.id, layer.id));
+    select.value = _screenId;
+    document.getElementById('ui-screen-hint').textContent = _screenId
+      ? 'Editing this layer only. Other screens are hidden in the preview.'
+      : 'Choose a screen to avoid overlapping layers.';
+  }
+  function renderElementInspector(force = false) {
+    const host = document.getElementById('ui-element-inspector');
+    if (!host || (!force && host.contains(document.activeElement) && host.dataset.nodeId === selectedId())) return;
+    host.replaceChildren();
+    const node = selectedNode();
+    host.dataset.nodeId = node?.id || '';
+    const title = document.createElement('h3'); title.textContent = 'Element properties'; host.append(title);
+    if (!node || !bridge()?.isUiNodeType(node.type)) {
+      const help = document.createElement('p'); help.textContent = 'Select an element in the preview or Elements list. Edit its text, size and appearance here.'; host.append(help); return;
+    }
+    const description = document.createElement('p'); description.textContent = `${node.type} · ${node.id}`; host.append(description);
+    const locked = isNodeLocked(node, getUiMeta());
+    const groups=new Map();
+    function group(name) {
+      if(groups.has(name))return groups.get(name);
+      const section=document.createElement('details'),summary=document.createElement('summary'),content=document.createElement('div');
+      section.className='ui-property-section';summary.textContent=name;
+      const key=node.type+':'+name;
+      section.open=_propertySections.get(key)??(name==='Text'||name==='Image'||(name==='Layout'&&!Object.hasOwn(node.properties||{},'text'))||locked);
+      section.addEventListener('toggle',()=>_propertySections.set(key,section.open));
+      section.append(summary,content);host.append(section);groups.set(name,content);return content;
+    }
+    function field(label, key, type = 'text', choices) {
+      const row = document.createElement('label'); row.className = 'ui-property-field';
+      if(type==='checkbox')row.classList.add('ui-property-check');
+      const caption = document.createElement('span'); caption.textContent = label;
+      const input = document.createElement(choices ? 'select' : type === 'textarea' ? 'textarea' : 'input');
+      if (choices) for (const option of choices) input.add(new Option(option, option));
+      else if (type !== 'textarea') input.type = type;
+      let value = key.split('.').reduce((o, k) => o?.[k], node);
+      if (value == null && key === 'properties.align') value = node.type.includes('Button') ? 'center' : 'left';
+      if (value == null && key === 'properties.valign') value = 'center';
+      if (value == null && key === 'properties.fontSize') value = 22;
+      if (type === 'checkbox') input.checked = key === 'visible' ? value !== false : value === true;
+      else input.value = value ?? '';
+      input.dataset.uiField = key; input.disabled = locked && key !== 'locked';
+      if (type === 'number') input.step = 'any';
+      input.addEventListener('change', () => {
+        const next = type === 'checkbox' ? input.checked : type === 'number' ? Number(input.value) : input.value;
+        if (type === 'number' && !Number.isFinite(next)) return;
+        bridge()?.editUINode?.(node.id, key, next);
+        _invalidateNodeCache(); markDirty(); renderTree();
+      });
+      const section=key==='name'?host:/font|\.text$|textColor|\.align$|\.valign$/.test(key)?group('Text'):/transform\.|\.(width|height)$/.test(key)?group('Layout'):key==='visible'?group('Visibility'):key.includes('sourceRect')||key.endsWith('fitMode')?group('Image'):group('Appearance');
+      row.append(caption, input); section.append(row);
+    }
+    field('Name', 'name');
+    if (node.type !== 'CanvasLayer') {
+      const actions = document.createElement('div'); actions.className = 'ui-design-actions';
+      for (const [label, action] of [['Duplicate', 'duplicate'], ['Left','left'], ['Center X','centerX'], ['Right','right'], ['Top','top'], ['Center Y','centerY'], ['Bottom','bottom'], ['Fill parent','fill']]) {
+        const button=document.createElement('button'); button.type='button'; button.textContent=label; button.disabled=locked || isLayoutControlled(node);
+        button.addEventListener('click',()=>designAction(action)); actions.append(button);
+      }
+      group('Layout').append(actions);
+    }
+    if (node.type !== 'CanvasLayer') {
+      field('X', 'transform.x', 'number'); field('Y', 'transform.y', 'number');
+      field('Width', 'properties.width', 'number'); field('Height', 'properties.height', 'number');
+    }
+    if (Object.hasOwn(node.properties || {}, 'text')) {
+      field('Text', 'properties.text', 'textarea'); field('Font size', 'properties.fontSize', 'number');
+      field('Font family (blank = automatic)', 'properties.fontFamily');
+      field('Font file (res://fonts/name.ttf)', 'properties.fontPath');
+      const chooseFont=document.createElement('button');chooseFont.type='button';chooseFont.textContent='Choose font…';chooseFont.disabled=locked;
+      chooseFont.addEventListener('click',async()=>{await bridge()?.pickUIFont?.(node.id);renderElementInspector(true);markDirty();});group('Text').append(chooseFont);
+      field('Bold', 'properties.fontBold', 'checkbox'); field('Italic', 'properties.fontItalic', 'checkbox');
+      field('Horizontal alignment', 'properties.align', 'text', ['left', 'center', 'right']);
+      field('Vertical alignment', 'properties.valign', 'text', ['top', 'center', 'bottom']);
+    }
+    for (const [key, label] of [['textColor','Text color'],['color','Fill color'],['normalColor','Button color'],['borderColor','Border color']]) {
+      if (Object.hasOwn(node.properties || {}, key)) field(label, 'properties.' + key);
+    }
+    field('Opacity (0–1)', 'properties.opacity', 'number'); field('Draw order', 'zIndex', 'number');
+    if(node.type==='CanvasLayer') field('Layer order','properties.layer','number');
+    if (['TextureRect','NineSlicePanel','Button','Panel'].includes(node.type)) {
+      const path = document.createElement('p'); path.className = 'ui-property-path'; path.textContent = node.properties.imagePath || 'No image selected'; group('Image').append(path);
+      const pick = document.createElement('button'); pick.type = 'button'; pick.textContent = 'Choose image…'; pick.disabled = locked;
+      pick.addEventListener('click', async () => { await bridge()?.pickUIImage?.(node.id); markDirty(); renderElementInspector(); }); group('Image').append(pick);
+      const slice=document.createElement('button');slice.type='button';slice.textContent='Slice image / atlas';slice.onclick=()=>window.RGEShowDockTab?.('slicer');group('Image').append(slice);
+      field('Image sizing', 'properties.fitMode', 'text', ['contain', 'cover', 'stretch']);
+      if (node.properties.sourceRect) for (const [key,label] of [['x','Crop X'],['y','Crop Y'],['w','Crop width'],['h','Crop height']]) field(label, 'properties.sourceRect.'+key, 'number');
+    }
+    field('Visible in game', 'visible', 'checkbox');
+    // A node's own lock can be removed here; inherited locks remain in the parent layer.
+    const lockRow = document.createElement('label'); lockRow.className = 'ui-property-field';
+    const lock = document.createElement('input'); lock.type = 'checkbox'; lock.checked = node.locked === true; lock.dataset.uiField = 'locked';
+    lock.addEventListener('change', () => { bridge()?.editUINode?.(node.id, 'locked', lock.checked); markDirty(); renderElementInspector(true); renderTree(); });
+    lockRow.append('Locked', lock); group('Visibility').append(lockRow);
+    if (locked) { const help=document.createElement('p'); help.textContent='Unlock this element or its parent layer to edit it.'; host.append(help); }
+  }
+  function bindScreenBrowser() {
+    document.getElementById('ui-expand-editor')?.addEventListener('click', () => {
+      _expanded = !_expanded; updateExpandedWorkspace(); forceRefresh('expand-workspace');
+    });
+    document.getElementById('ui-screen-select')?.addEventListener('change', event => {
+      _screenId = event.target.value;
+      bridge()?.selectNode(_screenId || null); _invalidateNodeCache(); markDirty(); renderTree();
+    });
+    document.getElementById('ui-node-search')?.addEventListener('input', event => { _search = event.target.value.trim().toLowerCase(); renderTree(); });
+    document.getElementById('ui-zoom-fit')?.addEventListener('click', () => setZoom(null));
+    document.getElementById('ui-zoom-in')?.addEventListener('click', () => setZoom(previewRect().scale * 1.25));
+    document.getElementById('ui-zoom-out')?.addEventListener('click', () => setZoom(previewRect().scale / 1.25));
+    document.getElementById('ui-zoom-value')?.addEventListener('change', event => setZoom(Number(event.target.value) / 100));
+    document.getElementById('ui-screen-refresh')?.addEventListener('click', () => { _invalidateNodeCache(); renderTree(); forceRefresh('screens-refresh'); });
+  }
+
+  function setZoom(value, anchor) {
+    const old = previewRect(), world = anchor && {x:(anchor.x-old.x)/old.scale,y:(anchor.y-old.y)/old.scale};
+    _view.zoom = value == null ? null : Math.max(.05, Math.min(4, Number(value) || 1));
+    if (value == null) _view.panX = _view.panY = 0;
+    if (world) { const next=previewRect(); _view.panX += anchor.x-next.x-world.x*next.scale; _view.panY += anchor.y-next.y-world.y*next.scale; }
+    markDirty();
+  }
+  function onWheel(event) {
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) setZoom(previewRect().scale * Math.exp(-event.deltaY*.002),canvasPointerPos(event));
+    else { _view.panX -= event.shiftKey ? event.deltaY : event.deltaX; _view.panY -= event.shiftKey ? event.deltaX : event.deltaY; markDirty(); }
+  }
+  function designAction(action) {
+    const node=selectedNode(), b=bridge(); if(!node || isNodeLocked(node,getUiMeta()) || isLayoutControlled(node))return;
+    if(action==='duplicate'){b.duplicateUINode?.(node.id);renderTree();markDirty();return;}
+    if(action==='fill'){b.fillUIParent?.(node.id);renderTree();markDirty();return;}
+    const parent=getNode(node.parentId), res=previewRes(), t=node.transform, p=node.properties;
+    const pw=parent&&parent.type!=='CanvasLayer'?Number(parent.properties.width)||res.w:res.w;
+    const ph=parent&&parent.type!=='CanvasLayer'?Number(parent.properties.height)||res.h:res.h;
+    const sx=Number(t.scaleX)||1, sy=Number(t.scaleY)||1;
+    const w=Number(p.width)*sx, h=Number(p.height)*sy;
+    if(['left','centerX','right'].includes(action)) b.editUINode(node.id,'transform.x',(action==='left'?0:action==='right'?pw-w:(pw-w)/2)+(Number(t.pivotX)||0)*sx);
+    else b.editUINode(node.id,'transform.y',(action==='top'?0:action==='bottom'?ph-h:(ph-h)/2)+(Number(t.pivotY)||0)*sy);
+    markDirty();renderElementInspector(true);
+  }
+
+  function selectionChanged(node) {
+    if (node?.type === 'CanvasLayer') _screenId = node.id;
+    _invalidateNodeCache(); markDirty(); if (_active) renderTree();
+  }
+
+  function updateExpandedWorkspace() {
+    const wrap = document.getElementById('ui-editor-wrap');
+    if (wrap && _active && _expanded && wrap.parentElement !== document.body) {
+      _dockPlaceholder?.remove();
+      _dockPlaceholder = document.createComment('UI Screens dock position');
+      wrap.before(_dockPlaceholder); document.body.append(wrap);
+    } else if (wrap && (!_active || !_expanded) && _dockPlaceholder?.parentNode) {
+      _dockPlaceholder.replaceWith(wrap); _dockPlaceholder = null;
+    }
+    wrap?.classList.toggle('ui-expanded', _active && _expanded);
+    document.body.classList.toggle('ui-editor-expanded', _active && _expanded);
+    const shell = document.getElementById('app-shell');
+    if (shell) shell.inert = _active && _expanded;
+    wrap?.style.setProperty('--ui-workspace-top', (document.querySelector('.toolbar')?.getBoundingClientRect().bottom || 90) + 'px');
+    const button = document.getElementById('ui-expand-editor');
+    if (button) { button.textContent = _expanded ? 'Return to dock' : 'Expand editor'; button.setAttribute('aria-pressed', String(_expanded)); }
+  }
+
   function uiNodes() {
     const b = bridge(); if (!b) return [];
     return getNodes().filter(n => b.isUiNodeType(n.type));
@@ -104,6 +299,15 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       es.uiMeta = _defaultUiMeta();
       b.setEditorStateProp?.('uiMeta', es.uiMeta);
     }
+    // Imported scenes can contain only a partial uiMeta (MOL has no snap modes).
+    // Fill nested defaults before any panel or pointer handler reads them.
+    const defaults = _defaultUiMeta();
+    const meta = es.uiMeta;
+    for (const key of ['resolution', 'showSafeArea', 'guides', 'layers']) if (meta[key] === undefined) meta[key] = defaults[key];
+    if (!meta.snap || typeof meta.snap !== 'object') meta.snap = {};
+    for (const [key, value] of Object.entries(defaults.snap)) if (key !== 'modes' && meta.snap[key] === undefined) meta.snap[key] = value;
+    if (!meta.snap.modes || typeof meta.snap.modes !== 'object') meta.snap.modes = {};
+    for (const [key, value] of Object.entries(defaults.snap.modes)) if (meta.snap.modes[key] === undefined) meta.snap.modes[key] = value;
     return es.uiMeta;
   }
 
@@ -165,6 +369,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     // Walk up to find owning CanvasLayer
     const canvasLayer = _findOwningCanvasLayer(node);
     if (canvasLayer) {
+      if (canvasLayer.locked) return true;
       const def = getLayerDef(canvasLayer, meta);
       if (def && def.locked) return true;
     }
@@ -345,27 +550,6 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     return null;
   }
 
-  function _setDescendantsVisible(parentNode, visible) {
-    const all = getNodes();
-    // Build child map
-    const childMap = new Map();
-    for (const n of all) {
-      if (n.parentId) {
-        if (!childMap.has(n.parentId)) childMap.set(n.parentId, []);
-        childMap.get(n.parentId).push(n);
-      }
-    }
-    // Walk all descendants and set visible
-    function walk(nodeId) {
-      const children = childMap.get(nodeId) || [];
-      for (const child of children) {
-        child.visible = visible;
-        walk(child.id);
-      }
-    }
-    walk(parentNode.id);
-  }
-
   // ───────────────────────── resolution / preview ──────────────────────────
   function previewRes(meta) {
     const key = (meta || getUiMeta()).resolution || '1280x720';
@@ -401,9 +585,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     const { w: cw, h: ch } = logicalCanvasSize();
     const { w, h } = previewRes();
     const fit = Math.min(cw / w, ch / h);
-    const scale = Math.max(0.05, Math.min(PREVIEW_MAX_SCALE, fit * PREVIEW_FIT_SCALE));
+    const scale = _view.zoom ?? Math.max(0.05, Math.min(PREVIEW_MAX_SCALE, fit * PREVIEW_FIT_SCALE));
     const pw = w * scale, ph = h * scale;
-    return { x: Math.round((cw - pw) / 2), y: Math.round((ch - ph) / 2), w: pw, h: ph, scale };
+    return { x: Math.round((cw - pw) / 2) + _view.panX, y: Math.round((ch - ph) / 2) + _view.panY, w: pw, h: ph, scale };
   }
 
   // Shared node-by-id map, rebuilt once per draw frame and reused for all
@@ -636,6 +820,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     const { w: resW, h: resH } = previewRes(meta);
     const { w: cw, h: ch } = logicalCanvasSize();
     const ctx  = _ctx;
+    const zoomInput = document.getElementById('ui-zoom-value');
+    if (zoomInput && document.activeElement !== zoomInput) zoomInput.value = Math.round(pr.scale * 100);
 
     configureCanvasContext();
     ctx.save();
@@ -726,7 +912,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     }
 
     // Draw nodes — hidden-layer nodes are skipped
-    const allUi = uiNodes().filter(n => n.visible !== false && !isNodeHiddenByLayer(n, meta));
+    const allUi = uiNodes().filter(n => previewNodeVisible(n, meta));
     // Hierarchical draw: parent always before child so child renders on top.
     const _uiIds = new Set(allUi.map(n => n.id));
     const _kids  = new Map();
@@ -775,7 +961,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
     // Selection (outside clip so handles are always visible)
     const selNode = selectedNode();
-    if (selNode && !isNodeHiddenByLayer(selNode, meta) && bridge()?.isUiNodeType(selNode.type)) {
+    if (selNode && belongsToScreen(selNode) && bridge()?.isUiNodeType(selNode.type)) {
       drawSelection(ctx, selNode, meta, _byId);
     }
 
@@ -836,11 +1022,16 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
     // Shape buttons handle their own background — skip the default fillRect
     const _isShapeBtn = node.type === 'CircleButton' || node.type === 'TriangleButton' || node.type === 'OvalButton';
-    if (!_isShapeBtn) {
-      ctx.fillStyle = node.properties?.color ? hexToRgba(node.properties.color, op) : col.fill;
+    if (!_isShapeBtn && !['Label', 'TextureRect', 'CanvasLayer', 'Control'].includes(node.type)) {
+      const fill = node.type === 'Button' ? node.properties?.normalColor : node.properties?.color;
+      ctx.fillStyle = fill ? hexToRgba(fill, op) : col.fill;
       ctx.fillRect(sr.x, sr.y, sr.w, sr.h);
     }
 
+    if(['Panel','Button','NineSlicePanel'].includes(node.type)) {
+      const image=bridge()?.getNodeImage(node.id),style=bridge()?.getNineSliceStyleById(node.properties?.nineSliceStyleId);
+      if(image?.complete&&style?.sourceRect?.w&&window.RGESpriteSlicing)for(const p of window.RGESpriteSlicing.patches(style.sourceRect,sr.w,sr.h,style,pr.scale))ctx.drawImage(image,p.sx,p.sy,p.sw,p.sh,sr.x+p.x,sr.y+p.y,p.w,p.h);
+    }
     switch (node.type) {
       case 'CanvasLayer':
         ctx.strokeStyle = layerStroke || col.stroke;
@@ -872,14 +1063,11 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       default: break;
     }
 
-    if (!_isShapeBtn) {
+    if (!_isShapeBtn && !['Label', 'TextureRect'].includes(node.type)) {
       ctx.strokeStyle = col.stroke;
       ctx.lineWidth   = node.type === 'NineSlicePanel' ? 1.5 : 1;
       ctx.strokeRect(sr.x, sr.y, sr.w, sr.h);
 
-      ctx.fillStyle = 'rgba(180,200,230,0.25)';
-      ctx.font = '9px "Noto Sans", sans-serif';
-      ctx.fillText(node.type, sr.x + 3, sr.y + sr.h - 3);
     }
 
     // Layout-controlled badge: subtle blue corner triangle
@@ -894,35 +1082,21 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     ctx.restore();
   }
 
-  function _drawLabel(ctx, node, sr) {
-    const text  = String(node.properties?.text ?? 'Label');
-    const color = node.properties?.textColor || '#e7eef7';
-    const pr2   = previewRect();
-    const fs    = Math.max(8, Math.min(Number(node.properties?.fontSize ?? 24) * pr2.scale, 48));
-    ctx.fillStyle    = color;
-    ctx.font         = `${fs}px "Noto Sans", sans-serif`;
-    ctx.textBaseline = 'middle';
-    const tw  = ctx.measureText(text).width;
-    const al  = node.properties?.align || 'left';
-    let tx = sr.x + 6;
-    if (al === 'center') tx = sr.x + (sr.w - tw) / 2;
-    if (al === 'right')  tx = sr.x + sr.w - tw - 6;
-    ctx.fillText(text, tx, sr.y + sr.h / 2, sr.w - 12);
-    ctx.textBaseline = 'alphabetic';
+  function drawStyledText(ctx, node, sr, defaultAlign) {
+    const p=node.properties||{}, scale=previewRect().scale, fs=Math.max(1,Number(p.fontSize||22)*scale), pad=8*scale;
+    ctx.fillStyle=p.textColor||'#ffffff'; ctx.font=RGE_ROOT.RGEUITypography.canvasFont(p,fs); ctx.textBaseline='top';
+    const lines=String(p.text??'').replace(/\r/g,'').split('\n'), lh=fs*1.2, block=lines.length*lh;
+    const maxWidth=Math.max(1,sr.w-pad*2), align=p.align||defaultAlign, valign=p.valign||'center';
+    let y=sr.y+(valign==='top'?pad:valign==='bottom'?sr.h-block-pad:(sr.h-block)/2);
+    for(const line of lines) {
+      const width=Math.min(ctx.measureText(line).width,maxWidth);
+      const x=sr.x+(align==='center'?(sr.w-width)/2:align==='right'?sr.w-width-pad:pad);
+      ctx.fillText(line,x,y,maxWidth);y+=lh;
+    }
+    ctx.textBaseline='alphabetic';
   }
-
-  function _drawButton(ctx, node, sr) {
-    const text  = String(node.properties?.text ?? 'Button');
-    const color = node.properties?.textColor || '#ffffff';
-    const pr2   = previewRect();
-    const fs    = Math.min(Number(node.properties?.fontSize ?? 22) * pr2.scale, 28);
-    ctx.fillStyle    = color;
-    ctx.font         = `${Math.max(9, fs)}px "Noto Sans", sans-serif`;
-    ctx.textBaseline = 'middle';
-    const tw = ctx.measureText(text).width;
-    ctx.fillText(text, sr.x + (sr.w - tw) / 2, sr.y + sr.h / 2);
-    ctx.textBaseline = 'alphabetic';
-  }
+  function _drawLabel(ctx, node, sr) { drawStyledText(ctx,node,sr,'left'); }
+  function _drawButton(ctx, node, sr) { drawStyledText(ctx,node,sr,'center'); }
 
   function _drawCircleButton(ctx, node, sr, pr) {
     const fill   = node.properties?.normalColor || '#375a7f';
@@ -1137,6 +1311,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   function markDirty() { _dirty = true; }
 
   function forceRefresh(reason = 'manual') {
+    if (_active) updateExpandedWorkspace();
     _dirty = true;
     if (!_canvas) {
       _canvas = document.getElementById('ui-editor-canvas');
@@ -1190,6 +1365,11 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   }
 
   function onPointerDown(e) {
+    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+      e.preventDefault(); const point=canvasPointerPos(e);
+      _drag.mode='pan'; _drag.start={px:point.x,py:point.y,x:_view.panX,y:_view.panY};
+      _canvas.setPointerCapture(e.pointerId); return;
+    }
     if (e.button !== 0) return;
     e.preventDefault();
     _invalidateNodeCache();
@@ -1233,6 +1413,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         _drag.mode   = 'resize';
         _drag.handle = handle;
         _drag.start  = {
+          before: b.serializeScene?.(),
           px: sx, py: sy,
           parentId: selNode.parentId,
           pivotX: Number(selNode.transform?.pivotX) || 0,
@@ -1250,7 +1431,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     // ── Hit-test nodes ─────────────────────────────────────────────
     // Build depth-first draw order (same as drawFrame) then reverse it so
     // children (drawn on top) are tested before their parents.
-    const _htAll = uiNodes().filter(n => n.visible !== false && !isNodeHiddenByLayer(n, meta));
+    const _htAll = uiNodes().filter(n => previewNodeVisible(n, meta));
     const _htIds = new Set(_htAll.map(n => n.id));
     const _htKids = new Map();
     for (const n of _htAll) {
@@ -1272,7 +1453,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     _drawOrder.reverse();
 
     let hit = null;
-    for (const node of _drawOrder) { if (hitNode(sx, sy, node)) { hit = node; break; } }
+    for (const node of _drawOrder) { if (node.type !== 'CanvasLayer' && hitNode(sx, sy, node)) { hit = node; break; } }
 
     if (hit) {
       b.selectNode(hit.id);
@@ -1284,6 +1465,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         // This matches how the scene editor handles child node dragging.
         const _hitAbs = nodeAbsPos(hit);
         _drag.start = {
+          before: b.serializeScene?.(),
           px: sx, py: sy,
           nodeX: Number(hit.transform?.x ?? 0),  // local, for reference
           nodeY: Number(hit.transform?.y ?? 0),
@@ -1300,10 +1482,12 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     } else {
       b.selectNode(null);
     }
+    renderTree();
     markDirty();
   }
 
   function onPointerMove(e) {
+    if (_drag.mode === 'pan') {const point=canvasPointerPos(e);_view.panX=_drag.start.x+point.x-_drag.start.px;_view.panY=_drag.start.y+point.y-_drag.start.py;markDirty();return;}
     _invalidateNodeCache();
     const { x: sx, y: sy } = canvasPointerPos(e);
     const b = bridge(); if (!b) return;
@@ -1392,6 +1576,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   }
 
   function onPointerUp(e) {
+    if (_drag.mode === 'pan') { _drag.mode=null;_drag.start=null;return; }
     const b = bridge(); if (!b) return;
     const meta = getUiMeta();
     const pr   = previewRect();
@@ -1438,7 +1623,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       // children need repositioning; if it's a child, nothing changes (blocked above).
       b.syncNodeAnchorOffsets?.(sel);
       applyContainerLayout();
-      b.pushHistory(_drag.mode === 'move' ? `Move ${sel.name}` : `Resize ${sel.name}`);
+      b.pushHistory(_drag.mode === 'move' ? `Move ${sel.name}` : `Resize ${sel.name}`, _drag.start?.before);
       // Only refresh what actually changed: inspector (position values) and
       // the scene viewport (node moved). Full refreshAll touches 11 slices
       // including tree/tilemaps/spritesheets which are unaffected by a UI move.
@@ -1451,6 +1636,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
     _inspCache = null;  // inspector will be rebuilt by refreshAll; clear stale refs
     _drag.mode = null; _drag.start = null; _drag.handle = null;
+    renderElementInspector(true);
     markDirty();
   }
 
@@ -1481,11 +1667,20 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
   // ───────────────────────── node tree ─────────────────────────────────────
   function renderTree() {
+    renderScreenBrowser(); renderElementInspector();
     const treeEl = document.getElementById('ui-node-tree');
     if (!treeEl) return;
     const b = bridge(); if (!b) return;
     const meta   = getUiMeta();
-    const allUi  = uiNodes();
+    let allUi = uiNodes().filter(belongsToScreen);
+    if (_search) {
+      const keep = new Set();
+      for (const node of allUi) if (`${node.name} ${node.id} ${node.type} ${node.properties?.text || ''}`.toLowerCase().includes(_search)) {
+        let current = node;
+        while (current && !keep.has(current.id)) { keep.add(current.id); current = getNode(current.parentId); }
+      }
+      allUi = allUi.filter(n => keep.has(n.id));
+    }
     const selId  = selectedId();
 
     treeEl.innerHTML = '';
@@ -1512,23 +1707,26 @@ var RGE_ROOT = globalThis.RGE_ROOT;
           + (locked  ? ' locked-row' : '')
           + (hiddenL ? ' hidden-row' : '');
         row.dataset.nodeId = node.id;
+        row.tabIndex = 0; row.setAttribute('role', 'button');
         row.style.paddingLeft = (8 + depth * 14) + 'px';
         row.title = locked ? '🔒 Layer locked' : '';
+        const children = childMap.get(node.id) || [];
+        const fold = document.createElement('button'); fold.type = 'button'; fold.className = 'ui-tree-fold';
+        fold.textContent = children.length ? (_collapsed.has(node.id) && !_search ? '▸' : '▾') : '·';
+        fold.disabled = !children.length; fold.setAttribute('aria-label', 'Expand or collapse ' + node.name);
+        fold.setAttribute('aria-expanded', String(!_collapsed.has(node.id) || !!_search));
+        fold.addEventListener('click', ev => { ev.stopPropagation(); if (_collapsed.has(node.id)) _collapsed.delete(node.id); else _collapsed.add(node.id); renderTree(); });
+        row.append(fold);
 
         const visBtn = document.createElement('button');
         visBtn.type = 'button'; visBtn.className = 'ui-tree-vis';
+        visBtn.title = 'Show or hide ' + (node.name || node.type) + ' in game';
+        visBtn.setAttribute('aria-label', visBtn.title);
         visBtn.textContent = node.visible === false ? '○' : '◉';
         visBtn.addEventListener('click', ev => {
           ev.stopPropagation();
-          node.visible = node.visible === false ? true : false;
-          // If toggling a CanvasLayer, propagate to all its children
-          if (node.type === 'CanvasLayer') {
-            _setDescendantsVisible(node, node.visible);
-            // Also sync the layer def
-            const meta2 = getUiMeta();
-            const def2 = getLayerDef(node, meta2);
-            if (def2) { def2.visible = node.visible; saveUiMeta(meta2); }
-          }
+          b.editUINode?.(node.id, 'visible', node.visible === false);
+          // Child visibility is independent; hiding a layer must not erase it.
           b.refreshAll(); markDirty();
         });
 
@@ -1564,10 +1762,10 @@ var RGE_ROOT = globalThis.RGE_ROOT;
           // Show locked indicator in inspector
           if (locked) _showLockedBannerInInspector();
         });
+        row.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); row.click(); } });
 
         treeEl.appendChild(row);
-        const children = childMap.get(node.id) || [];
-        if (children.length) renderBranch(children, depth + 1);
+        if (children.length && (!_collapsed.has(node.id) || _search)) renderBranch(children, depth + 1);
       }
     }
 
@@ -1688,7 +1886,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
         const UI_CONTAINER_TYPES = new Set(['CanvasLayer', 'Control', 'HBoxContainer', 'VBoxContainer', 'MarginContainer', 'ScrollContainer', 'Panel']);
         const parentId = (selNode2 && UI_CONTAINER_TYPES.has(selNode2.type))
-          ? selNode2.id : b.getRootNodeId();
+          ? selNode2.id : (_screenId || b.getRootNodeId());
 
         b.addNode(type, parentId);
 
@@ -1747,7 +1945,14 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   function _onKeyDown(e) {
     if (!_active) return;
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); designAction('duplicate'); return; }
     const b = bridge(); if (!b) return;
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+      const node=selectedNode(); if(!node || node.type==='CanvasLayer' || isNodeLocked(node,getUiMeta()) || isLayoutControlled(node))return;
+      e.preventDefault(); const axis=e.key==='ArrowLeft'||e.key==='ArrowRight'?'x':'y';
+      b.editUINode(node.id,'transform.'+axis,Number(node.transform[axis])+(e.key==='ArrowLeft'||e.key==='ArrowUp'?-1:1)*(e.shiftKey?10:1));
+      markDirty();renderElementInspector(true);return;
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const selId2 = selectedId();
       if (!selId2 || b.isRootNodeId(selId2)) return;
@@ -1824,6 +2029,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     window.addEventListener('resize', () => {
       const wrap = document.getElementById('ui-editor-wrap');
       if (wrap && wrap.classList.contains('active')) {
+        updateExpandedWorkspace();
         ensureUiEditorSplitLayout();
         requestAnimationFrame(() => { if (_active) { ensureUiEditorSplitLayout(); markDirty(); } });
       }
@@ -1839,7 +2045,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     if (!wrap) return;
     Object.assign(wrap.style, {
       display: 'grid',
-      gridTemplateColumns: '230px minmax(240px, 1fr)',
+      gridTemplateColumns: '220px minmax(160px, 1fr) 240px',
       gridTemplateRows: 'minmax(0, 1fr)',
       width: '100%',
       height: '100%',
@@ -1866,7 +2072,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       position: 'relative',
       width: '100%',
       height: '100%',
-      minWidth: '240px',
+      minWidth: '160px',
       minHeight: '160px',
       overflow: 'hidden',
       pointerEvents: 'auto'
@@ -1914,6 +2120,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
   function activate() {
     _active = true;
+    updateExpandedWorkspace();
     ensureUiEditorSplitLayout();
     installUiEditorLayoutGuardian();
 
@@ -1930,10 +2137,12 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     _canvas.removeEventListener('pointermove',   onPointerMove);
     _canvas.removeEventListener('pointerup',     onPointerUp);
     _canvas.removeEventListener('pointercancel', onPointerUp);
+    _canvas.removeEventListener('wheel', onWheel);
     _canvas.addEventListener('pointerdown',   onPointerDown);
     _canvas.addEventListener('pointermove',   onPointerMove);
     _canvas.addEventListener('pointerup',     onPointerUp);
     _canvas.addEventListener('pointercancel', onPointerUp);
+    _canvas.addEventListener('wheel', onWheel, {passive:false});
 
     if (!_initialized) {
       _initialized = true;
@@ -1941,6 +2150,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       bindDeleteButton();
       bindCenterButton();
       bindSnapPanel();
+      bindScreenBrowser();
       _installSceneObserver();
     }
 
@@ -1952,6 +2162,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     renderSnapPanel();
     markDirty();
     startLoop();
+    if (!_screenId) _screenId = screenLayers().find(n => n.metadata?.molModes?.includes('menu'))?.id || '';
     renderTree();
 
     // One deferred resize to pick up final layout dimensions after the panel
@@ -1977,6 +2188,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
   function deactivate() {
     _active = false;
+    updateExpandedWorkspace();
     _dirty = false;
     _drag.mode = null;
     _drag.start = null;
@@ -1994,7 +2206,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     clearCanvas();
   }
 
-  RGE_ROOT.RGEUIEditor = { activate, deactivate, clearCanvas, markDirty, forceRefresh, renderTree, renderLayerList, ensureLayout: ensureUiEditorSplitLayout, recenter: recenterCanvas, applyContainerLayout, applyAnchorLayout };
+  RGE_ROOT.RGEUIEditor = { activate, deactivate, clearCanvas, markDirty, forceRefresh, renderTree, renderLayerList, selectionChanged, refreshPanel: (force=false) => { if (_active || force) { _invalidateNodeCache(); if(force)renderElementInspector(true); renderTree(); } }, ensureLayout: ensureUiEditorSplitLayout, recenter: recenterCanvas, applyContainerLayout, applyAnchorLayout };
 
 })();
 

@@ -407,7 +407,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     ScriptComponent: {
       type: 'ScriptComponent',
       displayName: 'Script',
-      description: 'References a Roku script file for future runtime hooks.',
+      description: 'Runs BrightScript hooks. Use Edit script to open its source.',
       defaults: { enabled: true, priority: 300, scriptPath: '', entryPoint: 'Update', exposeNode: true }
     },
     AudioSourceComponent: {
@@ -1439,7 +1439,20 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   }
 
   function getNodeFields(type) {
-    return (getNodeDef(type)?.fields || []).slice();
+    const fields=(getNodeDef(type)?.fields || []).slice();
+    if (['Label','Button','CircleButton','TriangleButton','OvalButton'].includes(type)) {
+      const typography=[
+        {key:'properties.fontSize',label:'Font size',type:'number',min:1,step:1},
+        {key:'properties.fontFamily',label:'Font family',type:'string'},
+        {key:'properties.fontPath',label:'Font file (res://fonts/...)',type:'string'},
+        {key:'properties.fontBold',label:'Bold',type:'boolean'},
+        {key:'properties.fontItalic',label:'Italic',type:'boolean'},
+        {key:'properties.align',label:'Text alignment',type:'select',options:['left','center','right']},
+        {key:'properties.valign',label:'Vertical alignment',type:'select',options:['top','center','bottom']}
+      ];
+      for(const field of typography) if(!fields.some(f=>f.key===field.key)) fields.push({...field,section:type==='Label'?'Text':'Appearance'});
+    }
+    return fields;
   }
 
   function getNodeFieldsBySection(type) {

@@ -40,6 +40,7 @@ function buildUserScriptRegistrySource(scriptEntries = []) {
       ['LateUpdate', 'lateupdate'],
       ['PostUpdate', 'postupdate'],
       ['Input', 'input'],
+      ['Action', 'action'],
       ['SceneExit', 'sceneexit'],
       ['CollisionEnter', 'collisionenter'],
       ['CollisionStay', 'collisionstay'],
@@ -82,6 +83,7 @@ function collectProjectBrightScriptFiles(projectRoot) {
       const baseName = buildScriptHookBaseName(normalizedRelative);
       const sourceText = fs.readFileSync(fullPath, 'utf8');
       const hookMap = {
+        Action: new RegExp(`(?:sub|function)\\s+${baseName}_Action\\s*\\(`, 'i').test(sourceText),
         Ready: new RegExp(`(?:sub|function)\\s+${baseName}_Ready\\s*\\(`, 'i').test(sourceText),
         Init: new RegExp(`(?:sub|function)\\s+${baseName}_Init\\s*\\(`, 'i').test(sourceText),
         SceneEnter: new RegExp(`(?:sub|function)\\s+${baseName}_SceneEnter\\s*\\(`, 'i').test(sourceText),

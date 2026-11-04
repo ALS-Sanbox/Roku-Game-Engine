@@ -59,6 +59,23 @@ sub RokuEngine_DrawNineSliceStyled(screen as Object, engine as Object, node as O
     return
   end if
 
+  bitmap = region : baseX = 0 : baseY = 0
+  sourceW = region.GetWidth() : sourceH = region.GetHeight()
+  if type(region) = "roRegion" then
+    bitmap = region.GetBitmap() : baseX = region.GetX() : baseY = region.GetY()
+  end if
+  cropX = 0 : cropY = 0
+  if style.sourceRect <> invalid then
+    crop = style.sourceRect
+    if crop.w <> invalid and crop.h <> invalid and crop.w > 0 and crop.h > 0 then
+      cropX = _NS_Clamp(_BRS_IntOr(crop.x, 0), 0, sourceW - 1)
+      cropY = _NS_Clamp(_BRS_IntOr(crop.y, 0), 0, sourceH - 1)
+      sourceW = _NS_Min(Int(crop.w), sourceW - cropX)
+      sourceH = _NS_Min(Int(crop.h), sourceH - cropY)
+    end if
+  end if
+  region = CreateObject("roRegion", bitmap, baseX + cropX, baseY + cropY, sourceW, sourceH)
+  if region = invalid then return
   sl = _BRS_IntOr(style.sliceLeft, 16)
   st = _BRS_IntOr(style.sliceTop, 16)
   sr = _BRS_IntOr(style.sliceRight, 16)
@@ -171,12 +188,12 @@ sub _NS_TileHorizontal(screen as Object, region as Object, srcX as Integer, srcY
   ox = 0
   while ox < dstW
     tw = _NS_Min(srcW, dstW - ox)
-    slice = CreateObject("roRegion", region.GetBitmap(), srcX, srcY, tw, srcH)
+    slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, tw, srcH)
     if slice = invalid then exit while
     if dstH = srcH then
       screen.DrawObject(dstX + ox, dstY, slice)
     else
-      screen.DrawScaledObject(dstX + ox, dstY, tw, dstH, slice)
+      screen.DrawScaledObject(dstX + ox, dstY, 1.0, dstH * 1.0 / srcH, slice)
     end if
     ox = ox + srcW
   end while
@@ -188,12 +205,12 @@ sub _NS_TileVertical(screen as Object, region as Object, srcX as Integer, srcY a
   oy = 0
   while oy < dstH
     th = _NS_Min(srcH, dstH - oy)
-    slice = CreateObject("roRegion", region.GetBitmap(), srcX, srcY, srcW, th)
+    slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, srcW, th)
     if slice = invalid then exit while
     if dstW = srcW then
       screen.DrawObject(dstX, dstY + oy, slice)
     else
-      screen.DrawScaledObject(dstX, dstY + oy, dstW, th, slice)
+      screen.DrawScaledObject(dstX, dstY + oy, dstW * 1.0 / srcW, 1.0, slice)
     end if
     oy = oy + srcH
   end while
@@ -208,7 +225,7 @@ sub _NS_TileCenter(screen as Object, region as Object, srcX as Integer, srcY as 
     ox = 0
     while ox < dstW
       tw = _NS_Min(srcW, dstW - ox)
-      slice = CreateObject("roRegion", region.GetBitmap(), srcX, srcY, tw, th)
+      slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, tw, th)
       if slice = invalid then exit while
       screen.DrawObject(dstX + ox, dstY + oy, slice)
       ox = ox + srcW
@@ -221,14 +238,14 @@ end sub
 
 sub _NS_DrawSlice(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer, scaleX as Boolean, scaleY as Boolean)
   if srcW <= 0 or srcH <= 0 or dstW <= 0 or dstH <= 0 then return
-  slice = CreateObject("roRegion", region.GetBitmap(), srcX, srcY, srcW, srcH)
+  slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, srcW, srcH)
   if slice = invalid then return
   sameW = (not scaleX) or (dstW = srcW)
   sameH = (not scaleY) or (dstH = srcH)
   if sameW and sameH then
     screen.DrawObject(dstX, dstY, slice)
   else
-    screen.DrawScaledObject(dstX, dstY, dstW, dstH, slice)
+    screen.DrawScaledObject(dstX, dstY, dstW * 1.0 / srcW, dstH * 1.0 / srcH, slice)
   end if
 end sub
 

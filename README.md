@@ -29,7 +29,9 @@ Camera following, static camera zoom/bounds, parent scale, sprite pivots, UI anc
 
 Open `samples/collect-the-stars` in the project manager for an editable game with Title, Game and Win screens. Press Select to start, hold Right to collect four stars, then press Select to restart. Its BrightScript behavior lives in `components/behaviors/collect.brs`.
 
-Open [projects/MOL](projects/MOL/README.md) for Messenger of Light converted into a self-contained engine project: editable screens, HUD, player and object templates backed by its original 22-day gameplay simulation. Open `MOL.rkscene` and press F5 to play.
+The converted Messenger of Light project lives outside this repository at `C:\Development\MOL_RGE`, keeping its game assets out of engine GitHub uploads. Open that folder, then `MOL.rkscene`, and press F5 to play. UI Screens lets you isolate a screen/layer, search its elements, and edit the selected element's properties beside the preview. Use `MOL_RGE_PROJECT` to point the MOL checks at a different folder.
+
+UI Screens opens an expanded designer; **Return to dock** restores its dock position. Selecting a CanvasLayer updates the screen browser automatically. Text properties include size, alignment, bold, italic and font family; **Choose font** imports TTF/OTF assets for preview and native builds. Leave the family blank to use the chosen file automatically, or the Roku default when no file is selected. Custom families need their appropriate style faces for matching native bold/italic variants. Use Fit, zoom buttons or a percentage to zoom, Ctrl+wheel to zoom under the pointer, and wheel or Alt+drag to pan. Layout controls align or fill the parent, duplicate elements, and support arrow-key nudging (Shift: 10 pixels). Edits support undo/redo and retain gameplay visibility when previewing hidden screens.
 
 See [the compatibility report](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for implemented fixes, required rework and testing limits. DOM can run as a native ZIP in the simulator; converting its drawing code into editable engine scenes remains separate work.
 
@@ -48,6 +50,8 @@ npm.cmd run test:browser
 npm.cmd run test:browser-suite
 npm.cmd run test:ui
 npm.cmd run test:mol
+npm.cmd run test:ui-screens
+npm.cmd run test:typography
 ```
 
 The UI audit checks dock tabs, button bindings, resource actions, collapsible inspector sections, numeric controls and scrolling at a short editor size. It opens Project Settings at 700×420 and checks its tabs, scrolling and saved settings using an isolated fixture project. Reports and screenshots go to `.visual-editor/artifacts/ui/`. Native file pickers and uploads to a physical Roku require manual checks.
@@ -67,3 +71,9 @@ bash Roku-Game-Engine-Git-Push.sh "Describe the engine changes"
 ```
 
 The scripts locate the repository automatically and stop on conflicts/push failures. They never force-push. Dependencies, generated builds, test profiles and the simulator clone are excluded from commits.
+
+## Script editing
+
+For sprite sheets and UI atlases, open **Tabs → Sprite Slicer**. See [Sprite slicing](docs/SPRITE_SLICING.md) for grid slicing, manual regions and resizable UI backgrounds.
+
+Open **Tabs → Scripts** to create, edit, and attach BrightScript scripts with syntax colors, insert references to scene elements, and connect UI buttons. Select an element to see its clickable script connections in Scripts or the Inspector. See [Scripting guide](docs/SCRIPTING.md) for working examples.

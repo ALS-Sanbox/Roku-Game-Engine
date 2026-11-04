@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const scriptFiles = require('./editor/script_files.cjs');
 const os = require('os');
 const http = require('http');
 const { writeClassicRuntimeFiles } = require('./export/classic2d_export');
@@ -591,7 +592,8 @@ function ensureImportDirectory(assetKind = 'generic') {
     image: path.join('assets', 'images'),
     spritesheet: path.join('assets', 'spritesheets'),
     sprite: path.join('assets', 'spritesheets'),
-    audio: path.join('assets', 'audio')
+    audio: path.join('assets', 'audio'),
+    font: 'fonts'
   };
   const relativeDir = folderByKind[normalizedKind] || path.join('assets', 'imported');
   const dirPath = path.join(getProjectRoot(), relativeDir);
@@ -787,10 +789,19 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: !engineSmokeTest
     }
   });
 
+  mainWindow.webContents.on('will-prevent-unload', event => {
+    const leave = dialog.showMessageBoxSync(mainWindow, {
+      type: 'question', buttons: ['Keep editing', 'Discard edits'], defaultId: 0, cancelId: 0,
+      title: 'Unsaved scripts', message: 'Some scripts have unsaved edits.',
+      detail: 'Keep editing to save your scripts, or discard their unsaved changes and leave.'
+    });
+    if (leave === 1) event.preventDefault();
+  });
   loadProjectManagerWindow();
   // mainWindow.webContents.openDevTools();
 }
@@ -988,7 +999,8 @@ function filePathToDataUrl(filePath) {
     json: 'application/json',
     js: 'text/javascript',
     txt: 'text/plain',
-    md: 'text/markdown'
+    md: 'text/markdown',
+    ttf: 'font/ttf', otf: 'font/otf'
   };
   const mime = mimeMap[ext] || 'application/octet-stream';
   const bytes = fs.readFileSync(filePath);
@@ -1253,6 +1265,7 @@ function ensurePathInsideProject(targetPath) {
 
 function getImportDialogConfig(assetType = 'image') {
   const normalized = String(assetType || 'image').trim().toLowerCase();
+  if (normalized === 'font') return {title:'Import Font',filters:[{name:'Fonts',extensions:['ttf','otf']}]};
   if (normalized === 'audio') {
     return {
       title: 'Import Audio Asset',
@@ -1647,6 +1660,13 @@ ipcMain.handle('delete-project-item', async (_event, payload = {}) => {
   } catch (error) {
     return { success: false, reason: error.message };
   }
+});
+
+ipcMain.handle('script-editor-file', async (_event, payload = {}) => {
+  try {
+    if (payload.operation === 'list') return { success: true, files: scriptFiles.listScripts(getProjectRoot()) };
+    return scriptFiles.scriptFile(getProjectRoot(), payload);
+  } catch (error) { return { success: false, reason: error.message }; }
 });
 
 ipcMain.handle('read-text-file', async (_event, payload = {}) => {

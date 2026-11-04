@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; img-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self'; connect-src 'self' file:;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:; img-src 'self' file: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' file: data: blob: https://fonts.gstatic.com; script-src 'self'; connect-src 'self' file:;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RokuEngine Editor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -243,6 +243,8 @@
       <div class="dock-tabs center-scene-dock-tabs" aria-label="Middle dock tabs">
         <div class="scene-tabs-bar" id="scene-tabs" aria-label="Open scene tabs"></div>
         <button class="dock-tab" data-tab="ui">UI Screens</button>
+        <button class="dock-tab" data-tab="scripts">Scripts</button>
+        <button class="dock-tab" data-tab="slicer">Sprite Slicer</button>
       </div>
       <div class="dock-empty-hint">Drag a tab here to dock it in the middle section</div>
 
@@ -250,13 +252,67 @@
         <div class="viewport-stage" id="stage-container"></div>
       </div>
 
+      <section class="dock-panel sprite-slicer" id="sprite-slicer-wrap" data-panel="slicer">
+        <div class="slicer-toolbar"><button id="slicer-pick" class="mini-btn">Import image</button><button id="slicer-use" class="mini-btn">Use selected element image</button><span id="slicer-image-name">No image loaded</span></div>
+        <div class="slicer-toolbar"><label>Mode<select id="slicer-mode"><option value="grid">Grid</option><option value="manual">Draw rectangle</option></select></label><label>Cell width<input id="slicer-cell-w" type="number" min="1" value="64"></label><label>Cell height<input id="slicer-cell-h" type="number" min="1" value="64"></label><label>Spacing<input id="slicer-gap" type="number" min="0" value="0"></label><label>Offset X<input id="slicer-offset-x" type="number" min="0" value="0"></label><label>Offset Y<input id="slicer-offset-y" type="number" min="0" value="0"></label><button id="slicer-grid" class="mini-btn">Slice grid</button></div>
+        <div class="slicer-toolbar"><label>Region name<input id="slicer-name" value="Slice"></label><label>UI borders (pixels)<input id="slicer-border" type="number" min="0" value="0" title="Nine-slice border on each side; zero creates a simple cropped image"></label><button id="slicer-all" class="mini-btn">Select all</button><button id="slicer-none" class="mini-btn">Clear selection</button><button id="slicer-save" class="mini-btn">Save selected regions</button><label>Zoom<select id="slicer-zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="1" selected>100%</option><option value="2">200%</option><option value="4">400%</option></select></label></div>
+        <p class="slicer-hint">Grid: click a cell; Ctrl/Shift-click toggles multiple cells. Draw rectangle: drag around one image. Only full grid cells are included. Save regions to reuse them in UI Assets Atlas.</p>
+        <div id="slicer-scroll"><canvas id="slicer-canvas" width="1" height="1" aria-label="Sprite slicing preview"></canvas></div>
+        <div id="slicer-regions" aria-label="Reusable sliced regions"></div>
+        <div class="slicer-toolbar"><button id="slicer-apply" class="mini-btn">Apply region to selected element</button><select id="slicer-create-type" aria-label="Create element type"><option>Sprite2D</option><option>TextureRect</option><option>Button</option><option>Panel</option></select><button id="slicer-create" class="mini-btn">Create from region</button><button id="slicer-ui-editor" class="mini-btn">Edit UI borders / states</button></div>
+        <p id="slicer-status" role="status">Import an image or select an image element, then use its image.</p>
+      </section>
+      <section class="dock-panel script-editor" id="script-editor-wrap" data-panel="scripts">
+        <div class="script-toolbar">
+          <select id="script-files" aria-label="Project scripts"><option value="">Choose a script</option></select>
+          <button id="script-new" class="mini-btn">New</button>
+          <input id="script-new-path" aria-label="New script path" placeholder="components/my_script.brs" />
+          <button id="script-save" class="mini-btn">Save (Ctrl+S)</button>
+          <button id="script-reload" class="mini-btn">Reload</button>
+          <button id="script-attach" class="mini-btn">Attach to selected node</button>
+        </div>
+        <div class="script-toolbar">
+          <input id="script-find" type="search" placeholder="Find in script" aria-label="Find in script" />
+          <button id="script-find-next" class="mini-btn">Find next</button>
+          <select id="script-nodes" aria-label="Scene element reference"></select>
+          <button id="script-reference" class="mini-btn">Insert reference</button>
+          <button id="script-button" class="mini-btn">Connect selected button</button>
+        </div>
+        <details class="script-connections" open><summary>Script connections</summary><div id="script-connections"></div></details>
+        <div class="script-code"><pre id="script-lines" aria-hidden="true">1</pre><div class="script-source"><pre id="script-highlight" aria-hidden="true"></pre><textarea id="script-text" aria-label="BrightScript source" spellcheck="false" wrap="off" disabled></textarea></div></div>
+        <div id="script-status" role="status">Choose or create a BrightScript script.</div>
+        <details class="script-help"><summary>How to connect scripts and elements</summary>
+          <p>Create a script, select its owner in the Scene tree, then Attach to selected node. Save the scene to keep that attachment.</p>
+          <p>Ready runs once; Update runs each frame (context.dt is seconds). context.node is the owner. Choose a scene element and Insert reference to access it by its stable ID. Change label.properties.text, node.transform.x/y, or node.visible in your hook.</p>
+          <p>Select a UI Button and use Connect selected button. This sets its action to custom:ScriptAction, attaches this script, and inserts an Action hook. The hook receives context.extra.name. Save the script and scene, then Build &amp; Test and press OK on the focused button.</p>
+          <p>Ctrl+S saves the script. Tab indents; Ctrl+F finds text. Build &amp; Test and Export save edited scripts first. See docs/SCRIPTING.md for examples and limitations.</p>
+        </details>
+      </section>
       <!-- UI EDITOR PANEL (hidden by default) -->
       <div class="ui-editor-wrap dock-panel" id="ui-editor-wrap" data-panel="ui" style="display:none;">
       <!-- LEFT SIDEBAR -->
       <div class="ui-editor-sidebar" id="ui-editor-sidebar">
 
+        <section class="ui-screen-browser">
+          <h3>UI Screens</h3>
+          <button id="ui-expand-editor" class="mini-btn" type="button" aria-pressed="false">Expand editor</button>
+          <label for="ui-screen-select">Screen / layer</label>
+          <select id="ui-screen-select" aria-label="Screen to edit"></select>
+          <p id="ui-screen-hint">Choose a screen, then select an element to edit.</p>
+          <input id="ui-node-search" type="search" placeholder="Find an element…" aria-label="Find UI element">
+        </section>
+
+        <details class="ui-sidebar-details" id="ui-tree-details" open>
+          <summary class="ui-sidebar-summary">Elements</summary>
+          <div class="ui-element-actions">
+            <button class="mini-btn" id="ui-btn-refresh-canvas" type="button">Fit preview</button>
+            <button class="mini-btn" id="ui-btn-delete-node" type="button">Delete selected</button>
+          </div>
+          <div class="ui-node-tree" id="ui-node-tree"></div>
+        </details>
+
         <!-- Add Node grid -->
-        <details class="ui-sidebar-details" id="ui-addnode-details" open>
+        <details class="ui-sidebar-details" id="ui-addnode-details">
           <summary class="ui-sidebar-summary">⊕ Add Node</summary>
           <div class="ui-sidebar-section">
           <div class="ui-add-buttons" id="ui-add-buttons">
@@ -281,7 +337,7 @@
         </details>
 
         <!-- Snap + Grid controls (collapsible) -->
-        <details class="ui-sidebar-details" id="ui-snap-details" open>
+        <details class="ui-sidebar-details" id="ui-snap-details">
           <summary class="ui-sidebar-summary">⊹ Snapping &amp; Grid</summary>
           <div class="ui-snap-panel" id="ui-snap-panel">
 
@@ -340,22 +396,22 @@
           </div>
         </details>
 
-        <!-- Node tree -->
-        <details class="ui-sidebar-details" id="ui-tree-details" open>
-          <summary class="ui-sidebar-summary" style="justify-content: space-between;">
-            <span>≡ UI Nodes</span>
-            <button class="mini-btn" id="ui-btn-refresh-canvas" title="Resize canvas to fit container">↺ Refresh</button>
-            <button class="mini-btn" id="ui-btn-delete-node" title="Delete selected node">✕ Delete</button>
-          </summary>
-          <div class="ui-node-tree" id="ui-node-tree"></div>
-        </details>
 
       </div>
 
       <!-- CENTER canvas -->
       <div class="ui-editor-canvas-wrap" id="ui-editor-canvas-wrap">
         <canvas id="ui-editor-canvas"></canvas>
+        <div class="ui-preview-tools" aria-label="UI preview controls">
+          <button id="ui-zoom-fit" type="button">Fit</button>
+          <button id="ui-zoom-out" type="button" aria-label="Zoom out">−</button>
+          <label>Zoom <input id="ui-zoom-value" type="number" min="5" max="400" value="100" aria-label="UI zoom percent">%</label>
+          <button id="ui-zoom-in" type="button" aria-label="Zoom in">+</button>
+          <button id="ui-screen-refresh" type="button">Refresh</button>
+          <span>Wheel: pan · Ctrl + wheel: zoom · Alt + drag: pan</span>
+        </div>
       </div>
+      <aside id="ui-element-inspector" aria-label="UI element properties"></aside>
     </div>
     </div>
 
@@ -975,6 +1031,7 @@
 <script src="editor/terrain_solver.js"></script>
 <script src="editor/terrain_rebuild.js"></script>
 <script src="editor/layout_geometry.js"></script>
+<script src="editor/ui_typography.js"></script>
 <script src="editor/ui_editor.js"></script>
 <script src="editor/nineslice_editor.js"></script>
 <script src="editor/ui_transition_editor.js"></script>
@@ -989,6 +1046,10 @@
 <script src="editor/audio/rge_audio_engine.js"></script>
 <script src="editor/audio/audio_panel.js"></script>
 <script src="editor/scene_editor.js"></script>
+<script src="editor/brightscript_syntax.js"></script>
+<script src="editor/script_editor.js"></script>
+<script src="editor/sprite_slicing.js"></script>
+<script src="editor/sprite_slicer.js"></script>
 <script src="editor/dock_drag.js"></script>
 <script src="editor/final_stability.js"></script>
 <script src="editor/tab_fallback.js"></script>

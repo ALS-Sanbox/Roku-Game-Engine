@@ -1633,6 +1633,7 @@ async function saveProjectAs() {
 
 
 async function exportRokuProject() {
+  if (window.RGEScriptEditor && !await window.RGEScriptEditor.saveAll()) return false;
   persistActiveSceneEntry();
   let projectRoot = String(state.projectRoot || '').trim();
   if (!projectRoot) {
@@ -1704,6 +1705,7 @@ async function testInRokuSimulator() {
   if (simulatorBuildInProgress) return;
   simulatorBuildInProgress = true;
   try {
+    if (window.RGEScriptEditor && !await window.RGEScriptEditor.saveAll()) return;
     flushTerrainDirtyCells();
     persistActiveSceneEntry();
     let projectRoot = state.projectRoot;
@@ -2772,6 +2774,8 @@ function setSelection(ids, primaryId = null, options = {}) {
 
   // Auto-open bottom editors based on selected node type
   const selNode = getNode(state.selectedId);
+  RGE_ROOT.RGEUIEditor?.selectionChanged?.(selNode);
+  RGE_ROOT.RGEScriptEditor?.connections?.();
   if (selNode?.type === 'AnimatedSprite2D') activateBottomPanel('spriteframes');
   scheduleRender(RenderFlags.SPRITE_FRAMES);
 
@@ -4254,6 +4258,7 @@ function ensureSceneTreeContextMenu() {
     window.addEventListener('blur', closeSceneTreeContextMenu);
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { closeSceneTreeContextMenu(); return; }
+      if (state.ui.activeWorkspace === 'ui') return;
       const tag = document.activeElement?.tagName;
       const editingText = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable;
       if (editingText) return;
@@ -4705,6 +4710,8 @@ function refreshMultiInspector(selectedNodes) {
 // The caller can pass { force: true } to bypass the guard.
 let _inspectorRebuildScheduled = false;
 function refreshInspector(opts) {
+  RGE_ROOT.RGEUIEditor?.refreshPanel?.();
+  RGE_ROOT.RGEScriptEditor?.connections?.();
   if (!inspectorEl || !inspectorEmpty) return;
   // Skip rebuild if a text/number input inside the inspector currently has focus
   // and this is not a forced refresh. The value will be read on blur anyway.
@@ -4739,6 +4746,21 @@ function refreshInspector(opts) {
   }
 
   inspectorEl.classList.remove('hidden'); inspectorEmpty.style.display = 'none';
+  if (['Sprite2D','TextureRect','Button','Panel','NineSlicePanel'].includes(node.type)) {
+    const sliceButton=document.createElement('button');sliceButton.className='mini-btn';sliceButton.textContent='Slice sprite / UI image';
+    sliceButton.onclick=()=>window.RGEShowDockTab?.('slicer');inspectorEl.appendChild(sliceButton);
+  }
+  if (node.metadata?.scriptLinks?.length) {
+    const linked = document.createElement('details'); linked.className='inspector-script-links'; linked.open=true;
+    const title=document.createElement('summary');title.textContent='Linked scripts';linked.appendChild(title);
+    for(const entry of node.metadata.scriptLinks) {
+      if(!entry?.scriptPath)continue;
+      const button=document.createElement('button');button.className='mini-btn';
+      button.textContent=`${entry.role || 'Related'}: ${entry.scriptPath}${entry.hook ? ' → '+entry.hook : ''}`;
+      button.onclick=()=>void window.RGEScriptEditor?.open(entry.scriptPath,entry.hook);linked.appendChild(button);
+    }
+    inspectorEl.appendChild(linked);
+  }
 
   // Show a notice if this node's position/size is managed by a layout container
   const _LAYOUT_CONTAINER_TYPES = new Set(['HBoxContainer', 'VBoxContainer', 'MarginContainer', 'ScrollContainer']);
@@ -5042,6 +5064,11 @@ function buildComponentCard(node, component) {
   header.appendChild(titleWrap);
   header.appendChild(actions);
   card.appendChild(header);
+  if (component.type === 'ScriptComponent') {
+    const edit = document.createElement('button'); edit.className = 'mini-btn'; edit.textContent = 'Edit script';
+    edit.addEventListener('click', () => window.RGEScriptEditor?.open(component.scriptPath));
+    card.appendChild(edit);
+  }
 
   const fieldKeys = Object.keys(component).filter((key) => !['id', 'type'].includes(key));
   fieldKeys.forEach((key) => {
@@ -5636,6 +5663,7 @@ function applyNodeAnchorPreset(node, anchors) {
   RGE_ROOT.RGELayoutGeometry.preset(node, anchors, width, height);
   RGE_ROOT.RGEUIEditor?.applyAnchorLayout();
   RGE_ROOT.RGEUIEditor?.markDirty?.();
+  RGE_ROOT.RGEUIEditor?.refreshPanel?.();
 }
 
 function syncNodeAnchorOffsets(node) {
@@ -8263,7 +8291,7 @@ function getKonvaNodeBaseAttrs(node) {
     opacity: clampOpacity(node.properties?.opacity)
   };
 }
-function buildUiTextNode(text, width, height, color, fontSize, align = 'left', verticalAlign = 'middle') {
+function buildUiTextNode(text, width, height, color, fontSize, align = 'left', verticalAlign = 'middle', textStyle = {}) {
   return new Konva.Text({
     x: 8,
     y: 0,
@@ -8272,6 +8300,8 @@ function buildUiTextNode(text, width, height, color, fontSize, align = 'left', v
     text: text || '',
     fill: color || '#e7eef7',
     fontSize: Math.max(10, Number(fontSize) || 18),
+    fontFamily: RGE_ROOT.RGEUITypography?.family(textStyle) || 'Noto Sans',
+    fontStyle: [textStyle.fontBold ? 'bold' : '', textStyle.fontItalic ? 'italic' : ''].filter(Boolean).join(' ') || 'normal',
     align,
     verticalAlign: verticalAlign === 'center' ? 'middle' : verticalAlign
   });
@@ -8352,17 +8382,19 @@ function buildUiNodeGroup(node) {
   }
   if (node.type === 'Panel') {
     g.add(new Konva.Rect({ width: w, height: h, fill: node.properties?.color || '#263247', stroke: node.properties?.borderColor || '#5e7594', strokeWidth: Math.max(0, Number(node.properties?.borderWidth) || 2) }));
+    addSlicedUiPreview(g,node,w,h);
     return g;
   }
   if (node.type === 'Label') {
     g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(0,0,0,0.08)', stroke: '#7b8ca8', strokeWidth: 1 }));
-    g.add(buildUiTextNode(node.properties?.text || node.name || 'Label', w, h, node.properties?.textColor || '#e7eef7', node.properties?.fontSize || 24, node.properties?.align || 'left', node.properties?.valign || 'center'));
+    g.add(buildUiTextNode(node.properties?.text || node.name || 'Label', w, h, node.properties?.textColor || '#e7eef7', node.properties?.fontSize || 24, node.properties?.align || 'left', node.properties?.valign || 'center', node.properties));
     return g;
   }
   if (node.type === 'Button') {
     const fill = isFocused ? (node.properties?.focusedColor || '#5b8def') : (node.properties?.normalColor || '#375a7f');
     g.add(new Konva.Rect({ width: w, height: h, fill, stroke: isFocused ? '#f8de7e' : '#9fb7d7', strokeWidth: isFocused ? 2.5 : 1.5, cornerRadius: 8 }));
-    g.add(new Konva.Text({ width: w, height: h, text: node.properties?.text || node.name || 'Button', fill: node.properties?.textColor || '#ffffff', fontSize: 20, align: 'center', verticalAlign: 'middle' }));
+    addSlicedUiPreview(g,node,w,h);
+    g.add(buildUiTextNode(node.properties?.text || node.name || 'Button', w, h, node.properties?.textColor || '#ffffff', node.properties?.fontSize || 22, node.properties?.align || 'center', node.properties?.valign || 'center', node.properties));
     return g;
   }
   if (node.type === 'CircleButton') {
@@ -8410,7 +8442,9 @@ function buildUiNodeGroup(node) {
       const sl = Number(node.properties?.sliceLeft ?? 16);
       const st = Number(node.properties?.sliceTop ?? 16);
       // Draw a simple visual hint — 9-slice borders
-      g.add(new Konva.Image({ image: img, width: w, height: h }));
+      const source=node.properties.sourceRect;
+      const crop=source&&source.w>0&&source.h>0?{x:source.x,y:source.y,width:source.w,height:source.h}:undefined;
+      g.add(new Konva.Image({ image: img, crop, width: w, height: h }));
       g.add(new Konva.Line({ points: [sl, 0, sl, h], stroke: 'rgba(180,100,255,0.4)', strokeWidth: 1 }));
       g.add(new Konva.Line({ points: [w - Number(node.properties?.sliceRight ?? 16), 0, w - Number(node.properties?.sliceRight ?? 16), h], stroke: 'rgba(180,100,255,0.4)', strokeWidth: 1 }));
       g.add(new Konva.Line({ points: [0, st, w, st], stroke: 'rgba(180,100,255,0.4)', strokeWidth: 1 }));
@@ -8986,6 +9020,11 @@ function fallbackUnknownNode(node) {
   g.add(new Konva.Text({ width: w, height: h, text: node.name || node.type, align: 'center', verticalAlign: 'middle', fill: '#c8d6ea', fontSize: 13 }));
   return g;
 }
+function addSlicedUiPreview(group,node,width,height) {
+  const image=state.imageCache.get(node.id),style=state.nineSliceStyles.find(s=>s.id===node.properties.nineSliceStyleId);
+  if(!image?.complete||!style?.sourceRect?.w||!window.RGESpriteSlicing)return;
+  for(const p of window.RGESpriteSlicing.patches(style.sourceRect,width,height,style))group.add(new Konva.Image({image,crop:{x:p.sx,y:p.sy,width:p.sw,height:p.sh},x:p.x,y:p.y,width:p.w,height:p.h}));
+}
 function buildSpriteGroup(node, animated) {
   const w = Math.max(1, Number(node.properties.width) || 96), h = Math.max(1, Number(node.properties.height) || 96);
   const g = new Konva.Group(getKonvaNodeBaseAttrs(node));
@@ -8999,7 +9038,9 @@ function buildSpriteGroup(node, animated) {
   } else {
     const img = state.imageCache.get(node.id);
     if (img && img.complete) {
-      g.add(new Konva.Image({ image: img, width: w, height: h }));
+      const source=node.properties.sourceRect;
+      const crop=source&&source.w>0&&source.h>0?{x:source.x,y:source.y,width:source.w,height:source.h}:undefined;
+      g.add(new Konva.Image({ image: img, crop, width: w, height: h }));
       g.add(new Konva.Rect({ width: w, height: h, stroke: '#5fb2d3', strokeWidth: 1 }));
     } else if (node.properties.imageDataUrl) {
       loadImageIntoCache(node.id, node.properties.imageDataUrl, renderViewport);
@@ -9499,6 +9540,9 @@ function applySceneSnapshot(snapshot, directionLabel) {
     state.instanceCache.clear();
     rebuildImageCache(); rebuildSpritesheetsFromSceneState(); rebuildSpriteFramesLibrariesFromSceneState(); rebuildTilesetsFromSceneState(); scheduleRender(RenderFlags.FULL); setStatus(directionLabel);
   } finally { state.history.applying = false; }
+  RGE_ROOT.RGEUIEditor?.refreshPanel?.(true);
+  RGE_ROOT.RGESpriteSlicer?.renderRegions?.();
+  RGE_ROOT.RGEUIEditor?.markDirty?.();
 }
 function performUndo() {
   if (!state.history.undo.length) return;
@@ -9888,6 +9932,7 @@ async function openFilesystemEntry(node) {
     setStatus(`Opened ${node.name}.`);
     return;
   }
+  if (kind === 'brightscript' && window.RGEScriptEditor) { await window.RGEScriptEditor.open(makeTreeResPath(node)); return; }
   const textResult = await window.electronAPI.readTextFile({ path: node.path });
   if (textResult?.success) {
     activateBottomPanel('output');
@@ -18695,9 +18740,68 @@ RGE_ROOT.RGESceneBridge = {
   selectNode,
   deleteNode: (id) => { if (id && !isRootNodeId(id)) { deleteNode(id); } },
   getSelectedId: () => state.selectedId,
+  getProjectRoot: () => state.projectRoot,
+  attachScript: (resourcePath, buttonAction) => {
+    const node = getNode(state.selectedId);
+    if (!node) throw new Error('Select an owner in the Scene tree first.');
+    if (buttonAction && node.type !== 'Button') throw new Error('Select a UI Button first.');
+    const before = serializeScene();
+    node.components ||= [];
+    if (!node.components.some(c => c.type === 'ScriptComponent' && c.scriptPath === resourcePath)) {
+      const component = createDefaultComponent('ScriptComponent'); component.scriptPath = resourcePath;
+      node.components.push(component);
+    }
+    if (buttonAction) { node.properties ||= {}; node.properties.action = 'custom:ScriptAction'; }
+    syncEditorStateFromRuntime(); persistActiveSceneEntry(); pushHistory('Attach script', before); refreshAll();
+    return node.name || node.id;
+  },
+  editUINode: (id, key, value) => {
+    const node = getNode(id);
+    if (!node || !isUiNodeType(node.type)) return;
+    const allowed = /^(name|visible|locked|zIndex|transform\.(x|y)|properties\.(width|height|layer|text|fontSize|fontFamily|fontPath|fontBold|fontItalic|align|valign|textColor|color|normalColor|borderColor|opacity|fitMode)|properties\.sourceRect\.(x|y|w|h))$/;
+    if (!allowed.test(key)) return;
+    if (typeof value === 'number' && !Number.isFinite(value)) return;
+    if (/\.(width|height|fontSize)$/.test(key)) value = Math.max(1, value);
+    if (key === 'properties.opacity') value = Math.max(0, Math.min(1, value));
+    const before = serializeScene();
+    const parts = key.split('.'); let target = node;
+    for (const part of parts.slice(0, -1)) target = target[part] ||= {};
+    target[parts.at(-1)] = value;
+    if (/^(transform\.|properties\.(width|height))/.test(key)) syncNodeAnchorOffsets(node);
+    syncEditorStateFromRuntime(); persistActiveSceneEntry();
+    pushHistory('Edit UI ' + key, before);
+    refreshAll();
+  },
+  pickUIImage: async (id) => {
+    const result = await openImageFileSafe({ assetKind: 'image' });
+    if (!result.success) return;
+    const node = getNode(id); if (!node) return;
+    const before = serializeScene();
+    node.properties.imagePath = result.resPath || result.filePath;
+    node.properties.imageDataUrl = result.dataUrl;
+    node.properties.atlasRegionId = ''; node.properties.nineSliceStyleId = '';
+    delete node.properties.sourceRect;
+    loadImageIntoCache(id, result.dataUrl, () => { refreshAll(); window.RGEUIEditor?.forceRefresh('image-changed'); });
+    syncEditorStateFromRuntime(); persistActiveSceneEntry(); pushHistory('Choose UI image', before);
+  },
+  pickUIFont: async (id) => {
+    const result=await window.electronAPI.importProjectAsset({assetType:'font'});
+    if(!result?.success)return;
+    const node=getNode(id);if(!node)return;
+    const before=serializeScene();
+    node.properties.fontPath=result.resPath;
+    node.properties.fontFamily='';
+    syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Choose UI font',before);refreshAll();
+  },
   refreshInspector,
   refreshAll,
   serializeScene,
+  duplicateUINode: (id) => duplicateNode(id),
+  fillUIParent: (id) => {
+    const node=getNode(id);if(!node)return;
+    const before=serializeScene();applyNodeAnchorPreset(node,[0,0,1,1]);
+    syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Fill UI parent',before);refreshAll();
+  },
   pushHistory,
   isUiNodeType,
   isRootNodeId,
@@ -18705,6 +18809,36 @@ RGE_ROOT.RGESceneBridge = {
   getEditorState: () => state.editorState,
   setEditorStateProp: (key, value) => { state.editorState[key] = value; },
   // Nine-slice style access
+  saveSlicedRegions: (regions) => {
+    const before=serializeScene();
+    const saved=regions.map(region=>window.RokuSchemaResources.normalizeNineSliceStyle({...region,id:'slice_'+crypto.randomUUID()},Date.now()));
+    state.nineSliceStyles.push(...saved);state.selectedNineSliceStyleId=saved[0]?.id||null;
+    syncNineSliceStylesToSceneState();syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Slice image into regions',before);refreshAll();
+    return saved;
+  },
+  applySlicedRegion: (regionId, targetId=state.selectedId) => {
+    const node=getNode(targetId),region=state.nineSliceStyles.find(r=>r.id===regionId);
+    if(!region)throw new Error('Choose a saved region.');
+    if(!node||!['Sprite2D','TextureRect','Button','Panel','NineSlicePanel'].includes(node.type))throw new Error('Select a Sprite2D, TextureRect, Button, Panel, or NineSlicePanel first.');
+    const before=serializeScene();
+    node.properties ||= {};
+    Object.assign(node.properties,{imagePath:region.imagePath,imageDataUrl:region.imageDataUrl,sourceRect:{...region.sourceRect},atlasRegionId:region.id});
+    if(node.type!=='Sprite2D'&&node.type!=='TextureRect')Object.assign(node.properties,{nineSliceStyleId:region.id,sliceLeft:region.sliceLeft,sliceTop:region.sliceTop,sliceRight:region.sliceRight,sliceBottom:region.sliceBottom});
+    loadImageIntoCache(node.id,region.imageDataUrl,()=>{refreshAll();window.RGEUIEditor?.forceRefresh('slice');});
+    syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Apply sliced image',before);refreshAll();return node;
+  },
+  createSlicedElement: (type,regionId) => {
+    if(!['Sprite2D','TextureRect','Button','Panel'].includes(type))throw new Error('Unsupported element type.');
+    const region=state.nineSliceStyles.find(r=>r.id===regionId);if(!region)throw new Error('Choose a saved region.');
+    const before=serializeScene(),node=createDefaultNode(type),selected=getNode(state.selectedId);
+    node.name=region.name;node.parentId=type==='Sprite2D'?getRootNodeId():selected?.type==='CanvasLayer'||selected?.type==='Control'?selected.id:selected?.parentId||getRootNodeId();
+    Object.assign(node.transform,{x:96,y:96,pivotX:0,pivotY:0,pivotPreset:'top-left'});
+    node.properties.width=region.sourceRect.w;node.properties.height=region.sourceRect.h;
+    Object.assign(node.properties,{imagePath:region.imagePath,imageDataUrl:region.imageDataUrl,sourceRect:{...region.sourceRect},atlasRegionId:region.id});
+    if(['Button','Panel'].includes(type))node.properties.nineSliceStyleId=region.id;
+    getNodes().push(node);loadImageIntoCache(node.id,region.imageDataUrl,refreshAll);selectNode(node.id);
+    syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Create sliced element',before);refreshAll();return node;
+  },
   getNineSliceStyles: () => state.nineSliceStyles || [],
   getNineSliceStyleById: (id) => (state.nineSliceStyles || []).find(s => s.id === id) || null,
   getSelectedNineSliceStyleId: () => state.selectedNineSliceStyleId,

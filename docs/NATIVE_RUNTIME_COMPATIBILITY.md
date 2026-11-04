@@ -31,9 +31,11 @@ The original Electron scene editor is the application launched by `npm start`. F
 
 ## Validation scope
 
-`projects/MOL` converts Messenger of Light into 215 editable engine nodes and pooled sprite templates, retaining its original 22-day simulation in components. `npm.cmd run test:mol` checks editor save/reopen, native export, the original regression tests, remote navigation, movement/fire, pause/resume and final-game screens. Test-only encounter/delivery checkpoints cover victory and score entry without claiming a full campaign playthrough. See [the project guide](../projects/MOL/README.md).
+The separate `C:\Development\MOL_RGE` project converts Messenger of Light into 215 editable engine nodes and pooled sprite templates, retaining its original 22-day simulation in components. `npm.cmd run test:mol` checks editor save/reopen, native export, the original regression tests, remote navigation, movement/fire, pause/resume and final-game screens. Test-only encounter/delivery checkpoints cover victory and score entry without claiming a full campaign playthrough. `MOL_RGE_PROJECT` overrides the project location. The project and its assets are not required in the engine repository; unit integration checks skip when no MOL project is available.
 
 Runtime JSON loads with case-insensitive members so scripted edits replace camel-case properties. Canvas-only scenes skip world sprite/transform work, and UI traversal stays cached until scene structure changes. TextureRect tint and opacity support the converted effects; world sprite limitations above still apply.
+
+`npm.cmd run test:ui-screens` checks the external MOL project's UI designer on an isolated copy: typography, custom fonts, CanvasLayer synchronization, zoom/pan, layout tools, undo/redo, scrolling and save/reopen. `npm.cmd run test:typography` compares native framebuffer text using default fonts, bold/italic/aligned text, a packaged TTF family and multiline text. Label and Button font settings are rendered in native builds; custom font variants must be supplied for matching family styles. These simulator checks do not establish typography parity on hardware.
 
 `npm test` checks packaging, preservation of edits, resource metadata and native build validation. `npm run check:runtime` checks all canonical BrightScript in the source scope. `npm run test:browser` opens the actual Electron editor and a simulator window and checks startup errors and native frame-buffer pixels for a moving camera target, fixed HUD and correctly sized texture.
 

@@ -45,6 +45,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   renameProjectItem: (payload) => ipcRenderer.invoke('rename-project-item', payload),
   deleteProjectItem: (payload) => ipcRenderer.invoke('delete-project-item', payload),
   readTextFile: (payload) => ipcRenderer.invoke('read-text-file', payload),
+  scriptEditorFile: (payload) => ipcRenderer.invoke('script-editor-file', payload),
   resolveSceneResource: (payload) => ipcRenderer.invoke('resolve-scene-resource', payload),
   readProjectAsset: (payload) => ipcRenderer.invoke('read-project-asset', payload),
   onProjectFilesChanged: (callback) => {
