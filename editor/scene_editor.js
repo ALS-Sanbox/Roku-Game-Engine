@@ -8163,7 +8163,7 @@ function renderViewport() {
     if (selectedIds.has(node.id))  addHierarchyOutline(shape, node, 'selected');
     if (selectedIds.has(node.id) && shape instanceof Konva.Group && !node.type.startsWith('Camera')){
       const pivotMarker = new Konva.Group({ x: Number(node.transform?.pivotX) || 0, y: Number(node.transform?.pivotY) || 0, listening: false, name: 'pivot-marker' });
-      pivotMarker.getSelfRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
+      pivotMarker.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
       pivotMarker.add(new Konva.Circle({ radius: 5, fill: '#141620', stroke: '#ff0000', strokeWidth: 1.5 }));
       pivotMarker.add(new Konva.Line({ points: [-8, 0, 8, 0], stroke: '#ff0000', strokeWidth: 1.25 }));
       pivotMarker.add(new Konva.Line({ points: [0, -8, 0, 8], stroke: '#ff0000', strokeWidth: 1.25 }));
@@ -8504,10 +8504,11 @@ function _addPhysicsShapesOverlay(g, node) {
   if (!Array.isArray(node.components)) return;
   const nw = Math.max(1, Number(node.properties?.width)  || 96);
   const nh = Math.max(1, Number(node.properties?.height) || 96);
-  // Wrap all overlay shapes in a group whose getSelfRect returns zero so Konva.Transformer
+  // Konva containers calculate bounds through getClientRect, not getSelfRect.
+  // Exclude editor-only collider guides so Konva.Transformer
   // ignores these decorative shapes when computing the resize-handle bounding box.
   const overlayGroup = new Konva.Group({ listening: false });
-  overlayGroup.getSelfRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
+  overlayGroup.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
   let hasOverlay = false;
   node.components.forEach((comp) => {
     if (!comp || comp.type !== 'Collider2DComponent' || comp.enabled === false) return;
@@ -8544,7 +8545,9 @@ function buildKonvaForNode(node) {
   if (node.type === 'Node2D' || node.type === 'SceneRoot') {
     const g = new Konva.Group(base);
     g.add(new Konva.Rect({ width: node.properties.width || 160, height: node.properties.height || 120, fill: hexWithAlpha(node.properties.tint || '#5e7594', 0.15), stroke: node.properties.tint || '#5e7594', strokeWidth: 1.5, dash: [8, 5] }));
-    g.add(new Konva.Text({ x: 8, y: 8, text: node.name, fill: '#c8d6ea', fontSize: 14 }));
+    const nameLabel = new Konva.Text({ x: 8, y: 8, text: node.name, fill: '#c8d6ea', fontSize: 14, listening: false });
+    nameLabel.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
+    g.add(nameLabel);
     _addPhysicsShapesOverlay(g, node);
     return g;
   }
@@ -9011,7 +9014,9 @@ function getNodeVisualSize(node) {
 function addHierarchyOutline(shape, node, style = 'ancestor') {
   if (!shape || !node || isRootNodeId(node.id) || !(shape instanceof Konva.Group) || node.type === 'CameraPath2D' || node.type === 'CameraBounds2D' || node.type === 'CameraZone2D') return;
   const { width, height } = getNodeVisualSize(node);
-  shape.add(new Konva.Rect({ x: 0, y: 0, width, height, stroke: style === 'ancestor' ? '#6ec6e8' : '#e5c97a', dash: style === 'ancestor' ? [6, 4] : [3, 3], strokeWidth: style === 'ancestor' ? 1.5 : 1, listening: false, opacity: style === 'ancestor' ? 0.55 : 0.45, name: 'hierarchy-outline' }));
+  const outline = new Konva.Rect({ x: 0, y: 0, width, height, stroke: style === 'ancestor' ? '#6ec6e8' : '#e5c97a', dash: style === 'ancestor' ? [6, 4] : [3, 3], strokeWidth: style === 'ancestor' ? 1.5 : 1, listening: false, opacity: style === 'ancestor' ? 0.55 : 0.45, name: 'hierarchy-outline' });
+  outline.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
+  shape.add(outline);
 }
 function fallbackUnknownNode(node) {
   const g = new Konva.Group(getKonvaNodeBaseAttrs(node));

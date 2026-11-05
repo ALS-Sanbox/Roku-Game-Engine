@@ -225,6 +225,20 @@ async function main() {
     }
     console.log('EDITOR', JSON.stringify(await evaluate(sessionId, '({title:document.title,scene:typeof state!=="undefined"?state.sceneState.scene.name:null,projectRoot:state.projectRoot,status:state.status,logs:state.logs.slice(-8),viewportError:window.__viewportInitError?.message,konva:typeof Konva,buildButton:!!document.getElementById("btn-test-simulator")})')));
     if (errors.length) throw new Error(errors.join('\n'));
+    if (process.argv.includes('--selection-bounds')) {
+      const bounds = await evaluate(sessionId, `(async()=>{
+        const n=getNode('player');n.name='A very long editor-only node name';
+        n.properties.width=48;n.properties.height=32;
+        n.transform.pivotX=24;n.transform.pivotY=16;
+        n.components.push({type:'Collider2DComponent',enabled:true,width:160,height:120,offsetX:-40,offsetY:-50});
+        // Hidden Electron windows can defer rAF; flush this geometry check directly.
+        selectNode(n.id);_viewportRenderedThisFlush=false;renderViewport();attachTransformer();
+        const shape=shapeRefs.get(n.id),rect=shape.getClientRect({skipTransform:true,skipStroke:true});
+        return {rect,anchors:transformer.nodes().map(s=>s.id()),pivot:!!shape.findOne('.pivot-marker')};
+      })()`);
+      if(bounds.rect.x!==0||bounds.rect.y!==0||bounds.rect.width!==48||bounds.rect.height!==32||!bounds.pivot||bounds.anchors[0]!=='player')throw new Error('Selection bounds mismatch: '+JSON.stringify(bounds));
+      console.log('SELECTION_BOUNDS',JSON.stringify(bounds));return;
+    }
     if (process.argv.includes('--release-screenshot')) {
       await require('./capture-release-screenshot.cjs')({send,evaluate,sessionId,root});
       return;

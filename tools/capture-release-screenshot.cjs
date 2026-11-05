@@ -12,6 +12,7 @@ module.exports = async ({send,evaluate,sessionId,root}) => {
   }
   await evaluate(sessionId,'clearInterval(state.document.autosaveTimer); state.document.autosaveTimer=null; true');
   await evaluate(sessionId,'selectNode("player");true');
+  await evaluate(sessionId,'_viewportRenderedThisFlush=false;renderViewport();attachTransformer();true');
   if(mode==='ui') await evaluate(sessionId,`(()=>{RGEShowDockTab('ui');RGEUIEditor.activate();const s=document.getElementById('ui-screen-select');s.value='Title';s.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
   if(mode==='scripts') await evaluate(sessionId,`(async()=>{RGEShowDockTab('scripts');await RGEScriptEditor.open('res://components/behaviors/collect.brs');return true;})()`);
   if(mode==='scripts') await evaluate(sessionId,`document.getElementById('bottom-dock').style.height='160px';document.getElementById('script-text').setSelectionRange(0,0);document.getElementById('script-text').scrollTop=0;document.getElementById('script-text').dispatchEvent(new Event('scroll'));window.dispatchEvent(new Event('resize'));true`);

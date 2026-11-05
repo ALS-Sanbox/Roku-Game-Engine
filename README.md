@@ -99,8 +99,6 @@ npm.cmd run test:native-audio
 
 These cover automated unit checks, BrightScript compilation, native rendering/camera/physics regressions, sample gameplay, editor controls, and audio export. Focused checks are also available through `test:typography`, `test:script-actions`, and `test:slicing`. Generated projects, logs, and screenshots stay in the ignored `.visual-editor/` folder.
 
-MOL integration checks require a separate converted game project. Set `MOL_RGE_PROJECT` to its folder before running `test:mol` or `test:ui-screens`; its assets are not bundled with the engine.
-
 To refresh the README screenshots using the included sample:
 
 ```powershell
