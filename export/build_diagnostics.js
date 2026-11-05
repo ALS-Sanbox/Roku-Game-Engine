@@ -40,6 +40,7 @@ function validateSnapshot(root, scenes, startupScene, settings = {}) {
       let parent = n, visited = new Set();
       while (parent?.parentId) { if (visited.has(parent.id)) { add('error', 'PARENT_CYCLE', 'Parent hierarchy contains a cycle.', location); break; } visited.add(parent.id); parent = doc.nodes.find(p => p.id === parent.parentId); }
       const p = n.properties || {};
+      require('./gameplay_diagnostics').validateGameplayNode(doc, n, (code, message, property) => add('error', code, message, { ...location, property }));
       if (p.followTargetName && !nodeNames.has(p.followTargetName.toLowerCase())) add('error', 'TARGET_REFERENCE', 'Camera follow target does not exist.', { ...location, property: 'followTargetName' });
       for (const key of ['focusUp', 'focusDown', 'focusLeft', 'focusRight']) if (p[key] && !ids.has(p[key]) && !nodeNames.has(String(p[key]).toLowerCase())) add('error', 'TARGET_REFERENCE', 'Focus target does not exist.', { ...location, property: key });
       for (const [key, value] of Object.entries(p)) if (typeof value === 'string' && /^(?:transition_scene:|scene:|push:)/i.test(value)) {

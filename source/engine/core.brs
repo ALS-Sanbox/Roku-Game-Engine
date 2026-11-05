@@ -100,6 +100,9 @@ function RokuEngine_Create(initialSceneName as String) as Object
     SetPhysicsPaused: RokuEngine_SetPhysicsPaused
     SetTimeScale: RokuEngine_SetTimeScale
     LoadScene: RokuEngine_LoadScene
+    StartTimer: RokuEngine_StartTimer
+    StopTimer: RokuEngine_StopTimer
+    SpawnFromSpawner: RokuEngine_SpawnFromSpawner
     Update: RokuEngine_Update
     UpdateComponents: RokuEngine_UpdateComponents
     ProcessNodeComponents: RokuEngine_ProcessNodeComponents
@@ -606,6 +609,7 @@ sub RokuEngine_StageInputEvents()
 end sub
 
 sub RokuEngine_RunPreUpdatePhase()
+  RokuGameplay_UpdateVisibility(m)
   inputDt = m.stats.scaledDt
   if m.scene <> invalid and m.scene.paused = true and m.scene.uiUpdatesWhenPaused <> true then inputDt = 0.0
   if m.scene <> invalid and type(m.scene.doc.nodes) = "roArray" then
@@ -680,6 +684,7 @@ sub RokuEngine_RunVariableUpdatePhase()
   if m.scene = invalid then return
   variableDt = m.stats.scaledDt
   if m.scene.paused = true and m.scene.uiUpdatesWhenPaused <> true then variableDt = 0.0
+  RokuGameplay_Update(m, variableDt)
 
   m.EnsurePhaseCaches()
   m.RunComponentPhase("update", variableDt, invalid)
@@ -702,6 +707,7 @@ end sub
 
 sub RokuEngine_SyncRenderState()
   if m.scene = invalid then return
+  RokuGameplay_SyncParallax(m)
   m.EnsurePhaseCaches()
   m.RunComponentPhase("render_sync", m.stats.scaledDt, invalid)
   m.UpdateFocusState()
@@ -901,6 +907,7 @@ sub RokuEngine_DispatchComponentPhaseEntry(entry as Object, dt as Float, event a
   if m.scene.nodeMap.DoesExist(entry.nodeId) <> true then return
   node = m.scene.nodeMap[entry.nodeId]
   if node = invalid then return
+  if RokuGameplay_IsSleeping(m, node) then return
   components = node.components
   if type(components) <> "roArray" then return
   if entry.componentIndex < 0 or entry.componentIndex >= components.Count() then return

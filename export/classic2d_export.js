@@ -41,6 +41,8 @@ function getClassicRuntimeSourceFiles() {
     'source/engine/component_registry.brs': readEngineFile('component_registry.brs'),
     'source/engine/enemy_ai.brs':           readEngineFile('enemy_ai.brs'),
     'source/engine/object_pool.brs':        readEngineFile('object_pool.brs'),
+    'source/engine/gameplay_nodes.brs':     readEngineFile('gameplay_nodes.brs'),
+    'source/engine/focus_group.brs':        readEngineFile('focus_group.brs'),
     'source/engine/scene_manager.brs':      readEngineFile('scene_manager.brs'),
     'source/engine/camera_policies.brs':    readEngineFile('camera_policies.brs'),
     'source/engine/audio_runtime.brs':      readEngineFile('audio_runtime.brs'),

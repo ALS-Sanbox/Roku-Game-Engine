@@ -27,17 +27,17 @@
 '
 ' ── Global pool registry helpers ────────────────────────────────────────────
 
-function RokuPool_EnsureRegistry() as Object
-  if m.scene = invalid then return invalid
-  if m.scene.runtime = invalid then m.scene.runtime = { nodes: {} }
-  if m.scene.runtime.objectPools = invalid then m.scene.runtime.objectPools = {}
-  return m.scene.runtime.objectPools
+function RokuPool_EnsureRegistry(engine as Object) as Object
+  if engine.scene = invalid then return invalid
+  if engine.scene.runtime = invalid then engine.scene.runtime = { nodes: {} }
+  if engine.scene.runtime.objectPools = invalid then engine.scene.runtime.objectPools = {}
+  return engine.scene.runtime.objectPools
 end function
 
 ' ── Initialize a single pool ─────────────────────────────────────────────────
 
-function RokuPool_InitPool(def as Object, ownerNode as Object) as Boolean
-  registry = RokuPool_EnsureRegistry()
+function RokuPool_InitPool(def as Object, ownerNode as Object, engine as Object) as Boolean
+  registry = RokuPool_EnsureRegistry(engine)
   if registry = invalid then return false
 
   poolName = ""
@@ -61,10 +61,10 @@ function RokuPool_InitPool(def as Object, ownerNode as Object) as Boolean
   ' Resolve parent
   parentId = ""
   if def.parentName <> invalid and def.parentName <> "" then
-    parentNode = m.FindNodeByName(def.parentName)
+    parentNode = engine.FindNodeByName(def.parentName)
     if parentNode <> invalid then parentId = parentNode.id
   end if
-  if parentId = "" and m.scene.rootNodeId <> invalid then parentId = m.scene.rootNodeId
+  if parentId = "" and engine.scene.rootNodeId <> invalid then parentId = engine.scene.rootNodeId
 
   ' Pre-spawn all instances as invisible
   instances = []
@@ -78,26 +78,23 @@ function RokuPool_InitPool(def as Object, ownerNode as Object) as Boolean
       properties: {}
       components: []
     }
-    if nodeProps <> invalid then template.properties = nodeProps
+    if nodeProps <> invalid then template.properties = ParseJSON(FormatJSON(nodeProps))
     if type(nodeComps) = "roArray" and nodeComps.Count() > 0 then
       ' Deep-copy components and give each a fresh id
       freshComps = []
       for each comp in nodeComps
         if comp <> invalid then
-          fc = {}
-          for each k in comp
-            fc[k] = comp[k]
-          end for
-          fc.id = m.GenerateId()
+          fc = ParseJSON(FormatJSON(comp))
+          fc.id = engine.GenerateId()
           freshComps.Push(fc)
         end if
       end for
       template.components = freshComps
     end if
 
-    spawnedNode = m.SpawnNode(template, parentId)
+    spawnedNode = engine.SpawnNode(template, parentId)
     if spawnedNode <> invalid then
-      rt = m.EnsureNodeRuntime(spawnedNode)
+      rt = engine.EnsureNodeRuntime(spawnedNode)
       rt.poolName   = poolName
       rt.poolActive = false
       instances.Push(spawnedNode.id)
@@ -134,7 +131,7 @@ sub RokuComponent_ObjectPool_PreUpdate(ctx as Object)
   end if
 
   for each def in defs
-    if def <> invalid then RokuPool_InitPool(def, ctx.node)
+    if def <> invalid then RokuPool_InitPool(def, ctx.node, ctx.engine)
   end for
 
   rt.poolsReady = true
@@ -147,7 +144,7 @@ end sub
 ' Returns invalid if the pool is exhausted.
 '
 function RokuEngine_PoolAcquire(poolName as String, x as Float, y as Float) as Dynamic
-  registry = RokuPool_EnsureRegistry()
+  registry = RokuPool_EnsureRegistry(m)
   if registry = invalid then return invalid
   if not registry.DoesExist(poolName) then return invalid
 
@@ -218,7 +215,7 @@ end sub
 ' Returns every active instance of the named pool. Useful on level reset.
 '
 sub RokuEngine_PoolReleaseAll(poolName as String)
-  registry = RokuPool_EnsureRegistry()
+  registry = RokuPool_EnsureRegistry(m)
   if registry = invalid then return
   if not registry.DoesExist(poolName) then return
   pool = registry[poolName]
@@ -233,7 +230,7 @@ end sub
 ' Returns every active instance across all pools. Useful on scene reset.
 '
 sub RokuEngine_PoolReleaseAllPools()
-  registry = RokuPool_EnsureRegistry()
+  registry = RokuPool_EnsureRegistry(m)
   if registry = invalid then return
   for each poolName in registry
     m.PoolReleaseAll(poolName)
@@ -245,7 +242,7 @@ end sub
 ' Returns the number of currently active instances in a pool.
 '
 function RokuEngine_PoolActiveCount(poolName as String) as Integer
-  registry = RokuPool_EnsureRegistry()
+  registry = RokuPool_EnsureRegistry(m)
   if registry = invalid then return 0
   if not registry.DoesExist(poolName) then return 0
   pool = registry[poolName]
@@ -268,7 +265,7 @@ end function
 '
 function RokuEngine_PoolGetActive(poolName as String) as Object
   result = []
-  registry = RokuPool_EnsureRegistry()
+  registry = RokuPool_EnsureRegistry(m)
   if registry = invalid then return result
   if not registry.DoesExist(poolName) then return result
   pool = registry[poolName]

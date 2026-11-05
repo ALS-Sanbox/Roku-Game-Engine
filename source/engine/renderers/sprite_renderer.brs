@@ -53,7 +53,8 @@ sub RokuEngine_SyncNodeSprite(nodeId as String, active as Object, layer as Integ
     rect = RokuEngine_WorldRect(world, nodeWidth, nodeHeight)
     drawX = Int((rect.x - m.scene.cameraX) * m.scene.cameraZoom)
     drawY = Int((rect.y - m.scene.cameraY) * m.scene.cameraZoom)
-    if world.visible = false or world.opacity <= 0 or (nodeWidth > 0 and nodeHeight > 0 and not RokuEngine_IsWorldRectVisible(world, nodeWidth, nodeHeight, m.scene.cameraX, m.scene.cameraY, m.width / m.scene.cameraZoom, m.height / m.scene.cameraZoom)) then
+    repeated = RokuGameplay_HasRepeat(m, node)
+    if world.visible = false or world.opacity <= 0 or (not repeated and nodeWidth > 0 and nodeHeight > 0 and not RokuEngine_IsWorldRectVisible(world, nodeWidth, nodeHeight, m.scene.cameraX, m.scene.cameraY, m.width / m.scene.cameraZoom, m.height / m.scene.cameraZoom)) then
       m.RemoveNodeCompositorSprite(node)
     else if node.type = "Sprite2D" then
       bitmap = m.LoadImageAsset(props.imagePath)

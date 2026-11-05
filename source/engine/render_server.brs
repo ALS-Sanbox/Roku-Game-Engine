@@ -95,9 +95,18 @@ sub RokuRender_WorldOrdered(engine as Object)
     if node.type = "Sprite2D" or node.type = "AnimatedSprite2D" then
       runtime = engine.EnsureNodeRuntime(node)
       sprite = runtime.spriteState
-      if sprite <> invalid and sprite.member <> invalid and sprite.drawable <> invalid then engine.screen.DrawObject(sprite.drawX,sprite.drawY,sprite.drawable)
+      if sprite <> invalid and sprite.member <> invalid and sprite.drawable <> invalid then
+        for each offset in RokuGameplay_RepeatOffsets(engine, node)
+          engine.screen.DrawObject(sprite.drawX+offset.x*engine.scene.cameraZoom, sprite.drawY+offset.y*engine.scene.cameraZoom, sprite.drawable)
+        end for
+      end if
     else if node.type = "TileMap" then
-      engine.RenderPassTileMaps(id)
+      cameraX = engine.scene.cameraX : cameraY = engine.scene.cameraY
+      for each offset in RokuGameplay_RepeatOffsets(engine, node)
+        engine.scene.cameraX = cameraX-offset.x : engine.scene.cameraY = cameraY-offset.y
+        engine.RenderPassTileMaps(id)
+      end for
+      engine.scene.cameraX = cameraX : engine.scene.cameraY = cameraY
     else
       engine.RenderDebugNode(node,engine.GetWorldTransform(id))
     end if

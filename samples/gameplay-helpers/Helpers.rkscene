@@ -1,0 +1,799 @@
+{
+  "formatVersion": 2,
+  "scene": {
+    "name": "Helpers",
+    "rootNodeId": "root"
+  },
+  "nodes": [
+    {
+      "id": "root",
+      "type": "SceneRoot",
+      "name": "root",
+      "parentId": null,
+      "children": [
+        "Camera",
+        "SpawnPoint",
+        "Player",
+        "Checkpoint",
+        "Heartbeat",
+        "PatrolPath",
+        "Background",
+        "SpawnTemplate",
+        "EnemySpawner",
+        "HUD"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {},
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Camera",
+      "type": "Camera2D",
+      "name": "Camera",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 1280,
+        "height": 720,
+        "opacity": 0.35,
+        "tint": "#8f7cf6",
+        "current": true,
+        "enabled": true,
+        "followTargetName": "",
+        "followLerp": 1,
+        "offsetX": 0,
+        "offsetY": 0,
+        "deadzoneWidth": 0,
+        "deadzoneHeight": 0,
+        "deadzoneOffsetX": 0,
+        "deadzoneOffsetY": 0,
+        "zoom": 1,
+        "cameraPreset": "Side Scroller",
+        "lookAheadX": 0,
+        "lookAheadY": 0,
+        "smoothFollow": true,
+        "cameraBounds": true,
+        "dynamicZoom": false,
+        "screenShake": true,
+        "zoomMin": 0.5,
+        "zoomMax": 2,
+        "roomLock": false,
+        "combatZoom": 1.2
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "SpawnPoint",
+      "type": "Marker2D",
+      "name": "SpawnPoint",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 100,
+        "y": 330,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "gizmoSize": 16,
+        "tint": "#f2cf66"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Player",
+      "type": "Node2D",
+      "name": "Player",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 100,
+        "y": 500,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 32,
+        "height": 32,
+        "opacity": 1,
+        "tint": "#6dbd79"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "efa86a38-05c9-41cf-805b-e5e0b0575243",
+          "type": "InputControllerComponent",
+          "name": "InputController",
+          "enabled": true,
+          "priority": 110,
+          "moveStep": 24,
+          "controlsCamera": false,
+          "allowHorizontal": true,
+          "allowVertical": true
+        },
+        {
+          "id": "cee94c55-461d-4a11-a3bb-804b5daef53d",
+          "type": "Collider2DComponent",
+          "name": "Collider2D",
+          "enabled": true,
+          "priority": 150,
+          "width": 32,
+          "height": 32,
+          "offsetX": 0,
+          "offsetY": 0,
+          "isTrigger": false,
+          "layer": "default",
+          "mask": "default",
+          "debug": false
+        },
+        {
+          "id": "3d15fa77-5237-4147-a83b-656110c18552",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "Checkpoint",
+      "type": "TriggerZone2D",
+      "name": "Checkpoint",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 340,
+        "y": 450,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 120,
+        "height": 100,
+        "enabled": true,
+        "layer": "default",
+        "mask": "default",
+        "tint": "#6dbd79"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "ee849898-ccc3-4f05-98a9-12080370c3ae",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "Heartbeat",
+      "type": "Timer",
+      "name": "Heartbeat",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 60,
+        "y": 100,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "waitTime": 2,
+        "oneShot": false,
+        "autostart": true,
+        "paused": false,
+        "processWhenPaused": false,
+        "tint": "#70c9d1"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "2c40db88-95d2-4edb-af05-2616757c8f76",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "PatrolPath",
+      "type": "Path2D",
+      "name": "PatrolPath",
+      "parentId": "root",
+      "children": [
+        "PatrolFollower",
+        "PatrolVisibility"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 520,
+        "y": 260,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "points": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 220,
+            "y": 0
+          },
+          {
+            "x": 220,
+            "y": 120
+          },
+          {
+            "x": 0,
+            "y": 120
+          }
+        ],
+        "closedPath": true,
+        "tint": "#66c9e8"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "PatrolFollower",
+      "type": "PathFollow2D",
+      "name": "PatrolFollower",
+      "parentId": "PatrolPath",
+      "children": [
+        "Platform"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "path": "",
+        "speed": 80,
+        "progress": 0,
+        "loop": true,
+        "rotates": true,
+        "playing": true,
+        "tint": "#66c9e8"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "b0a9264e-0ac1-4457-abf6-79f04707ecfa",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "Platform",
+      "type": "Node2D",
+      "name": "Platform",
+      "parentId": "PatrolFollower",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 64,
+        "height": 20,
+        "opacity": 1,
+        "tint": "#66c9e8"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "PatrolVisibility",
+      "type": "VisibilityEnabler2D",
+      "name": "PatrolVisibility",
+      "parentId": "PatrolPath",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": -32,
+        "y": -32,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 300,
+        "height": 200,
+        "target": "",
+        "enabled": true,
+        "margin": 64,
+        "tint": "#72bdab"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "f4c32ea3-bd66-4e65-93c1-000b615f042c",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "Background",
+      "type": "Parallax2D",
+      "name": "Background",
+      "parentId": "root",
+      "children": [
+        "Backdrop"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": -10,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 320,
+        "height": 720,
+        "scrollScaleX": 0.3,
+        "scrollScaleY": 0.3,
+        "autoscrollX": -12,
+        "autoscrollY": 0,
+        "repeatWidth": 320,
+        "repeatHeight": 0,
+        "tint": "#b496ff"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Backdrop",
+      "type": "Sprite2D",
+      "name": "Backdrop",
+      "parentId": "Background",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 320,
+        "height": 720,
+        "opacity": 1,
+        "imagePath": "res://background.svg",
+        "imageDataUrl": "",
+        "fitMode": "stretch"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "SpawnTemplate",
+      "type": "Node2D",
+      "name": "SpawnTemplate",
+      "parentId": "root",
+      "children": [],
+      "visible": false,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 20,
+        "height": 20,
+        "opacity": 1,
+        "tint": "#f0a266"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "e1f94771-7dbd-4f06-b5ec-fd26b0dd31da",
+          "type": "MoveComponent",
+          "name": "Move",
+          "enabled": true,
+          "priority": 120,
+          "vx": 80,
+          "vy": 0
+        },
+        {
+          "id": "4bfa1421-8417-4cb8-aea8-c96ce129b177",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "EnemySpawner",
+      "type": "Spawner2D",
+      "name": "EnemySpawner",
+      "parentId": "root",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 100,
+        "y": 330,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "template": "SpawnTemplate",
+        "poolName": "",
+        "spawnPoints": [
+          "SpawnPoint"
+        ],
+        "interval": 1.5,
+        "maxActive": 5,
+        "spawnCount": 1,
+        "autostart": true,
+        "enabled": true,
+        "tint": "#f0a266"
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "5b3e654e-c2f9-46eb-b66a-e6dd44bac7f4",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "HUD",
+      "type": "CanvasLayer",
+      "name": "HUD",
+      "parentId": "root",
+      "children": [
+        "Instructions",
+        "Menu"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 1280,
+        "height": 720,
+        "opacity": 1,
+        "layer": 0,
+        "followViewport": true,
+        "uiScreenName": ""
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Instructions",
+      "type": "Label",
+      "name": "Instructions",
+      "parentId": "HUD",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 30,
+        "y": 20,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 1200,
+        "height": 40,
+        "opacity": 1,
+        "anchorLeft": 0,
+        "anchorTop": 0,
+        "anchorRight": 0,
+        "anchorBottom": 0,
+        "marginLeft": 0,
+        "marginTop": 0,
+        "marginRight": 0,
+        "marginBottom": 0,
+        "text": "Gameplay helpers: D-pad moves Player into Checkpoint. OK hides/reopens the menu.",
+        "fontSize": 22,
+        "textColor": "#e7eef7",
+        "align": "left",
+        "valign": "center"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "Menu",
+      "type": "FocusGroup",
+      "name": "Menu",
+      "parentId": "HUD",
+      "children": [
+        "HideMenu",
+        "OtherButton"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 930,
+        "y": 400,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 300,
+        "height": 200,
+        "opacity": 1,
+        "enabled": true,
+        "initialFocus": "HideMenu",
+        "wrap": true,
+        "restoreFocus": true,
+        "trapFocus": true,
+        "tint": "#e5c97a"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "HideMenu",
+      "type": "Button",
+      "name": "HideMenu",
+      "parentId": "Menu",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 280,
+        "height": 48,
+        "opacity": 1,
+        "anchorLeft": 0,
+        "anchorTop": 0,
+        "anchorRight": 0,
+        "anchorBottom": 0,
+        "marginLeft": 0,
+        "marginTop": 0,
+        "marginRight": 0,
+        "marginBottom": 0,
+        "text": "Hide menu (OK reopens)",
+        "normalColor": "#375a7f",
+        "focusedColor": "#5b8def",
+        "pressedColor": "#8ab4ff",
+        "textColor": "#ffffff",
+        "disabledColor": "#4b5563",
+        "disabled": false,
+        "focusMode": "all",
+        "focusable": true,
+        "defaultFocus": false,
+        "action": "hide_menu",
+        "actionBack": "",
+        "focusUp": "",
+        "focusDown": "",
+        "focusLeft": "",
+        "focusRight": ""
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "6011aaf5-c438-477a-94ba-08e48877fd7e",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "OtherButton",
+      "type": "Button",
+      "name": "OtherButton",
+      "parentId": "Menu",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 64,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "properties": {
+        "width": 280,
+        "height": 48,
+        "opacity": 1,
+        "anchorLeft": 0,
+        "anchorTop": 0,
+        "anchorRight": 0,
+        "anchorBottom": 0,
+        "marginLeft": 0,
+        "marginTop": 0,
+        "marginRight": 0,
+        "marginBottom": 0,
+        "text": "Second item",
+        "normalColor": "#375a7f",
+        "focusedColor": "#5b8def",
+        "pressedColor": "#8ab4ff",
+        "textColor": "#ffffff",
+        "disabledColor": "#4b5563",
+        "disabled": false,
+        "focusMode": "all",
+        "focusable": true,
+        "defaultFocus": false,
+        "action": "",
+        "actionBack": "",
+        "focusUp": "",
+        "focusDown": "",
+        "focusLeft": "",
+        "focusRight": ""
+      },
+      "metadata": {},
+      "components": [
+        {
+          "id": "f04f0908-0359-4a31-b5ae-d34eb9b300c5",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/events.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    }
+  ]
+}

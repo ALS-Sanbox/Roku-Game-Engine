@@ -5,7 +5,7 @@
 
 function RokuEngine_IsUiNodeType(nodeType as Dynamic) as Boolean
   key = RokuEngine_Trim(RokuEngine_ToString(nodeType))
-  return key = "CanvasLayer" or key = "Control" or key = "Label" or key = "Panel" or key = "TextureRect" or key = "Button" or key = "NineSlicePanel" or key = "MenuList" or key = "ProgressBar" or key = "CheckBox" or key = "Slider"
+  return key = "FocusGroup" or key = "CanvasLayer" or key = "Control" or key = "Label" or key = "Panel" or key = "TextureRect" or key = "Button" or key = "NineSlicePanel" or key = "MenuList" or key = "ProgressBar" or key = "CheckBox" or key = "Slider"
 end function
 
 function RokuEngine_IsWorldNodeType(nodeType as Dynamic) as Boolean

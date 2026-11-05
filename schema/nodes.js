@@ -1360,6 +1360,53 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     }
   };
 
+  // Gameplay helpers share the same registration, serialization, and inspector path.
+  const gameplayNodes = {
+    Marker2D: { category: 'Gameplay', defaults: { gizmoSize: 16, tint: '#f2cf66' } },
+    Timer: { category: 'Gameplay', defaults: { waitTime: 1, oneShot: false, autostart: true, paused: false, processWhenPaused: false, tint: '#70c9d1' } },
+    TriggerZone2D: { category: 'Gameplay', defaults: { width: 160, height: 120, enabled: true, layer: 'default', mask: 'default', tint: '#6dbd79' } },
+    Path2D: { category: 'Gameplay', defaults: { points: [{ x: 0, y: 0 }, { x: 160, y: 0 }], closedPath: false, tint: '#66c9e8' } },
+    PathFollow2D: { category: 'Gameplay', defaults: { path: '', speed: 60, progress: 0, loop: true, rotates: false, playing: true, tint: '#66c9e8' } },
+    Parallax2D: { category: 'World', defaults: { width: 320, height: 180, scrollScaleX: 0.5, scrollScaleY: 0.5, autoscrollX: 0, autoscrollY: 0, repeatWidth: 0, repeatHeight: 0, tint: '#b496ff' } },
+    VisibilityEnabler2D: { category: 'Gameplay', defaults: { width: 160, height: 120, target: '', enabled: true, margin: 64, tint: '#72bdab' } },
+    Spawner2D: { category: 'Gameplay', defaults: { template: '', poolName: '', spawnPoints: [], interval: 1, maxActive: 10, spawnCount: 1, autostart: true, enabled: true, tint: '#f0a266' } },
+    FocusGroup: { category: 'UI', defaults: { width: 320, height: 240, opacity: 1, enabled: true, initialFocus: '', wrap: true, restoreFocus: true, trapFocus: true, tint: '#e5c97a' } }
+  };
+  const helperLabels = {
+    path: 'Path (node ID or name; blank = parent)', target: 'Target (node ID or name; blank = parent)',
+    template: 'Template node (ID or name)', spawnPoints: 'Spawn markers (node IDs or names)',
+    poolName: 'Pool name (optional)', initialFocus: 'Initial focus (node ID or name)',
+    repeatWidth: 'Horizontal repeat size (0 = off)', repeatHeight: 'Vertical repeat size (0 = off)'
+  };
+  for (const [type, config] of Object.entries(gameplayNodes)) {
+    NodeDefaultProperties[type] = config.defaults;
+    const fields = [
+      { key: 'name', label: 'Name', type: 'string', section: 'Node' },
+      { key: 'visible', label: 'Visible', type: 'boolean', section: 'Node' },
+      ...['x', 'y', 'rotation', 'scaleX', 'scaleY', 'pivotX', 'pivotY'].map(key => ({ key: `transform.${key}`, label: key, type: 'number', step: key.startsWith('scale') ? 0.01 : 1, section: 'Transform' })),
+      ...Object.entries(config.defaults).map(([key, value]) => ({
+        key: `properties.${key}`, label: helperLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()),
+        type: Array.isArray(value) ? 'json' : typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : key === 'tint' ? 'color' : 'string',
+        step: 0.1, section: 'Settings'
+      }))
+    ];
+    NodeRegistry[type] = { type, displayName: type, category: config.category, canHaveChildren: true, creatable: true,
+      defaultSize: { width: config.defaults.width || 32, height: config.defaults.height || 32 },
+      inspectorSections: ['Node', 'Transform', 'Settings', 'Metadata'], fields };
+  }
+
+  function normalizeGameplayProperties(type, properties) {
+    if (!gameplayNodes[type]) return;
+    for (const [key, value] of Object.entries(gameplayNodes[type].defaults)) {
+      if (typeof value === 'number') properties[key] = Number.isFinite(Number(properties[key])) ? Number(properties[key]) : value;
+    }
+    if (type === 'Path2D') {
+      const points = Array.isArray(properties.points) ? properties.points.filter(p => p && typeof p === 'object') : [];
+      properties.points = points.length ? points.map(p => ({ x: Number(p.x) || 0, y: Number(p.y) || 0 })) : deepClone(gameplayNodes.Path2D.defaults.points);
+    }
+    if (type === 'Spawner2D') properties.spawnPoints = Array.isArray(properties.spawnPoints) ? properties.spawnPoints.map(String) : [];
+  }
+
   function getNodeDef(type) {
     return NodeRegistry[type] || null;
   }
@@ -1368,7 +1415,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     return Object.values(NodeRegistry).filter((def) => def.creatable);
   }
   function isUiNodeType(type) {
-    return ['CanvasLayer', 'Control', 'Label', 'Panel', 'TextureRect', 'Button', 'NineSlicePanel', 'MenuList', 'ProgressBar', 'HBoxContainer', 'VBoxContainer', 'MarginContainer', 'ScrollContainer', 'CircleButton', 'TriangleButton', 'OvalButton'].includes(type);
+    return ['FocusGroup', 'CanvasLayer', 'Control', 'Label', 'Panel', 'TextureRect', 'Button', 'NineSlicePanel', 'MenuList', 'ProgressBar', 'HBoxContainer', 'VBoxContainer', 'MarginContainer', 'ScrollContainer', 'CircleButton', 'TriangleButton', 'OvalButton'].includes(type);
   }
 
   function isWorldNodeType(type) {
@@ -1377,6 +1424,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
 
   function getDefaultPivotForNode(type, properties = {}) {
+    if (gameplayNodes[type]) return { pivotPreset: 'top-left', pivotX: 0, pivotY: 0 };
     if (type === 'SceneRoot') {
       return { pivotPreset: 'top-left', pivotX: 0, pivotY: 0 };
     }
@@ -1412,6 +1460,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     Object.assign(node, overrides);
     if (overrides.transform) node.transform = Object.assign(deepClone(BaseNodeDefaults.transform), overrides.transform);
     if (overrides.properties) node.properties = Object.assign(deepClone(NodeDefaultProperties[type] || {}), overrides.properties);
+    normalizeGameplayProperties(type, node.properties);
     if (type === 'CameraPath2D') {
       const rawPoints = Array.isArray(node.properties.points)
         ? node.properties.points
@@ -1509,6 +1558,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     normalized.zIndex = Number.isFinite(Number(source.zIndex)) ? Number(source.zIndex) : 0;
     normalized.transform = normalizeNodeTransform(source.transform);
     normalized.properties = Object.assign(deepClone(def ? (NodeDefaultProperties[type] || {}) : {}), isPlainObject(source.properties) ? source.properties : {});
+    normalizeGameplayProperties(type, normalized.properties);
     if (type === 'CameraPath2D') {
       const sourceProps = isPlainObject(source.properties) ? source.properties : {};
       const rawPoints = Array.isArray(sourceProps.points)

@@ -30,6 +30,15 @@ end function
 function RokuCollision_GetNodeCollider(node as Object) as Dynamic
   engine = m.engine
   if engine = invalid or engine.scene = invalid or node = invalid then return invalid
+  if RokuGameplay_IsSleeping(engine, node) then return invalid
+  if node.type = "TriggerZone2D" then
+    if node.properties.enabled = false then return invalid
+    world = engine.GetWorldTransform(node.id)
+    if world.visible = false then return invalid
+    p = node.properties
+    rect = RokuEngine_WorldRect(world, _BRS_NumCoalesce(p.width, 160), _BRS_NumCoalesce(p.height, 120))
+    return { nodeId: node.id, x: rect.x, y: rect.y, width: rect.width, height: rect.height, isTrigger: true, layer: _BRS_StrCoalesce(p.layer, "default"), mask: _BRS_StrCoalesce(p.mask, "default") }
+  end if
   components = node.components
   if type(components) <> "roArray" then return invalid
   world = engine.GetWorldTransform(node.id)
@@ -179,6 +188,7 @@ function RokuCollision_BuildColliderList() as Object
   engine.UpdateWorldTransforms(engine.scene)
   for each node in engine.scene.doc.nodes
     if node = invalid then continue for
+    if RokuGameplay_IsSleeping(engine, node) then continue for
     collider = m.GetNodeCollider(node)
     if collider <> invalid then colliders.Push(collider)
     if node.type = "TileMap" then

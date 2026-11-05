@@ -1,0 +1,9 @@
+{
+  "projectName": "Gameplay Helpers",
+  "startupScene": "Helpers",
+  "screen": {
+    "width": 1280,
+    "height": 720,
+    "mode": "720p"
+  }
+}

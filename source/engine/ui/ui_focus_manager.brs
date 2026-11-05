@@ -46,11 +46,14 @@ end sub
 function RokuEngine_IsNodeFocusable(node as Object) as Boolean
   if node = invalid then return false
   if not m.IsUiNodeType(node.type) then return false
+  if node.type = "FocusGroup" then return false
+  if not RokuFocusGroup_Available(m, node) then return false
   props = node.properties
   if props = invalid then props = {}
 
   ' Hard-disabled nodes are never focusable
   if props.disabled = true then return false
+  if props.focusable = false then return false
   if node.visible = false then return false
 
   ' Explicit escape hatch: props.focusable = true overrides everything
@@ -174,6 +177,16 @@ sub RokuEngine_MoveFocusDirection(direction as String)
   if type(ids) <> "roArray" or ids.Count() = 0 then return
 
   currentId = m.focus.focusedNodeId
+  currentNode = RokuGameplay_Resolve(m, currentId)
+  group = RokuFocusGroup_Owner(m, currentNode)
+  if group <> invalid and group.properties.trapFocus <> false then
+    scoped = []
+    for each id in ids
+      owner = RokuFocusGroup_Owner(m, RokuGameplay_Resolve(m, id))
+      if owner <> invalid and owner.id = group.id then scoped.Push(id)
+    end for
+    ids = scoped
+  end if
 
   ' Check for manual navigation link first
   if currentId <> "" and m.scene <> invalid and m.scene.nodeMap <> invalid and m.scene.nodeMap.DoesExist(currentId) then
@@ -189,7 +202,11 @@ sub RokuEngine_MoveFocusDirection(direction as String)
       if manualTarget <> "" then
         ' Resolve by id or by name
         resolved = m._FM_ResolveNodeIdByIdOrName(manualTarget)
-        if resolved <> "" then
+        allowed = false
+        for each id in ids
+          if id = resolved then allowed = true
+        end for
+        if resolved <> "" and allowed then
           m.focus.focusedNodeId = resolved
           return
         end if
@@ -199,6 +216,7 @@ sub RokuEngine_MoveFocusDirection(direction as String)
 
   ' Spatial search
   bestId = m._FM_FindSpatialNearest(currentId, direction, ids)
+  if bestId = "" and group <> invalid and group.properties.wrap <> false then bestId = RokuFocusGroup_Wrap(m, currentId, direction, ids)
   if bestId <> "" then m.focus.focusedNodeId = bestId
 end sub
 
@@ -499,7 +517,9 @@ end sub
 
 sub RokuEngine_UpdateFocusState()
   m.InitializeFocusManager()
+  RokuFocusGroup_Update(m)
   if m.focus.dirty = true then m.RebuildFocusables()
+  RokuFocusGroup_Restore(m)
 
   focusedId = m.GetFocusedNodeId()
   if m.scene = invalid or type(m.scene.doc.nodes) <> "roArray" then return

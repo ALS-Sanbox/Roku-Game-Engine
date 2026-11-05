@@ -1388,7 +1388,7 @@ function bindToolbar() {
       if (stage?.container()) stage.container().style.cursor = state.tool === 'pan' ? 'grab' : state.tool === 'camera-path' ? 'crosshair' : 'default';
       if (state.tool === 'camera-path') {
         const selected = getNode(state.selectedId);
-        if (selected?.type !== 'CameraPath2D') setStatus('Select a CameraPath2D node to edit its points.');
+        if (!isEditablePathNode(selected)) setStatus('Select a Path2D or CameraPath2D node to edit its points.');
       }
       closeCameraPathPointMenu();
       scheduleRender(RenderFlags.VIEWPORT | RenderFlags.INSPECTOR);
@@ -2749,7 +2749,7 @@ function setSelection(ids, primaryId = null, options = {}) {
   const normalized = getNormalizedSelection(ids, primaryId);
   state.selectedIds = normalized;
   state.selectedId  = primaryId && normalized.includes(primaryId) ? primaryId : (normalized[normalized.length - 1] || null);
-  if (!state.selectedId || getNode(state.selectedId)?.type !== 'CameraPath2D') {
+  if (!isEditablePathNode(getNode(state.selectedId))) {
     if (typeof isCameraPathEditMode === 'function' && isCameraPathEditMode()) {
       state.tool = 'select';
     }
@@ -4829,7 +4829,7 @@ function refreshInspector(opts) {
     buildCameraZoneInspector(node, inspectorEl);
   }
 
-  if (node.type === 'CameraPath2D') {
+  if (isEditablePathNode(node)) {
     const sec=document.createElement('section');sec.className='inspector-section';
     const toggle=document.createElement('button');
     toggle.className='section-toggle';toggle.type='button';toggle.textContent='Path Points';
@@ -4862,7 +4862,7 @@ function refreshInspector(opts) {
     if (cpe.previewPlaying && !cpe.previewPaused) tPlayBtn.disabled=true;
     if (cpe.previewPaused) tPauseBtn.textContent='▶ Resume';
     previewRow.appendChild(tPlayBtn);previewRow.appendChild(tPauseBtn);previewRow.appendChild(tStopBtn);previewRow.appendChild(tLoopBtn);
-    body.appendChild(previewRow);
+    if (node.type === 'CameraPath2D') body.appendChild(previewRow);
     ensureCameraPathPoints(node).forEach((pt,i)=>{
       const d=document.createElement('div');
       d.dataset.cameraPathPoint=String(i);
@@ -6383,8 +6383,10 @@ function buildImagePreview(node, animated) {
   return wrap;
 }
 
+function isEditablePathNode(node) { return !!node && ['CameraPath2D', 'Path2D'].includes(node.type); }
+
 function ensureCameraPathPoints(node) {
-  if (!node || node.type !== 'CameraPath2D') return [];
+  if (!isEditablePathNode(node)) return [];
   node.properties = node.properties || {};
   if (!Array.isArray(node.properties.points)) {
     const legacy = Array.isArray(node.properties.waypoints) ? node.properties.waypoints : [];
@@ -6406,7 +6408,7 @@ function isCameraPathEditMode() {
 
 function getSelectedCameraPathNode() {
   const node = getNode(state.selectedId);
-  return node && node.type === 'CameraPath2D' ? node : null;
+  return isEditablePathNode(node) ? node : null;
 }
 
 function selectCameraPathPoint(nodeId, pointIndex, options = {}) {
@@ -7149,7 +7151,7 @@ function ctgClampToBounds(cx, cy, viewportW, viewportH, zoom) {
 function addCameraPathPoint(nodeId, point = null) {
   const node = getNode(nodeId);
 
-  if (!node || node.type !== 'CameraPath2D') return false;
+  if (!isEditablePathNode(node)) return false;
   const before = serializeScene();
   const points = ensureCameraPathPoints(node);
   const last = points[points.length - 1] || { x: 0, y: 0 };
@@ -7757,8 +7759,9 @@ function _rebuildCamGizmos() {
   if (ov.showDeadZone && selCamId) {
     const cam = cameras.find(c => c.id === selCamId);
     if (cam) {
-      const x   = Number(cam.transform?.x)            || 0;
-      const y   = Number(cam.transform?.y)            || 0;
+      const x = 0, y = 0;
+      const handles = new Konva.Group(getCameraGuideTransform(cam).decompose());
+      camGizmoLayer.add(handles);
       const w   = Number(cam.properties?.width)       || 320;
       const h   = Number(cam.properties?.height)      || 180;
       const dzw = Number(cam.properties?.deadzoneWidth)  || 0;
@@ -7768,7 +7771,7 @@ function _rebuildCamGizmos() {
       if (dzw > 0 && dzh > 0) {
         const dzx = x + (w - dzw)/2 + dox;
         const dzy = y + (h - dzh)/2 + doy;
-        camGizmoLayer.add(_makeGizmoBodyRect(dzx, dzy, dzw, dzh, 'deadzone', cam.id, 'body', s));
+        handles.add(_makeGizmoBodyRect(dzx, dzy, dzw, dzh, 'deadzone', cam.id, 'body', s));
         [
           {tag:'n', cur:'ns-resize',   px:dzx+dzw/2, py:dzy       },
           {tag:'s', cur:'ns-resize',   px:dzx+dzw/2, py:dzy+dzh   },
@@ -7778,7 +7781,7 @@ function _rebuildCamGizmos() {
           {tag:'ne',cur:'nesw-resize', px:dzx+dzw,    py:dzy       },
           {tag:'sw',cur:'nesw-resize', px:dzx,        py:dzy+dzh   },
           {tag:'se',cur:'nwse-resize', px:dzx+dzw,    py:dzy+dzh   },
-        ].forEach(p => camGizmoLayer.add(_makeGizmoHandle(p.px, p.py, 'deadzone', cam.id, p.tag, p.cur, s)));
+        ].forEach(p => handles.add(_makeGizmoHandle(p.px, p.py, 'deadzone', cam.id, p.tag, p.cur, s)));
       }
     }
   }
@@ -7869,6 +7872,7 @@ function _startGizmoDrag(type, nodeId, handle) {
   g.handle     = handle;
   g.nodeId     = nodeId;
   g.startWorld = _screenToWorld(pos.x, pos.y);
+  if (type === 'deadzone') g.startWorld = getCameraGuideTransform(node).copy().invert().point(g.startWorld);
   g.startProps = (type === 'deadzone') ? {
     dzw: Number(node.properties?.deadzoneWidth)   || 0,
     dzh: Number(node.properties?.deadzoneHeight)  || 0,
@@ -7890,7 +7894,8 @@ function _updateCamGizmoDrag(screenX, screenY) {
   const node = getNode(g.nodeId);
   if (!node) { g.active = false; return false; }
 
-  const cur = _screenToWorld(screenX, screenY);
+  let cur = _screenToWorld(screenX, screenY);
+  if (g.type === 'deadzone') cur = getCameraGuideTransform(node).copy().invert().point(cur);
   const dx  = cur.x - g.startWorld.x;
   const dy  = cur.y - g.startWorld.y;
   if (!node.properties) node.properties = {};
@@ -7942,6 +7947,23 @@ function _endCamGizmoDrag() {
   scheduleRender(RenderFlags.VIEWPORT | RenderFlags.INSPECTOR);
 }
 
+// Match the scene hierarchy, including camera rotation, scale, and pivot.
+function getCameraGuideTransform(node) {
+  const chain = [];
+  const seen = new Set();
+  for (let current = node; current && !isRootNodeId(current.id) && !seen.has(current.id); current = getNode(current.parentId)) {
+    seen.add(current.id);
+    chain.unshift(current);
+  }
+  const transform = new Konva.Transform();
+  chain.forEach(current => {
+    const group = new Konva.Group(getKonvaNodeBaseAttrs(current));
+    transform.multiply(group.getTransform());
+    group.destroy();
+  });
+  return transform;
+}
+
 function drawCameraPreviewOverlays() {
   if (!gridGroup) return;
   const s        = Math.max(0.2, Number(state.viewport.scale) || 1);
@@ -7956,21 +7978,21 @@ function drawCameraPreviewOverlays() {
 
   cameras.forEach(cam => {
     const isSelected = cam.id === selCamId;
-    const x = Number(cam.transform?.x) || 0;
-    const y = Number(cam.transform?.y) || 0;
+    const x = 0, y = 0;
+    const guides = new Konva.Group({ ...getCameraGuideTransform(cam).decompose(), listening: false, name: 'camera-guides' });
+    gridGroup.add(guides);
     const w = Number(cam.properties?.width)  || 320;
     const h = Number(cam.properties?.height) || 180;
 
     // ── Camera frame ───────────────────────────────────────────────────
     if (ov.showFrame) {
       const frameColor = isSelected ? '#00d4ff' : '#607d8b';
-      gridGroup.add(new Konva.Rect({
+      guides.add(new Konva.Rect({
         x, y, width: w, height: h,
-        stroke: frameColor, strokeWidth: isSelected ? 2/s : 1/s,
-        dash: isSelected ? [8/s,4/s] : [5/s,3/s], listening: false,
+        stroke: frameColor, ...getNodeOutlineAttrs(), listening: false,
       }));
       if (ov.showLabels) {
-        gridGroup.add(new Konva.Text({
+        guides.add(new Konva.Text({
           x: x+4/s, y: y+4/s,
           text: `${cam.name||'Camera'}  ${w} × ${h}${isSelected?'':' (inactive)'}`,
           fontSize: 12/s, fill: frameColor, listening: false,
@@ -7992,13 +8014,13 @@ function drawCameraPreviewOverlays() {
         const dragging = state.cameraPreview.gizmo.active &&
           state.cameraPreview.gizmo.type === 'deadzone' &&
           state.cameraPreview.gizmo.nodeId === cam.id;
-        gridGroup.add(new Konva.Rect({
+        guides.add(new Konva.Rect({
           x: dzx, y: dzy, width: dzw, height: dzh,
           fill: 'rgba(255,179,0,0.08)', stroke: dragging ? '#ffd740' : '#ffb300',
-          strokeWidth: (dragging ? 2.5 : 2)/s, dash:[4/s,4/s], listening:false,
+          ...getNodeOutlineAttrs(), listening:false,
         }));
         if (ov.showLabels) {
-          gridGroup.add(new Konva.Text({
+          guides.add(new Konva.Text({
             x: dzx+3/s, y: dzy+3/s,
             text: `Dead Zone  ${Math.round(dzw)} × ${Math.round(dzh)}`,
             fontSize: 10/s, fill: '#ffb300', listening: false,
@@ -8013,16 +8035,16 @@ function drawCameraPreviewOverlays() {
       const lay = Number(cam.properties?.lookAheadY) || 0;
       const cx = x + w/2, cy = y + h/2;
       if (lax !== 0 || lay !== 0) {
-        gridGroup.add(new Konva.Arrow({
+        guides.add(new Konva.Arrow({
           points:[cx,cy,cx+lax,cy+lay], stroke:'#ff4081', fill:'#ff4081',
           pointerLength:10/s, pointerWidth:8/s, strokeWidth:2/s, listening:false,
         }));
         if (lax !== 0 && lay !== 0) {
-          gridGroup.add(new Konva.Arrow({
+          guides.add(new Konva.Arrow({
             points:[cx,cy,cx+lax,cy], stroke:'rgba(255,64,129,0.4)', fill:'rgba(255,64,129,0.4)',
             pointerLength:6/s, pointerWidth:5/s, strokeWidth:1/s, dash:[4/s,3/s], listening:false,
           }));
-          gridGroup.add(new Konva.Arrow({
+          guides.add(new Konva.Arrow({
             points:[cx,cy,cx,cy+lay], stroke:'rgba(255,64,129,0.4)', fill:'rgba(255,64,129,0.4)',
             pointerLength:6/s, pointerWidth:5/s, strokeWidth:1/s, dash:[4/s,3/s], listening:false,
           }));
@@ -8031,7 +8053,7 @@ function drawCameraPreviewOverlays() {
           const lines = [];
           if (lax!==0) lines.push(`Look Ahead X: ${Math.round(lax)}`);
           if (lay!==0) lines.push(`Look Ahead Y: ${Math.round(lay)}`);
-          gridGroup.add(new Konva.Text({
+          guides.add(new Konva.Text({
             x:cx+lax+6/s, y:cy+lay-8/s,
             text:lines.join('\n'), fontSize:10/s, fill:'#ff4081', listening:false,
           }));
@@ -8053,7 +8075,7 @@ function drawCameraPreviewOverlays() {
       gridGroup.add(new Konva.Rect({
         x:bx, y:by, width:bw, height:bh,
         fill:'rgba(76,175,80,0.05)', stroke: dragging ? '#81c784' : '#4caf50',
-        strokeWidth:(dragging?3.5:3)/s, dash:[12/s,6/s], listening:false,
+        ...getNodeOutlineAttrs(), listening:false,
       }));
       if (ov.showLabels) {
         gridGroup.add(new Konva.Text({
@@ -8110,8 +8132,7 @@ function drawCameraPreviewOverlays() {
         x:zx, y:zy, width:zw, height:zh,
         fill: isActive ? hexWithAlpha(color, 0.14) : hexWithAlpha(color, enabled ? 0.07 : 0.03),
         stroke: dragging ? '#fff' : (isActive ? '#ffffff' : (enabled ? color : '#555')),
-        strokeWidth: (dragging ? 2.5 : isActive ? 2.5 : 1.5)/s,
-        dash: isActive ? [] : [6/s,4/s], listening:false,
+        ...getNodeOutlineAttrs(), listening:false,
       }));
       if (ov.showLabels) {
         const zoom = Number(zp.zoom) || 1;
@@ -8157,7 +8178,7 @@ function renderViewport() {
     const selfVisible = node.visible !== false;
     const tileMapPaintMode = isTileMapScenePaintModeActive();
     shape.id(node.id); shape.visible(inheritedVisible && selfVisible);
-    const cameraPathHandleMode = state.tool === 'camera-path' && node.type === 'CameraPath2D';
+    const cameraPathHandleMode = state.tool === 'camera-path' && isEditablePathNode(node);
     shape.draggable(node.type !== 'TileMap' && !tileMapPaintMode && state.tool !== 'pan' && !cameraPathHandleMode && node.locked !== true);
     if (ancestryIds.has(node.id)) addHierarchyOutline(shape, node, 'ancestor');
     if (selectedIds.has(node.id))  addHierarchyOutline(shape, node, 'selected');
@@ -8279,6 +8300,11 @@ function drawViewportGuides() {
   }));
 }
 
+// Shared editor guide style: keep node colors, with consistent screen-space strokes.
+function getNodeOutlineAttrs() {
+  return { strokeWidth: 1.5, dash: [6, 4], strokeScaleEnabled: false };
+}
+
 function getKonvaNodeBaseAttrs(node) {
   return {
     x: Number(node.transform?.x) || 0,
@@ -8312,19 +8338,28 @@ function buildUiNodeGroup(node) {
   const h = Math.max(1, Number(node.properties?.height) || 48);
   const g = new Konva.Group({ ...getKonvaNodeBaseAttrs(node), draggable:false });
   const isFocused = getSelectionSet().has(node.id);
+  if (node.type === 'FocusGroup') {
+    g.getClientRect = function(config = {}) {
+      const rect = { x: 0, y: 0, width: w, height: h };
+      return config.skipTransform ? rect : this._transformedRect(rect, config.relativeTo);
+    };
+    g.add(new Konva.Rect({ width: w, height: h, stroke: '#e5c97a', fill: 'rgba(229,201,122,0.04)', ...getNodeOutlineAttrs() }));
+    g.add(new Konva.Text({ x: 6, y: 6, text: node.name || 'FocusGroup', fill: '#e5c97a', fontSize: 12, listening: false }));
+    return g;
+  }
   if (node.type === 'CanvasLayer') {
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(139,92,246,0.04)', stroke: '#9b59ff', strokeWidth: 1.5, dash: [10, 6] }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(139,92,246,0.04)', stroke: '#9b59ff', ...getNodeOutlineAttrs() }));
     g.add(new Konva.Text({ x: 8, y: 8, text: `${node.name} (CanvasLayer)`, fill: '#efe7ff', fontSize: 13 }));
     return g;
   }
   if (node.type === 'Control') {
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(89,105,129,0.12)', stroke: isFocused ? '#e5c97a' : '#7b8ca8', strokeWidth: 1.5, dash: [6, 4] }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(89,105,129,0.12)', stroke: isFocused ? '#e5c97a' : '#7b8ca8', ...getNodeOutlineAttrs() }));
     g.add(new Konva.Text({ x: 8, y: 8, text: node.name || 'Control', fill: '#d5deea', fontSize: 12 }));
     return g;
   }
   if (node.type === 'HBoxContainer') {
     const sep = Math.max(0, Number(node.properties?.separation) || 4);
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(64,160,110,0.07)', stroke: isFocused ? '#e5c97a' : '#40a06e', strokeWidth: 1.5, dash: [8, 4] }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(64,160,110,0.07)', stroke: isFocused ? '#e5c97a' : '#40a06e', ...getNodeOutlineAttrs() }));
     g.add(new Konva.Text({ x: 6, y: 4, text: `${node.name} (HBox)`, fill: '#a0e0b8', fontSize: 11 }));
     // Draw child slot guides
     const children = getChildren(node.id);
@@ -8342,7 +8377,7 @@ function buildUiNodeGroup(node) {
   }
   if (node.type === 'VBoxContainer') {
     const sep = Math.max(0, Number(node.properties?.separation) || 4);
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(90,140,220,0.07)', stroke: isFocused ? '#e5c97a' : '#5a8cdc', strokeWidth: 1.5, dash: [8, 4] }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(90,140,220,0.07)', stroke: isFocused ? '#e5c97a' : '#5a8cdc', ...getNodeOutlineAttrs() }));
     g.add(new Konva.Text({ x: 6, y: 4, text: `${node.name} (VBox)`, fill: '#a8c8f8', fontSize: 11 }));
     const children = getChildren(node.id);
     if (children.length > 1) {
@@ -8362,17 +8397,17 @@ function buildUiNodeGroup(node) {
     const pT = Number(node.properties?.paddingTop    ?? 8);
     const pR = Number(node.properties?.paddingRight  ?? 8);
     const pB = Number(node.properties?.paddingBottom ?? 8);
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(200,140,60,0.07)', stroke: isFocused ? '#e5c97a' : '#c8863c', strokeWidth: 1.5, dash: [8, 4] }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(200,140,60,0.07)', stroke: isFocused ? '#e5c97a' : '#c8863c', ...getNodeOutlineAttrs() }));
     // Inner content area
     const iw = Math.max(2, w - pL - pR), ih = Math.max(2, h - pT - pB);
     if (iw > 2 && ih > 2) {
-      g.add(new Konva.Rect({ x: pL, y: pT, width: iw, height: ih, fill: 'rgba(200,140,60,0.06)', stroke: '#c8863c', strokeWidth: 1, dash: [3, 3], opacity: 0.6 }));
+      g.add(new Konva.Rect({ x: pL, y: pT, width: iw, height: ih, fill: 'rgba(200,140,60,0.06)', stroke: '#c8863c', ...getNodeOutlineAttrs(), opacity: 0.6 }));
     }
     g.add(new Konva.Text({ x: 6, y: 4, text: `${node.name} (Margin)`, fill: '#e8c080', fontSize: 11 }));
     return g;
   }
   if (node.type === 'ScrollContainer') {
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(180,80,180,0.07)', stroke: isFocused ? '#e5c97a' : '#b450b4', strokeWidth: 1.5, dash: [8, 4] }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(180,80,180,0.07)', stroke: isFocused ? '#e5c97a' : '#b450b4', ...getNodeOutlineAttrs() }));
     // Scrollbar hint right
     g.add(new Konva.Rect({ x: w - 8, y: 0, width: 8, height: h, fill: 'rgba(180,80,180,0.15)', stroke: 'none' }));
     // Scrollbar hint bottom
@@ -8454,7 +8489,7 @@ function buildUiNodeGroup(node) {
       loadImageIntoCache(node.id, node.properties.imageDataUrl, renderViewport);
       g.add(fallbackBox(w, h, 'NineSlice…', '#b464ff'));
     } else {
-      g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(100,50,150,0.12)', stroke: '#b464ff', strokeWidth: 1.5, dash: [8, 4] }));
+      g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(100,50,150,0.12)', stroke: '#b464ff', ...getNodeOutlineAttrs() }));
       g.add(new Konva.Text({ x: 8, y: 8, text: node.name || 'NineSlicePanel', fill: '#d5b8ff', fontSize: 12 }));
     }
     return g;
@@ -8519,7 +8554,7 @@ function _addPhysicsShapesOverlay(g, node) {
     const ch = Math.max(1, Number(comp.height) || nh);
     hasOverlay = true;
     if (!physicsShapes.length) {
-      overlayGroup.add(new Konva.Rect({ x: ox, y: oy, width: cw, height: ch, stroke: '#6dbd79', strokeWidth: 1.5, dash: [5,3], listening: false }));
+      overlayGroup.add(new Konva.Rect({ x: ox, y: oy, width: cw, height: ch, stroke: '#6dbd79', ...getNodeOutlineAttrs(), listening: false }));
       return;
     }
     physicsShapes.forEach((s) => {
@@ -8544,7 +8579,7 @@ function buildKonvaForNode(node) {
   if (isUiNodeType(node.type)) return buildUiNodeGroup(node);
   if (node.type === 'Node2D' || node.type === 'SceneRoot') {
     const g = new Konva.Group(base);
-    g.add(new Konva.Rect({ width: node.properties.width || 160, height: node.properties.height || 120, fill: hexWithAlpha(node.properties.tint || '#5e7594', 0.15), stroke: node.properties.tint || '#5e7594', strokeWidth: 1.5, dash: [8, 5] }));
+    g.add(new Konva.Rect({ width: node.properties.width || 160, height: node.properties.height || 120, fill: hexWithAlpha(node.properties.tint || '#5e7594', 0.15), stroke: node.properties.tint || '#5e7594', ...getNodeOutlineAttrs() }));
     const nameLabel = new Konva.Text({ x: 8, y: 8, text: node.name, fill: '#c8d6ea', fontSize: 14, listening: false });
     nameLabel.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
     g.add(nameLabel);
@@ -8559,10 +8594,32 @@ function buildKonvaForNode(node) {
   if (node.type === 'CameraZone2D')        return buildCameraZoneGroup(node);
   if (node.type === 'CameraBounds2D')      return buildCameraBoundsGroup(node);
   if (node.type === 'CameraTargetGroup')   return buildCameraTargetGroup(node);
-  if (node.type === 'CameraPath2D')        return buildCameraPathGroup(node);
+  if (isEditablePathNode(node)) return buildCameraPathGroup(node);
+  if (['Marker2D','Timer','TriggerZone2D','PathFollow2D','Parallax2D','VisibilityEnabler2D','Spawner2D'].includes(node.type)) return buildGameplayHelperGroup(node);
   return fallbackUnknownNode(node);
 }
 
+
+function buildGameplayHelperGroup(node) {
+  const g = new Konva.Group(getKonvaNodeBaseAttrs(node));
+  const p = node.properties || {};
+  const color = p.tint || '#66c9e8';
+  const region = ['TriggerZone2D','VisibilityEnabler2D','Parallax2D'].includes(node.type);
+  if (region) {
+    const w = Math.max(1, Number(p.width) || 160), h = Math.max(1, Number(p.height) || 120);
+    g.add(new Konva.Rect({ width: w, height: h, stroke: color, fill: hexWithAlpha(color, 0.06), ...getNodeOutlineAttrs() }));
+    g.add(new Konva.Text({ x: 6, y: 6, text: node.name || node.type, fill: color, fontSize: 12, listening: false }));
+    g.getClientRect = function(config = {}) { const rect = { x: 0, y: 0, width: w, height: h }; return config.skipTransform ? rect : this._transformedRect(rect, config.relativeTo); };
+  } else {
+    const size = Math.max(8, Number(p.gizmoSize) || 16);
+    g.add(new Konva.Rect({ x: -size, y: -size, width: size*2, height: size*2, fill: hexWithAlpha(color, 0.08), stroke: color, ...getNodeOutlineAttrs() }));
+    g.add(new Konva.Line({ points: [-size, 0, size, 0], stroke: color, strokeWidth: 1.5, strokeScaleEnabled: false, listening: false }));
+    g.add(new Konva.Line({ points: [0, -size, 0, size], stroke: color, strokeWidth: 1.5, strokeScaleEnabled: false, listening: false }));
+    g.add(new Konva.Text({ x: size+5, y: -6, text: node.name || node.type, fill: color, fontSize: 12, listening: false }));
+    g.getClientRect = function(config = {}) { const rect = { x: -size, y: -size, width: size*2, height: size*2 }; return config.skipTransform ? rect : this._transformedRect(rect, config.relativeTo); };
+  }
+  return g;
+}
 
 function buildCamera2DGroup(node){const g=new Konva.Group(getKonvaNodeBaseAttrs(node));const w=Math.max(1,Number(node.properties?.width)||320),h=Math.max(1,Number(node.properties?.height)||180);const hit=new Konva.Rect({x:0,y:0,width:w,height:h,fill:'rgba(0,0,0,0.001)',listening:true});hit.getSelfRect=()=>({x:0,y:0,width:w,height:h});g.add(hit);return g;}
 
@@ -8590,8 +8647,7 @@ function buildCameraZoneGroup(node) {
     x: 0, y: 0, width: w, height: h,
     fill: hexWithAlpha(color, alpha),
     stroke: enabled ? color : '#666',
-    strokeWidth: 1.5,
-    dash: [8, 4],
+    ...getNodeOutlineAttrs(),
     listening: false,
   }));
 
@@ -8653,7 +8709,7 @@ function buildCameraBoundsGroup(node) {
   const g = new Konva.Group(getKonvaNodeBaseAttrs(node));
   const w = Math.max(1, Number(node.properties?.width) || 1024);
   const h = Math.max(1, Number(node.properties?.height) || 768);
-  g.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: 'rgba(33,150,243,0.05)', stroke: '#2196f3', strokeWidth: 2, dash: [12, 6], listening: false }));
+  g.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill: 'rgba(33,150,243,0.05)', stroke: '#2196f3', ...getNodeOutlineAttrs(), listening: false }));
   g.add(new Konva.Text({ x: 6, y: 6, text: `${node.name || 'Camera Bounds'}  ${w} × ${h}`, fontSize: 12, fill: '#2196f3', listening: false }));
   return g;
 }
@@ -8671,12 +8727,18 @@ function buildCameraTargetGroup(node) {
 
   // Hit area (centered icon — 64×64)
   const ICON_SIZE = 64;
+  // The target framing guides and labels can extend far beyond this tool's icon.
+  // Keep selection and resize handles on the icon, independent of debug overlays.
+  g.getClientRect = function(config = {}) {
+    const rect = { x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE };
+    return config.skipTransform ? rect : this._transformedRect(rect, config.relativeTo);
+  };
   const hitRect = new Konva.Rect({ x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, fill: 'rgba(255,152,0,0.06)', listening: true });
   hitRect.getSelfRect = () => ({ x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE });
   g.add(hitRect);
 
   // Icon outline
-  g.add(new Konva.Rect({ x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, fill: 'rgba(255,152,0,0.08)', stroke: '#ff9800', strokeWidth: 2, dash: [6, 4], listening: false }));
+  g.add(new Konva.Rect({ x: 0, y: 0, width: ICON_SIZE, height: ICON_SIZE, fill: 'rgba(255,152,0,0.08)', stroke: '#ff9800', ...getNodeOutlineAttrs(), listening: false }));
 
   // Node label
   g.add(new Konva.Text({ x: 4, y: 4, text: node.name || 'TargetGroup', fontSize: 11, fill: '#ff9800', listening: false }));
@@ -8714,10 +8776,10 @@ function buildCameraTargetGroup(node) {
     const innerW = maxX - minX, innerH = maxY - minY;
 
     // Padding outline
-    g.add(new Konva.Rect({ x: rectX, y: rectY, width: Math.max(1, rectW), height: Math.max(1, rectH), fill: 'rgba(255,152,0,0.04)', stroke: '#ff9800', strokeWidth: 1.5, dash: [10, 5], listening: false }));
+    g.add(new Konva.Rect({ x: rectX, y: rectY, width: Math.max(1, rectW), height: Math.max(1, rectH), fill: 'rgba(255,152,0,0.04)', stroke: '#ff9800', ...getNodeOutlineAttrs(), listening: false }));
     // Inner target bounds
     if (innerW > 0 || innerH > 0) {
-      g.add(new Konva.Rect({ x: innerX, y: innerY, width: Math.max(1, innerW), height: Math.max(1, innerH), fill: 'transparent', stroke: '#ffcc02', strokeWidth: 1, dash: [4, 4], listening: false }));
+      g.add(new Konva.Rect({ x: innerX, y: innerY, width: Math.max(1, innerW), height: Math.max(1, innerH), fill: 'transparent', stroke: '#ffcc02', ...getNodeOutlineAttrs(), listening: false }));
     }
 
     // Center crosshair
@@ -8746,6 +8808,7 @@ function buildCameraTargetGroup(node) {
 
 function buildCameraPathGroup(node) {
   const g = new Konva.Group(getKonvaNodeBaseAttrs(node));
+  const pathColor = node.type === 'Path2D' ? (node.properties?.tint || '#66c9e8') : '#ff9800';
   const points = ensureCameraPathPoints(node);
   const screen = getTileMapScreenBounds();
   const xs = points.map(p => Number(p.x) || 0);
@@ -8754,8 +8817,14 @@ function buildCameraPathGroup(node) {
   const minY = ys.length ? Math.min(...ys) : 0;
   const maxX = xs.length ? Math.max(...xs) : screen.width;
   const maxY = ys.length ? Math.max(...ys) : screen.height;
-  const w = Math.max(screen.width, (maxX - minX) + 64);
-  const h = Math.max(screen.height, (maxY - minY) + 64);
+  const w = Math.max(node.type === 'Path2D' ? 32 : screen.width, (maxX - minX) + 64);
+  const h = Math.max(node.type === 'Path2D' ? 32 : screen.height, (maxY - minY) + 64);
+  const pathBounds = node.type === 'Path2D'
+    ? { x: minX - 16, y: minY - 16, width: Math.max(32, maxX - minX + 32), height: Math.max(32, maxY - minY + 32) }
+    : { x: 0, y: 0, width: screen.width, height: screen.height };
+  if (node.type === 'Path2D') g.getClientRect = function(config = {}) {
+    return config.skipTransform ? { ...pathBounds } : this._transformedRect(pathBounds, config.relativeTo);
+  };
   const editMode = isCameraPathEditMode() && state.selectedId === node.id;
   g.setAttr('cameraPathEditor', true);
 
@@ -8778,26 +8847,23 @@ function buildCameraPathGroup(node) {
 };
 
   const hitRect = new Konva.Rect({
-    x:0,
-    y:0,
-    width:screen.width,
-    height:screen.height,
+    ...pathBounds,
     fill:'rgba(255, 123, 0, 0.02)',
     listening:false
   });
 
-  hitRect.getSelfRect=()=>({x:0,y:0,width:screen.width,height:screen.height});
+  hitRect.getSelfRect=()=>({ ...pathBounds });
   g.add(hitRect);
 
   // Path line uses different colors for closed vs open; segment lines for hover
-  const pathLine = new Konva.Line({ points: [], stroke:'#ff9800', strokeWidth: editMode ? 2.5 : 2, dash:[6,3], listening:false });
-  const closeLine = new Konva.Line({ points: [], stroke:'#ff9800', strokeWidth:1.5, dash:[4,4], listening:false });
+  const pathLine = new Konva.Line({ points: [], stroke: pathColor, ...getNodeOutlineAttrs(), listening:false });
+  const closeLine = new Konva.Line({ points: [], stroke: pathColor, ...getNodeOutlineAttrs(), listening:false });
   // Invisible segment lines for hit detection (one per segment)
   const segmentLines = [];
   g.add(pathLine);
   g.add(closeLine);
 
-  const label = new Konva.Text({ x: 6, y: 6, text: node.name || 'CameraPath2D', fontSize: 12, fill: '#ff9800', listening: false });
+  const label = new Konva.Text({ x: 6, y: 6, text: node.name || node.type, fontSize: 12, fill: pathColor, listening: false });
   g.add(label);
 
   const refreshPathVisuals = () => {
@@ -8938,7 +9004,8 @@ function buildCameraPathGroup(node) {
     g.add(pointLabel);
   });
 
-  g.add(new Konva.Rect({ x: 0, y: 0, width: w, height: h, fill:'rgba(255,152,0,0.05)', stroke: '#ffae00', strokeWidth: 1.5, dash: [8, 4], listening: false }));
+  g.add(new Konva.Rect({ ...(node.type === 'Path2D' ? pathBounds : { x: 0, y: 0, width: w, height: h }), fill: hexWithAlpha(pathColor, 0.05), stroke: pathColor, ...getNodeOutlineAttrs(), listening: false }));
+  if (node.type === 'Path2D') return g;
 
 
   // ── Preview transport marker ─────────────────────────────────────────────
@@ -9001,6 +9068,7 @@ function buildCameraPathGroup(node) {
 
 function getNodeVisualSize(node) {
   if (!node) return { width: 96, height: 96 };
+  if (node.type === 'CameraTargetGroup') return { width: 64, height: 64 };
   if (node.type === 'TileMap') {
     const props = ensureTileMapData(node);
     return {
@@ -9012,16 +9080,17 @@ function getNodeVisualSize(node) {
   return { width: Math.max(1, Number(node.properties?.width) || 96), height: Math.max(1, Number(node.properties?.height) || 96) };
 }
 function addHierarchyOutline(shape, node, style = 'ancestor') {
+  if (['Marker2D','Timer','PathFollow2D','Spawner2D','Path2D'].includes(node?.type)) return;
   if (!shape || !node || isRootNodeId(node.id) || !(shape instanceof Konva.Group) || node.type === 'CameraPath2D' || node.type === 'CameraBounds2D' || node.type === 'CameraZone2D') return;
   const { width, height } = getNodeVisualSize(node);
-  const outline = new Konva.Rect({ x: 0, y: 0, width, height, stroke: style === 'ancestor' ? '#6ec6e8' : '#e5c97a', dash: style === 'ancestor' ? [6, 4] : [3, 3], strokeWidth: style === 'ancestor' ? 1.5 : 1, listening: false, opacity: style === 'ancestor' ? 0.55 : 0.45, name: 'hierarchy-outline' });
+  const outline = new Konva.Rect({ x: 0, y: 0, width, height, stroke: style === 'ancestor' ? '#6ec6e8' : '#e5c97a', ...getNodeOutlineAttrs(), listening: false, opacity: style === 'ancestor' ? 0.55 : 0.45, name: 'hierarchy-outline' });
   outline.getClientRect = () => ({ x: 0, y: 0, width: 0, height: 0 });
   shape.add(outline);
 }
 function fallbackUnknownNode(node) {
   const g = new Konva.Group(getKonvaNodeBaseAttrs(node));
   const w = Math.max(40, Number(node.properties?.width) || 120), h = Math.max(28, Number(node.properties?.height) || 48);
-  g.add(new Konva.Rect({ width: w, height: h, fill: '#202634', stroke: '#5e7594', strokeWidth: 1.5, dash: [5, 4] }));
+  g.add(new Konva.Rect({ width: w, height: h, fill: '#202634', stroke: '#5e7594', ...getNodeOutlineAttrs() }));
   g.add(new Konva.Text({ width: w, height: h, text: node.name || node.type, align: 'center', verticalAlign: 'middle', fill: '#c8d6ea', fontSize: 13 }));
   return g;
 }
@@ -9066,7 +9135,7 @@ function buildSceneInstanceGroup(node) {
   const localChildCount = getChildren(node.id).length;
   const g = new Konva.Group(getKonvaNodeBaseAttrs(node));
   const ready = cache?.status === 'ready';
-  g.add(new Konva.Rect({ width: w, height: h, fill: ready ? 'rgba(111,193,106,0.08)' : 'rgba(224,108,117,0.08)', stroke: ready ? '#6dbd79' : '#e06c75', strokeWidth: 1.5, dash: [8, 5] }));
+  g.add(new Konva.Rect({ width: w, height: h, fill: ready ? 'rgba(111,193,106,0.08)' : 'rgba(224,108,117,0.08)', stroke: ready ? '#6dbd79' : '#e06c75', ...getNodeOutlineAttrs() }));
   g.add(new Konva.Text({ x: 8, y: 8, text: `SceneInstance: ${node.properties?.sourceSceneName || cache?.sourceName || node.name}`, fill: ready ? '#d7f0dd' : '#ffd2d5', fontSize: 13 }));
   g.add(new Konva.Text({ x: 8, y: 28, text: node.properties?.sourceScenePath || '(missing source)', fill: '#9fb1c7', fontSize: 11 }));
   g.add(new Konva.Text({ x: 8, y: 42, text: `Overrides: ${overrideCount} · Local children: ${localChildCount}`, fill: '#9fb1c7', fontSize: 10 }));
@@ -9093,7 +9162,7 @@ function buildKonvaForPreviewNode(node) {
   base.listening = false;
   if (node.type === 'Node2D') {
     const g = new Konva.Group(base);
-    g.add(new Konva.Rect({ width: node.properties?.width || 160, height: node.properties?.height || 120, fill: hexWithAlpha(node.properties?.tint || '#5e7594', 0.09), stroke: '#7f90ac', strokeWidth: 1, dash: [6,4], listening: false }));
+    g.add(new Konva.Rect({ width: node.properties?.width || 160, height: node.properties?.height || 120, fill: hexWithAlpha(node.properties?.tint || '#5e7594', 0.09), stroke: '#7f90ac', ...getNodeOutlineAttrs(), listening: false }));
     return g;
   }
   if (node.type === 'Sprite2D') {
@@ -9119,12 +9188,12 @@ function buildKonvaForPreviewNode(node) {
     const w = Math.max(1, Number(node.properties?.width) || 96);
     const h = Math.max(1, Number(node.properties?.height) || 48);
     const g = new Konva.Group(base);
-    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(155,89,255,0.05)', stroke: '#b496ff', strokeWidth: 1, dash: [4,3], listening: false }));
+    g.add(new Konva.Rect({ width: w, height: h, fill: 'rgba(155,89,255,0.05)', stroke: '#b496ff', ...getNodeOutlineAttrs(), listening: false }));
     return g;
   }
   if (node.type === 'SceneInstance') {
     const g = new Konva.Group(base);
-    g.add(new Konva.Rect({ width: node.properties?.width || 120, height: node.properties?.height || 90, fill: 'rgba(109,189,121,0.06)', stroke: '#6dbd79', strokeWidth: 1, dash: [5,4], listening: false }));
+    g.add(new Konva.Rect({ width: node.properties?.width || 120, height: node.properties?.height || 90, fill: 'rgba(109,189,121,0.06)', stroke: '#6dbd79', ...getNodeOutlineAttrs(), listening: false }));
     return g;
   }
   return fallbackUnknownNode(node);
@@ -9325,7 +9394,7 @@ function buildTileMapGroup(node) {
 }
 function fallbackBox(w, h, label, stroke) {
   const g = new Konva.Group();
-  g.add(new Konva.Rect({ width: w, height: h, stroke, strokeWidth: 1.5, dash: [6, 4], fill: 'rgba(95,178,211,0.07)' }));
+  g.add(new Konva.Rect({ width: w, height: h, stroke, ...getNodeOutlineAttrs(), fill: 'rgba(95,178,211,0.07)' }));
   g.add(new Konva.Text({ width: w, height: h, text: label, align: 'center', verticalAlign: 'middle', fill: '#7bbfd4', fontSize: 14 }));
   return g;
 }

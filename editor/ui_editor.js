@@ -203,6 +203,18 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     }
     field('Opacity (0–1)', 'properties.opacity', 'number'); field('Draw order', 'zIndex', 'number');
     if(node.type==='CanvasLayer') field('Layer order','properties.layer','number');
+    if (node.type === 'FocusGroup') {
+      field('Enabled', 'properties.enabled', 'checkbox');
+      field('Initial focus (node ID or name)', 'properties.initialFocus');
+      field('Wrap navigation', 'properties.wrap', 'checkbox');
+      field('Restore focus when reopened', 'properties.restoreFocus', 'checkbox');
+      field('Keep navigation inside group', 'properties.trapFocus', 'checkbox');
+    }
+    if (node.type.includes('Button') || ['MenuList','Control'].includes(node.type) || node.properties?.focusable === true) {
+      field('Focusable', 'properties.focusable', 'checkbox');
+      field('Default focus', 'properties.defaultFocus', 'checkbox');
+      for (const direction of ['Up','Down','Left','Right']) field('Focus ' + direction.toLowerCase() + ' (node ID or name)', 'properties.focus' + direction);
+    }
     if (['TextureRect','NineSlicePanel','Button','Panel'].includes(node.type)) {
       const path = document.createElement('p'); path.className = 'ui-property-path'; path.textContent = node.properties.imagePath || 'No image selected'; group('Image').append(path);
       const pick = document.createElement('button'); pick.type = 'button'; pick.textContent = 'Choose image…'; pick.disabled = locked;

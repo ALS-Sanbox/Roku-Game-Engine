@@ -169,6 +169,7 @@ sub RokuEngine_UpdateNodeWorldTransform(scene as Object, nodeId as String, paren
   currentWorldVersion = invalid
   if selfDirty then
     world = RokuEngine_ComposeTransform(parentWorld, localTransform)
+    world = RokuGameplay_ParallaxWorld(m, node, world)
     transforms.worldTransforms[nodeId] = world
     if scene.debugStats <> invalid then scene.debugStats.transformUpdateCount = scene.debugStats.transformUpdateCount + 1
     transforms.transformFlags[nodeId] = false

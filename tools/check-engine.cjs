@@ -237,7 +237,17 @@ async function main() {
         return {rect,anchors:transformer.nodes().map(s=>s.id()),pivot:!!shape.findOne('.pivot-marker')};
       })()`);
       if(bounds.rect.x!==0||bounds.rect.y!==0||bounds.rect.width!==48||bounds.rect.height!==32||!bounds.pivot||bounds.anchors[0]!=='player')throw new Error('Selection bounds mismatch: '+JSON.stringify(bounds));
-      console.log('SELECTION_BOUNDS',JSON.stringify(bounds));return;
+      console.log('SELECTION_BOUNDS',JSON.stringify(bounds));
+      const targetBounds=await evaluate(sessionId,`(()=>{
+        const n={id:'targetBoundsCheck',name:'Very long camera target group label',type:'CameraTargetGroup',transform:{x:200,y:100,scaleX:2,scaleY:1.5,rotation:0},properties:{targets:[{nodeId:'player'}],showDebug:true}};
+        const g=buildCameraTargetGroup(n);addHierarchyOutline(g,n,'selected');
+        const local=g.getClientRect({skipTransform:true,skipStroke:true}),world=g.getClientRect({skipStroke:true});
+        const outline=g.findOne('.hierarchy-outline');
+        const result={local,world,outline:{width:outline.width(),height:outline.height()},guides:g.getChildren().length};
+        g.destroy();return result;
+      })()`);
+      if(targetBounds.local.width!==64||targetBounds.local.height!==64||targetBounds.world.width!==128||targetBounds.world.height!==96||targetBounds.outline.width!==64||targetBounds.outline.height!==64||targetBounds.guides<8)throw new Error('Camera target group bounds mismatch: '+JSON.stringify(targetBounds));
+      console.log('CAMERA_TARGET_GROUP_BOUNDS',JSON.stringify(targetBounds));return;
     }
     if (process.argv.includes('--release-screenshot')) {
       await require('./capture-release-screenshot.cjs')({send,evaluate,sessionId,root});
