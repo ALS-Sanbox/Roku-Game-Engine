@@ -405,8 +405,10 @@ function buildClassicExportMetadataFiles(scenes = [], options = {}) {
   for (const sceneEntry of (Array.isArray(scenes) ? scenes : [])) {
     const runtimeScene = cloneJson(sceneEntry && sceneEntry.runtimeScene || {});
     const editorState = cloneJson(sceneEntry && sceneEntry.editorState || {});
+    let audioState={};try{audioState=JSON.parse(editorState.audioEngine||'{}');}catch{}
     const bakeResult = bakeTerrainForRuntimeScene(runtimeScene, editorState, exportOptions);
     const sceneName = String((runtimeScene.scene && runtimeScene.scene.name) || (sceneEntry && sceneEntry.sceneName) || 'Scene').trim() || 'Scene';
+    for(const clip of audioState.clips||[]){if(clip.path){const id=String(clip.id||clip.path);audio[sceneName+'::'+id]={...clip,id,sceneName,path:normalizeTexturePath(clip.path),kind:'audio'};}}
 
     if (!runtimeScene.formatVersion) runtimeScene.formatVersion = 2;
     if (!runtimeScene.scene || typeof runtimeScene.scene !== 'object') runtimeScene.scene = { name: sceneName, rootNodeId: '' };
@@ -487,9 +489,9 @@ function buildClassicExportMetadataFiles(scenes = [], options = {}) {
       const components = Array.isArray(node.components) ? node.components : [];
       for (const component of components) {
         if (!component || typeof component !== 'object') continue;
-        if (component.type === 'AudioSource' && component.resourcePath) {
+        if (['AudioSource','AudioSourceComponent'].includes(component.type) && component.resourcePath) {
           const audioId = String(component.audioId || component.id || component.resourcePath).trim();
-          if (audioId) audio[audioId] = { id: audioId, path: normalizeTexturePath(component.resourcePath), kind: 'audio' };
+          if (audioId && !Object.values(audio).some(a=>a.sceneName===sceneName&&a.path===normalizeTexturePath(component.resourcePath))) audio[sceneName+'::'+audioId] = { id: audioId, sceneName, path: normalizeTexturePath(component.resourcePath), kind: 'audio' };
         }
       }
     }

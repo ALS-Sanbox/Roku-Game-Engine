@@ -21,11 +21,47 @@ sub RokuEngine_RenderUiPass()
         ' Visibility filtering
         if screen_tf.visible = false then continue for
         if screen_tf.opacity <= 0.0 then continue for
-        m.RenderUiNode(node, screen_tf)
+        clip = RokuUi_AncestorClip(m,node)
+        if clip = invalid then
+          m.RenderUiNode(node, screen_tf)
+        else if clip.w > 0 and clip.h > 0 then
+          if m.uiClipSurface = invalid then m.uiClipSurface = CreateObject("roBitmap",{width:m.width,height:m.height,alphaEnable:true})
+          if m.uiClipSurface <> invalid then
+            originalScreen = m.screen
+            m.uiClipSurface.Clear(&h00000000)
+            m.screen = m.uiClipSurface
+            m.RenderUiNode(node,screen_tf)
+            m.screen = originalScreen
+            clipped = CreateObject("roRegion",m.uiClipSurface,clip.x,clip.y,clip.w,clip.h)
+            if clipped <> invalid then m.screen.DrawObject(clip.x,clip.y,clipped)
+          end if
+        end if
       end if
     end if
   end for
 end sub
+
+function RokuUi_AncestorClip(engine as Object,node as Object) as Dynamic
+  clip = {x:0,y:0,w:engine.width,h:engine.height} : found = false : seen = {}
+  parentId = node.parentId
+  while parentId <> invalid and parentId <> "" and engine.scene.nodeMap.DoesExist(parentId)
+    if seen.DoesExist(parentId) then exit while
+    seen[parentId] = true : parent = engine.scene.nodeMap[parentId]
+    if parent.properties <> invalid and parent.properties.clipContent = true then
+      tf = engine.GetNodeScreenTransform(parentId)
+      right = clip.x+clip.w : bottom = clip.y+clip.h
+      px = Int(tf.x) : py = Int(tf.y) : pr = Int(tf.x+tf.width*tf.scaleX) : pb = Int(tf.y+tf.height*tf.scaleY)
+      if px > clip.x then clip.x = px
+      if py > clip.y then clip.y = py
+      if pr < right then right = pr
+      if pb < bottom then bottom = pb
+      clip.w = right-clip.x : clip.h = bottom-clip.y : found = true
+    end if
+    parentId = parent.parentId
+  end while
+  if not found then return invalid
+  return clip
+end function
 
 ' ── Per-node dispatch ─────────────────────────────────────────────────────────
 
@@ -130,6 +166,17 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
     if props.nineSliceStyleId <> invalid and props.nineSliceStyleId <> "" then
       style = RokuEngine_ResolveNineSliceStyle(m, RokuEngine_Trim(RokuEngine_ToString(props.nineSliceStyleId)))
       if style <> invalid then
+        stateRegion = ""
+        if style.buttonStates <> invalid then
+          stateRegion = _BRS_StrCoalesce(style.buttonStates.normal,"")
+          if focused and _BRS_StrCoalesce(style.buttonStates.hover,"") <> "" then stateRegion = style.buttonStates.hover
+          if pressed and _BRS_StrCoalesce(style.buttonStates.pressed,"") <> "" then stateRegion = style.buttonStates.pressed
+          if props.disabled = true and _BRS_StrCoalesce(style.buttonStates.disabled,"") <> "" then stateRegion = style.buttonStates.disabled
+        end if
+        if stateRegion <> "" then
+          stateStyle = RokuEngine_ResolveNineSliceStyle(m,stateRegion)
+          if stateStyle <> invalid then style = stateStyle
+        end if
         RokuEngine_DrawNineSliceStyled(m.screen, m, node, style, x, y, width, height, opacity)
         m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), _BRS_StrCoalesce(props.align, "center"), _BRS_StrCoalesce(props.valign, "center"), opacity, props)
         return
@@ -173,24 +220,8 @@ end sub
 ' Used when there is no named style — properties on the node itself drive rendering.
 
 sub RokuEngine_DrawNineSliceInline(screen as Object, engine as Object, node as Object, props as Object, x as Integer, y as Integer, w as Integer, h as Integer, opacity as Float)
-  region = engine.LoadImageAsset(props.imagePath)
-  if region = invalid then
-    screen.DrawRect(x, y, w, h, RokuEngine_ApplyAlpha(&h1E2F45FF, opacity))
-    RokuEngine_DrawUiOutlineRect(screen, x, y, w, h, RokuEngine_ApplyAlpha(&h5e7594FF, opacity))
-    return
-  end if
+  RokuEngine_DrawNineSliceStyled(screen,engine,node,props,x,y,w,h,opacity)
 
-  sl = _BRS_IntOr(props.sliceLeft, 16)
-  st = _BRS_IntOr(props.sliceTop, 16)
-  sr = _BRS_IntOr(props.sliceRight, 16)
-  sb = _BRS_IntOr(props.sliceBottom, 16)
-
-  centerMode = "stretch"
-  if props.centerMode <> invalid then centerMode = LCase(RokuEngine_Trim(RokuEngine_ToString(props.centerMode)))
-  edgeMode = "stretch"
-  if props.edgeMode <> invalid then edgeMode = LCase(RokuEngine_Trim(RokuEngine_ToString(props.edgeMode)))
-
-  RokuEngine_DrawNineSliceRegions(screen, engine, region, sl, st, sr, sb, x, y, w, h, centerMode, edgeMode, opacity)
 end sub
 
 ' ── MenuList drawing ──────────────────────────────────────────────────────────
@@ -261,6 +292,22 @@ sub RokuEngine_DrawProgressBar(screen as Object, engine as Object, node as Objec
   fillW = Int(w * fraction)
   if fillW > 0 then
     screen.DrawRect(x, y, fillW, h, fillColor)
+  end if
+  if props.nineSliceStyleId <> invalid then
+    style = RokuEngine_ResolveNineSliceStyle(engine,props.nineSliceStyleId)
+    if style <> invalid and style.progressRegions <> invalid then
+      regions = style.progressRegions
+      background = RokuEngine_ResolveNineSliceStyle(engine,_BRS_StrCoalesce(regions.background,""))
+      fill = RokuEngine_ResolveNineSliceStyle(engine,_BRS_StrCoalesce(regions.fill,""))
+      thumb = RokuEngine_ResolveNineSliceStyle(engine,_BRS_StrCoalesce(regions.thumb,""))
+      if background <> invalid then RokuEngine_DrawNineSliceStyled(screen,engine,node,background,x,y,w,h,opacity)
+      if fill <> invalid and fillW > 0 then RokuEngine_DrawNineSliceStyled(screen,engine,node,fill,x,y,fillW,h,opacity)
+      if thumb <> invalid then
+        thumbW = h
+        if thumb.sourceRect <> invalid and thumb.sourceRect.w > 0 then thumbW = Int(thumb.sourceRect.w)
+        RokuEngine_DrawNineSliceStyled(screen,engine,node,thumb,x+fillW-Int(thumbW*0.5),y,thumbW,h,opacity)
+      end if
+    end if
   end if
   ' Border
   for i = 0 to bw - 1

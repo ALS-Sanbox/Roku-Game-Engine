@@ -9,6 +9,7 @@ const molMode = process.argv.includes('--mol') || molEditorMode;
 const typographyMode = process.argv.includes('--typography');
 const scriptActionsMode = process.argv.includes('--script-actions');
 const slicingMode = process.argv.includes('--slicing');
+const nativeFeaturesMode = process.argv.includes('--native-features');
 const coordinatesMode = process.argv.includes('--coordinates') || typographyMode;
 const fixtureRoot = path.join(root, sampleMode ? '.visual-editor/sample-test-' + process.pid : '.visual-editor/engine-smoke-' + process.pid);
 if(sampleMode){fs.mkdirSync(fixtureRoot,{recursive:true});fs.cpSync(path.join(root,'samples/collect-the-stars'),fixtureRoot,{recursive:true});}
@@ -73,7 +74,7 @@ const scene = { formatVersion: 2, scene: { name: 'SmokeScene', rootNodeId: 'root
   node('root', 'SceneRoot', null, 0, 0),
   node('player', 'Node2D', 'root', 100, 150, { width: 64, height: 64, tint: '#00ff80' }),
   node('sprite', 'Sprite2D', 'player', 100, 0, { width: 64, height: 64, imagePath: 'res://images/pixel.png' }),
-  node('camera', 'Camera2D', 'root', 0, 0, { enabled: true, current: true, followTargetName: 'player', followLerp: 1, zoom: 1 }),
+  node('camera', 'Camera2D', 'root', 0, 0, { enabled: true, current: true, followTargetName: 'player', followLerp: 1, zoom: 1,lookAheadX:0 }),
   node('hud', 'CanvasLayer', 'root', 0, 0),
   node('panel', 'Panel', 'hud', 20, 20, { width: 400, height: 100, color: '#224466', opacity: 1 }),
   node('label', 'Label', 'hud', 30, 30, { width: 360, height: 60, text: 'Native Roku engine running', textColor: '#ffffff', fontSize: 22, opacity: 1 }),
@@ -84,7 +85,7 @@ if (coordinatesMode) {
   scene.nodes = [node('root','SceneRoot',null,0,0),
     node('parent','Node2D','root',400,250,{width:0,height:0}),
     node('sprite','Sprite2D','parent',100,50,{width:40,height:40,imagePath:'res://images/pixel.png'}),
-    node('camera','Camera2D','root',640,360,{current:true,enabled:true,zoom:2,cameraBounds:true,boundsX:320,boundsY:180,boundsWidth:640,boundsHeight:360}),
+    node('camera','Camera2D','root',640,360,{current:true,enabled:true,zoom:2,lookAheadX:0,cameraBounds:true,boundsX:320,boundsY:180,boundsWidth:640,boundsHeight:360}),
     node('hud','CanvasLayer','parent',0,0),
     node('container','Control','hud',100,50,{width:200,height:100}),
     node('panel','Panel','container',0,0,{width:60,height:20,color:'#224466',anchorLeft:1,anchorRight:1,marginLeft:-80,marginTop:10})];
@@ -145,10 +146,35 @@ if(slicingMode){
   for(let y=0;y<32;y++)for(let x=0;x<64;x++){const i=y*257+1+x*4;const edge=x>=32&&(x<34||x>=62||y<2||y>=30);const rgb=x<32?[255,0,0]:edge?[255,255,0]:[0,255,0];pixels.set([...rgb,255],i);}
   fs.writeFileSync(path.join(fixtureRoot,'images/slicing.png'),Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),pngChunk('IHDR',size),pngChunk('IDAT',require('node:zlib').deflateSync(pixels)),pngChunk('IEND',Buffer.alloc(0))]));
 }
+if(nativeFeaturesMode){
+  fs.mkdirSync(path.join(fixtureRoot,'components'),{recursive:true});fs.mkdirSync(path.join(fixtureRoot,'audio'),{recursive:true});
+  fs.copyFileSync(path.join(root,'tools/fixtures/native_features.brs'),path.join(fixtureRoot,'components/native_features.brs'));
+  scene.nodes.find(n=>n.id==='root').components=[{type:'ScriptComponent',enabled:true,scriptPath:'res://components/native_features.brs'}];
+  scene.nodes.find(n=>n.id==='player').components=[];
+  scene.nodes.push(node('sound','Node2D','root',0,0),node('rotated','Sprite2D','root',200,200,{width:80,height:20,imagePath:'res://images/white.png',tint:'#ff0000',opacity:0.5}));
+  scene.nodes.find(n=>n.id==='rotated').transform.rotation=45;
+  scene.nodes.push(node('flipped','Sprite2D','root',450,350,{width:80,height:20,imagePath:'res://images/white.png',tint:'#0000ff'}));
+  scene.nodes.find(n=>n.id==='flipped').transform.scaleX=-1;
+  const tileProps={width:40,height:20,tileWidth:40,tileHeight:20,mapWidth:1,mapHeight:1,tilesetId:'testTiles',layers:[{id:'main',visible:true,tiles:[[0]]}]};
+  scene.nodes.push(node('rotatedTiles','TileMap','root',600,500,{...tileProps,tint:'#00ff00',opacity:.5}));scene.nodes.find(n=>n.id==='rotatedTiles').transform.rotation=45;
+  const front=node('front','Sprite2D','root',100,500,{width:40,height:40,imagePath:'res://images/white.png',tint:'#0000ff'});front.zIndex=5;
+  const behind=node('behind','TileMap','root',100,500,{...tileProps,tileHeight:40,tint:'#00ff00'});behind.zIndex=-5;scene.nodes.push(front,behind);
+  scene.nodes.push(node('clipParent','Control','hud',900,200,{width:30,height:30,clipContent:true}),node('clipChild','Control','clipParent',20,0,{width:30,height:30,clipContent:true}),node('clipGrandchild','Panel','clipChild',0,0,{width:30,height:30,color:'#ff0000',borderWidth:0}));
+  scene.nodes.push(node('styledButton','Button','hud',100,600,{width:80,height:30,text:'',disabled:true,nineSliceStyleId:'buttonStyle'}),node('fadedPanel','Panel','hud',250,600,{width:80,height:30,opacity:.5,nineSliceStyleId:'whiteStyle'}),node('styledProgress','ProgressBar','hud',400,600,{width:100,height:30,value:50,minValue:0,maxValue:100,showLabel:false,borderWidth:0,nineSliceStyleId:'progressStyle'}));
+  scene.nodes.find(n=>n.id==='camera').properties={current:true,enabled:true,followLerp:1,zoom:1};
+  for(const n of scene.nodes)n.children=scene.nodes.filter(c=>c.parentId===n.id).map(c=>c.id);
+  fs.writeFileSync(path.join(fixtureRoot,'images/white.png'),Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),pngChunk('IHDR',dimensions),pngChunk('IDAT',require('node:zlib').deflateSync(Buffer.from([0,255,255,255,255]))),pngChunk('IEND',Buffer.alloc(0))]));
+  const wav=Buffer.alloc(44+16000);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(8000,24);wav.writeUInt32LE(16000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(16000,40);for(let i=0;i<8000;i++)wav.writeInt16LE(Math.round(Math.sin(i*Math.PI/10)*16000),44+i*2);fs.writeFileSync(path.join(fixtureRoot,'audio/tone.wav'),wav);
+  fs.writeFileSync(path.join(fixtureRoot,'SmokeScene.rkscene.editstate'),JSON.stringify({editorVersion:2,spritesheets:[{id:'testSheet',resourcePath:'res://images/white.png',imageWidth:1,imageHeight:1,tileWidth:1,tileHeight:1,columns:1,rows:1,padding:0}],tilesets:[{id:'testTiles',spriteSheetId:'testSheet',tileWidth:1,tileHeight:1,padding:0}],audioEngine:JSON.stringify({mixers:[{id:'master',isMaster:true,volume:0.5,eqMid:2,effects:[{type:'Distortion',enabled:true,params:{drive:0.2,wet:0.3}}]}],clips:[{id:'tone',path:'res://audio/tone.wav',volume:0.5,pitch:2,loop:false},{id:'effect',path:'res://audio/tone.wav',volume:0.5,pitch:2,loop:false,oneShot:true}]})}));
+  const editPath=path.join(fixtureRoot,'SmokeScene.rkscene.editstate'),edit=JSON.parse(fs.readFileSync(editPath));
+  const style=(id,imagePath)=>({id,imagePath,sourceRect:{x:0,y:0,w:1,h:1},sliceLeft:0,sliceTop:0,sliceRight:0,sliceBottom:0});
+  edit.nineSliceStyles=[style('whiteStyle','res://images/white.png'),style('blueStyle','res://images/pixel.png'),{...style('buttonStyle','res://images/white.png'),buttonStates:{disabled:'blueStyle'}},{...style('progressStyle','res://images/white.png'),progressRegions:{background:'whiteStyle',fill:'blueStyle'}}];fs.writeFileSync(editPath,JSON.stringify(edit));
+}
 if (!sampleMode && !testgeMode && !molMode) fs.writeFileSync(path.join(fixtureRoot, 'SmokeScene.rkscene'), JSON.stringify(scene));
 async function main() {
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-  const child = spawn(require('electron'), ['.', '--engine-smoke-test', '--remote-debugging-port=0'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const entry = process.argv.includes('--release-screenshot') ? 'tools/release-capture-main.cjs' : '.';
+  const child = spawn(require('electron'), [entry, '--engine-smoke-test', '--remote-debugging-port=0'], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   let socket;
   try {
     const address = await new Promise((resolve, reject) => {
@@ -199,6 +225,10 @@ async function main() {
     }
     console.log('EDITOR', JSON.stringify(await evaluate(sessionId, '({title:document.title,scene:typeof state!=="undefined"?state.sceneState.scene.name:null,projectRoot:state.projectRoot,status:state.status,logs:state.logs.slice(-8),viewportError:window.__viewportInitError?.message,konva:typeof Konva,buildButton:!!document.getElementById("btn-test-simulator")})')));
     if (errors.length) throw new Error(errors.join('\n'));
+    if (process.argv.includes('--release-screenshot')) {
+      await require('./capture-release-screenshot.cjs')({send,evaluate,sessionId,root});
+      return;
+    }
     if (testgeMode) {
       let texture;
       for(let attempt=0;attempt<40;attempt++) {
@@ -291,6 +321,16 @@ async function main() {
     }
     console.log('SIMULATOR', JSON.stringify(snapshot));
     if (!snapshot.painted || !snapshot.state?.startsWith('Running') || /runtime error|compile error|error:/i.test(snapshot.logs) || errors.length) throw new Error('Engine simulator failed: ' + JSON.stringify({ snapshot, errors }));
+    if(nativeFeaturesMode){
+      if(!snapshot.logs.includes('FEATURE_TESTS complete')||snapshot.logs.includes('FEATURE_FAIL'))throw new Error('Native feature regression: '+snapshot.logs);
+      const pixels=await evaluate(attached.sessionId,'(()=>{const ctx=brs.getDisplayBuffer().getContext("2d"),p=(x,y)=>Array.from(ctx.getImageData(x,y,1,1).data).slice(0,3);return {inside:p(220,230),outside:p(250,205),clippedInside:p(925,205),clippedOutside:p(940,205),flipped:p(400,360),tiles:p(610,520),tileOutside:p(628,503),order:p(120,520),buttonState:p(140,615),styleAlpha:p(290,615),progressFill:p(420,615),progressTrack:p(480,615)};})()');
+      console.log('NATIVE_FEATURE_PIXELS',JSON.stringify(pixels));
+      if(pixels.inside[0]<100||pixels.inside[0]>180||pixels.inside[1]>25||pixels.outside[0]>30)throw new Error('Rotation/tint/opacity pixel regression');
+      if(pixels.clippedInside[0]<240||pixels.clippedInside[1]>10||JSON.stringify(pixels.clippedOutside)!=='[16,24,32]')throw new Error('UI clipping pixel regression');
+      if(JSON.stringify(pixels.flipped)!=='[0,0,255]'||JSON.stringify(pixels.order)!=='[0,0,255]'||pixels.tiles[1]<100||pixels.tiles[1]>180||pixels.tiles[0]>25||JSON.stringify(pixels.tileOutside)!=='[16,24,32]')throw new Error('Flipped artwork, tile transforms, or layer order regression');
+      if(JSON.stringify(pixels.buttonState)!=='[0,80,255]'||pixels.styleAlpha[0]<100||pixels.styleAlpha[0]>180||JSON.stringify(pixels.progressFill)!=='[0,80,255]'||JSON.stringify(pixels.progressTrack)!=='[255,255,255]')throw new Error('Atlas button states, alpha, or progress skins regression');
+      await send('Target.closeTarget',{targetId:preview.targetId});await evaluate(sessionId,'window.electronAPI.closeWindow();true');return;
+    }
     if(slicingMode){
       const pixels=await evaluate(attached.sessionId,'(()=>{const ctx=brs.getDisplayBuffer().getContext("2d");const p=(x,y)=>Array.from(ctx.getImageData(x,y,1,1).data).slice(0,3);return {sprite:p(140,140),texture:p(340,140),button:p(540,140),panel:p(740,140),panelCorner:p(700,100),panelInterior:p(703,103)};})()');
       console.log('SLICING_NATIVE',JSON.stringify(pixels));

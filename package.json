@@ -19,6 +19,8 @@
     "test:scripts": "node tools/check-engine.cjs --mol-ui --scripts",
     "test:script-actions": "node tools/check-engine.cjs --script-actions",
     "test:slicing": "node tools/check-engine.cjs --slicing",
+    "test:native-features": "node tools/check-engine.cjs --native-features",
+    "test:native-audio": "node tools/check-native-audio.cjs",
     "test:visual-browser": "node visual-editor/check-browser.js",
     "test": "node --test visual-editor/test/*.test.js export/test/*.test.cjs"
   },

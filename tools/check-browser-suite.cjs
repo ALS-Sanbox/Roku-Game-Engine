@@ -18,7 +18,7 @@ async function run(name, args) {
 }
 (async () => {
   const results = [];
-  for (const [name, args] of [['camera-follow-hud', []], ['coordinates', ['--coordinates']], ['editable-sample', ['--sample']]]) {
+  for (const [name, args] of [['camera-follow-hud', []], ['coordinates', ['--coordinates']], ['native-features',['--native-features']], ['editable-sample', ['--sample']]]) {
     results.push(await run(name, args));
     fs.writeFileSync(path.join(output, 'browser-results.json'), JSON.stringify({ date: new Date().toISOString(), results }, null, 2));
     if (!results.at(-1).passed) { process.exitCode = 1; break; }

@@ -1,6 +1,12 @@
 ' scene_manager.brs - generated classic 2D runtime
 
 function RokuEngine_LoadScene(sceneName as String) as Object
+  ' Release scene-owned playback before replacing runtime nodes.
+  if m.scene <> invalid then
+    for each oldNode in m.scene.doc.nodes
+      RokuAudio_StopNode(m,oldNode)
+    end for
+  end if
   m.RemoveAllCompositorSprites()
   sceneDoc = invalid
   if m.resources <> invalid then sceneDoc = m.resources.GetScene(sceneName)
@@ -168,72 +174,14 @@ sub RokuEngine_UpdateActiveCameraNode()
     if node.type <> "Camera2D" then continue for
     props = node.properties
     if props = invalid then props = {}
-    if props.current = true then
+    if props.current = true and props.enabled <> false then
       m.activeCameraNodeId = node.id
       return
     end if
   end for
 end sub
 
-sub RokuEngine_ApplyCameraFollow(dt as Float)
-  if m.scene = invalid then return
-  if m.activeCameraNodeId = invalid or m.activeCameraNodeId = "" then m.UpdateActiveCameraNode()
-  if m.activeCameraNodeId = invalid or m.activeCameraNodeId = "" then return
-  if m.scene.nodeMap.DoesExist(m.activeCameraNodeId) <> true then return
-  cameraNode = m.scene.nodeMap[m.activeCameraNodeId]
-  if cameraNode = invalid or cameraNode.properties = invalid then return
-  props = cameraNode.properties
-  if props.enabled = false then return
-  zoom = 1.0
-  if props.zoom <> invalid then zoom = props.zoom
-  if zoom < 0.1 then zoom = 0.1
-  if zoom > 10 then zoom = 10
-  m.scene.cameraZoom = zoom
-  viewWidth = m.width / zoom
-  viewHeight = m.height / zoom
-  m.UpdateWorldTransforms(m.scene)
-  cameraWorld = m.GetWorldTransform(cameraNode.id)
-  desiredX = cameraWorld.x - viewWidth * 0.5
-  desiredY = cameraWorld.y - viewHeight * 0.5
-  targetName = ""
-  if props.followTargetName <> invalid then targetName = RokuEngine_Trim(RokuEngine_ToString(props.followTargetName))
-  targetNode = invalid
-  if targetName <> "" then targetNode = m.FindNodeByName(targetName)
-  if targetNode <> invalid then
-    targetWorld = m.GetWorldTransform(targetNode.id)
-    targetWidth = _BRS_NumCoalesce(targetNode.properties.width, 0)
-    targetHeight = _BRS_NumCoalesce(targetNode.properties.height, 0)
-    rect = RokuEngine_WorldRect(targetWorld, targetWidth, targetHeight)
-    desiredX = rect.x + rect.width * 0.5 - viewWidth * 0.5
-    desiredY = rect.y + rect.height * 0.5 - viewHeight * 0.5
-    dw = _BRS_NumCoalesce(props.deadzoneWidth, 0)
-    dh = _BRS_NumCoalesce(props.deadzoneHeight, 0)
-    if dw > 0 and Abs(desiredX - m.scene.cameraX) <= dw * 0.5 then desiredX = m.scene.cameraX
-    if dh > 0 and Abs(desiredY - m.scene.cameraY) <= dh * 0.5 then desiredY = m.scene.cameraY
-  end if
-  desiredX = desiredX + _BRS_NumCoalesce(props.offsetX, 0)
-  desiredY = desiredY + _BRS_NumCoalesce(props.offsetY, 0)
-  lerp = _BRS_NumCoalesce(props.followLerp, 1)
-  if lerp < 0 then lerp = 0
-  if lerp > 1 then lerp = 1
-  if lerp > 0 and lerp < 1 then lerp = 1 - (1 - lerp) ^ (dt * 60)
-  if not m.scene.cameraInitialized or targetNode = invalid then lerp = 1
-  m.scene.cameraX = m.scene.cameraX + (desiredX - m.scene.cameraX) * lerp
-  m.scene.cameraY = m.scene.cameraY + (desiredY - m.scene.cameraY) * lerp
-  if props.cameraBounds = true and props.boundsWidth <> invalid and props.boundsHeight <> invalid then
-    left = _BRS_NumCoalesce(props.boundsX, 0)
-    top = _BRS_NumCoalesce(props.boundsY, 0)
-    right = left + props.boundsWidth - viewWidth
-    bottom = top + props.boundsHeight - viewHeight
-    if right < left then right = left
-    if bottom < top then bottom = top
-    if m.scene.cameraX < left then m.scene.cameraX = left
-    if m.scene.cameraY < top then m.scene.cameraY = top
-    if m.scene.cameraX > right then m.scene.cameraX = right
-    if m.scene.cameraY > bottom then m.scene.cameraY = bottom
-  end if
-  m.scene.cameraInitialized = true
-end sub
+
 
 sub RokuEngine_QueueSceneChange(mode as String, sceneName = invalid as Dynamic)
   if m.scene = invalid then return

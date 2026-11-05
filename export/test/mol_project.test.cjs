@@ -8,7 +8,9 @@ test('MOL is a self-contained editable project with native node presentation',{s
   assert.equal(scene.nodes.length,215);
   for(const id of ['Player','Prayer','Playfield','HUD','Menu','Intro','Instructions','Scores','Entry','Credits','Overlay','Enemy10','PlayerShot','Pickup'])assert.ok(scene.nodes.some(n=>n.id===id),id);
   assert.equal(scene.nodes.find(n=>n.id==='root').components[0].scriptPath,'res://components/mol_controller.brs');
-  assert.equal(fs.existsSync(path.join(root,'source/main.brs')),false);
+  // The editor may have written its generated entry point into an opened project.
+  const entry=path.join(root,'source/main.brs');
+  if(fs.existsSync(entry))assert.match(fs.readFileSync(entry,'utf8'),/RokuEngine_Create\("MOL"\)/);
   for(const node of scene.nodes)if(node.properties.imagePath)assert.ok(fs.existsSync(path.join(root,node.properties.imagePath.slice(6))),node.id);
   const game=fs.readFileSync(path.join(root,'components/game/game.brs'),'utf8');
   assert.match(game,/g\.day = 22/);assert.match(game,/hp = 500/);

@@ -58,11 +58,9 @@ function validateSnapshot(root, scenes, startupScene, settings = {}) {
         } else if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) references(child, property + '.' + key);
       }
       references(p, 'properties'); references(n.components, 'components');
-      if (['CameraPath2D', 'CameraZone2D', 'CameraTargetGroup'].includes(n.type)) add('warning', 'NATIVE_CAMERA_ADVANCED', 'Advanced camera behavior is not implemented by the native runtime.', location);
-      if (p.clipContent) add('warning', 'NATIVE_CLIP', 'Native clipping is not implemented; content may overflow.', { ...location, property: 'clipContent' });
-      if (Number(n.transform?.rotation || 0)) add('warning', 'NATIVE_ROTATION', 'Rotated rendering/collision uses a conservative bounding-box fallback; arbitrary sprite rotation is not implemented.', { ...location, property: 'transform.rotation' });
-      if (n.type === 'Camera2D' && (p.dynamicZoom || p.roomLock || Number(p.lookAheadX || 0) || Number(p.lookAheadY || 0))) add('warning', 'NATIVE_CAMERA_EXTRAS', 'Look-ahead, dynamic zoom and room locking are not implemented; basic follow/zoom/bounds are used.', location);
-      if (['Sprite2D', 'AnimatedSprite2D', 'TileMap'].includes(n.type) && (Number(p.opacity ?? 1) !== 1 || (p.tint && !['#ffffff', '#ffffffff'].includes(p.tint.toLowerCase())))) add('warning', 'NATIVE_TINT', 'Partial world-art opacity/tint is not applied by the native compositor.', location);
+      if (Number(n.transform?.rotation || 0) && !['Sprite2D','AnimatedSprite2D','TileMap'].includes(n.type)) add('warning','NATIVE_ROTATION','This node renders with axis-aligned bounds; artwork rotation is implemented for sprites and tilemaps.',{...location,property:'transform.rotation'});
+      if (Number(n.transform?.rotation || 0) && (n.components||[]).some(c=>c.type==='Collider2DComponent')) add('warning','NATIVE_COLLIDER_AABB','Rotated colliders use enclosing AABBs, not oriented polygons.',location);
+      for(const component of n.components||[])if(component.type==='Collider2DComponent'&&(component.physicsShapes?.length>1||component.physicsShapes?.some(s=>s.type==='polygon')))add('warning','NATIVE_COLLIDER_SHAPES','Compound/polygon physics shapes use their combined enclosing AABB in the native solver.',location);
     }
     function resources(value, property) {
       if (typeof value === 'string' && /^(res:\/\/|pkg:\/)/.test(value)) { try { const f = packagePath(root, value); if (!fs.existsSync(f.target)) add('error', 'MISSING_FILE', 'Resource asset does not exist.', { ...ctx, property, path: value }); } catch (e) { add('error', 'PACKAGE_PATH', e.message, { ...ctx, property, path: value }); } }

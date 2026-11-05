@@ -1,2 +1,2 @@
 ' camera.brs - generated classic 2D runtime
-' Camera follow logic lives in scene_manager.brs. Transform math now lives in transform_system.brs.
+' Camera policies live in camera_policies.brs; transform math lives in transform_system.brs.

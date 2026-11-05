@@ -6,9 +6,7 @@ sub RokuEngine_Render()
   m.UpdateWorldTransforms(m.scene)
   m.screen.Clear(m.clearColor)
 
-  m.RenderPassWorldSprites()
-  m.RenderPassTileMaps()
-  m.RenderPassWorldDebug()
+  RokuRender_WorldOrdered(m)
 
   ' roScreen is cleared each frame: UI must be redrawn on both back buffers.
   m.RenderPassUI()
@@ -55,10 +53,56 @@ end sub
 function RokuEngine_GetRenderTraversalNodeIds() as Object
   ids = []
   if m.scene = invalid then return ids
-  ids = m.BuildTraversalNodeIds()
+  visited = {} : stack = []
+  roots = RokuRender_SortIds(m,m.RootNodeIds())
+  for i = roots.Count()-1 to 0 step -1
+    stack.Push(roots[i])
+  end for
+  while stack.Count() > 0
+    id = stack.Pop()
+    if visited.DoesExist(id) then continue while
+    visited[id] = true : ids.Push(id)
+    children = []
+    if m.scene.childrenByParent.DoesExist(id) then children = RokuRender_SortIds(m,m.scene.childrenByParent[id])
+    for i = children.Count()-1 to 0 step -1
+      stack.Push(children[i])
+    end for
+  end while
   if type(ids) <> "roArray" then ids = []
   return ids
 end function
+
+function RokuRender_SortIds(engine as Object,source as Object) as Object
+  result = []
+  for each id in source
+    if not engine.scene.nodeMap.DoesExist(id) then continue for
+    z = _BRS_NumCoalesce(engine.scene.nodeMap[id].zIndex,0) : at = result.Count()
+    result.Push(id)
+    while at > 0
+      previous = result[at-1]
+      if _BRS_NumCoalesce(engine.scene.nodeMap[previous].zIndex,0) <= z then exit while
+      result[at] = previous : at = at-1
+    end while
+    result[at] = id
+  end for
+  return result
+end function
+
+sub RokuRender_WorldOrdered(engine as Object)
+  if engine.scene.hasWorldNodes = false then return
+  for each id in engine.GetRenderTraversalNodeIds()
+    node = engine.scene.nodeMap[id]
+    if node.type = "Sprite2D" or node.type = "AnimatedSprite2D" then
+      runtime = engine.EnsureNodeRuntime(node)
+      sprite = runtime.spriteState
+      if sprite <> invalid and sprite.member <> invalid and sprite.drawable <> invalid then engine.screen.DrawObject(sprite.drawX,sprite.drawY,sprite.drawable)
+    else if node.type = "TileMap" then
+      engine.RenderPassTileMaps(id)
+    else
+      engine.RenderDebugNode(node,engine.GetWorldTransform(id))
+    end if
+  end for
+end sub
 
 sub RokuEngine_DrawNodeTree()
   m.RenderPassWorldDebug()

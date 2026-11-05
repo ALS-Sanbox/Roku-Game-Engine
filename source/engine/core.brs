@@ -242,6 +242,7 @@ function RokuEngine_Create(initialSceneName as String) as Object
     FindNodeByName: RokuEngine_FindNodeByName
     UpdateActiveCameraNode: RokuEngine_UpdateActiveCameraNode
     ApplyCameraFollow: RokuEngine_ApplyCameraFollow
+    ShakeCamera: RokuEngine_ShakeCamera
     EnsureNodeRuntime: RokuEngine_EnsureNodeRuntime
     GetNodeCollider: RokuEngine_GetNodeCollider
     BuildColliderList: RokuEngine_BuildColliderList
@@ -250,6 +251,7 @@ function RokuEngine_Create(initialSceneName as String) as Object
     OverlapsCollider: RokuEngine_OverlapsCollider
     ProcessCollisions: RokuEngine_ProcessCollisions
     PlayNodeAudio: RokuEngine_PlayNodeAudio
+    ControlAudio: RokuEngine_ControlAudio
     InvokeScriptComponent: RokuEngine_InvokeScriptComponent
     InvokeNodeScripts: RokuEngine_InvokeNodeScripts
     GetActionForButtonCode: RokuEngine_GetActionForButtonCode
@@ -296,6 +298,7 @@ sub RokuEngine_Run()
 
     m.RunFrame(rawDt)
   end while
+  if m.audioStreamPlayer <> invalid then m.audioStreamPlayer.Stop()
 end sub
 
 sub RokuEngine_RunFrame(rawDt as Float)
@@ -488,7 +491,8 @@ end sub
 
 sub RokuEngine_PlayNodeAudio(node as Object, component as Object)
   if node = invalid or component = invalid then return
-  runtime = m.EnsureNodeRuntime(node)
+  runtime = RokuAudio_GetRuntime(m,node,component)
+  runtime.lastAudioFrame = m.frameNumber
   resourcePath = invalid
   if component.resourcePath <> invalid then resourcePath = component.resourcePath
 
@@ -508,6 +512,7 @@ sub RokuEngine_PlayNodeAudio(node as Object, component as Object)
       if audioMeta.path <> invalid and audioMeta.path <> "" then resourcePath = audioMeta.path
       if audioMeta.loop = true then loopEnabled = true
       if audioMeta.volume <> invalid then volume = Int(audioMeta.volume * 100)
+      if audioMeta.nativePath <> invalid and audioMeta.nativePath <> "" then resourcePath = audioMeta.nativePath
       if volume < 0 then volume = 0
       if volume > 100 then volume = 100
     end if
@@ -531,25 +536,23 @@ sub RokuEngine_PlayNodeAudio(node as Object, component as Object)
   runtime.audioLoop = loopEnabled
   runtime.audioVolume = volume
 
-  clip = CreateObject("roAudioResource", pkgPath)
-  if clip = invalid then return
-  player = CreateObject("roAudioPlayer")
+  oneShot = false
+  if audioMeta <> invalid then oneShot = audioMeta.oneShot = true
+  voiceId = node.id+"|"+_BRS_StrCoalesce(component.id,resourcePath)
+  player = RokuAudio_CreateVoice(m,voiceId,pkgPath,loopEnabled,oneShot)
+  if player <> invalid then player.nodeId = node.id
   if player = invalid then return
-  player.SetPort(m.port)
-  player.AddContent(clip)
-  player.SetLoop(loopEnabled)
-  player.SetVolume(volume)
   runtime.audioPlayer = player
   runtime.audioReady = true
 end sub
 
 sub RokuEngine_HandleAudioEvent(msg as Object)
   if msg = invalid or m.scene = invalid then return
-  for each node in m.scene.doc.nodes
-    if node = invalid then continue for
-    runtime = m.EnsureNodeRuntime(node)
-    if runtime.audioPlayer <> invalid then runtime.audioEventReceived = true
-  end for
+  if m.activeStreamNodeId = invalid or not m.scene.nodeMap.DoesExist(m.activeStreamNodeId) then return
+  runtime = m.EnsureNodeRuntime(m.scene.nodeMap[m.activeStreamNodeId])
+  runtime.audioEventReceived = true
+  runtime.audioLastMessage = msg.GetMessage()
+  runtime.audioFailed = msg.IsRequestFailed()
 end sub
 
 sub RokuEngine_SetPaused(isPaused as Boolean)
@@ -1029,6 +1032,17 @@ end sub
 sub RokuEngine_UpdateAudioComponents()
   if m.scene = invalid then return
   m.RunComponentPhase("audio", 0.0, invalid)
+  for each node in m.scene.doc.nodes
+    owner = m.EnsureNodeRuntime(node)
+    if owner.audioVoices = invalid then continue for
+    for each key in owner.audioVoices
+      voice = owner.audioVoices[key]
+      if voice.lastAudioFrame <> m.frameNumber and voice.audioPlayer <> invalid then
+        voice.audioPlayer.Stop()
+        voice.audioAutoplayStarted = false
+      end if
+    end for
+  end for
 end sub
 
 
@@ -1142,6 +1156,7 @@ sub RokuEngine_DestroyNode(nodeId as String)
   for each id in toRemove
     if m.scene.nodeMap <> invalid and m.scene.nodeMap.DoesExist(id) then
       m.RemoveNodeCompositorSprite(m.scene.nodeMap[id])
+      RokuAudio_StopNode(m,m.scene.nodeMap[id])
     end if
     ' Clear runtime state
     if m.scene.runtime <> invalid and m.scene.runtime.nodes <> invalid then

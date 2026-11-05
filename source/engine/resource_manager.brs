@@ -228,6 +228,10 @@ end function
 function RokuEngine_Resources_GetAudio(audioId as String) as Dynamic
   m.EnsureManifest()
   if audioId = invalid or audioId = "" then return invalid
+  if m.engine.scene <> invalid then
+    scoped = m.engine.scene.name+"::"+audioId
+    if m.audioManifest.DoesExist(scoped) then return m.audioManifest[scoped]
+  end if
   if m.audioManifest.DoesExist(audioId) then return m.audioManifest[audioId]
   return invalid
 end function
@@ -237,7 +241,9 @@ function RokuEngine_Resources_GetAudioByPath(path as String) as Dynamic
   if path = invalid or path = "" then return invalid
   for each audioId in m.audioManifest
     entry = m.audioManifest[audioId]
-    if entry <> invalid and entry.path = path then return entry
+    if entry <> invalid and RokuEngine_NormalizeScriptPath(entry.path) = RokuEngine_NormalizeScriptPath(path) then
+      if entry.sceneName = invalid or m.engine.scene = invalid or entry.sceneName = m.engine.scene.name then return entry
+    end if
   end for
   return invalid
 end function

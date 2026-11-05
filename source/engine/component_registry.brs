@@ -209,6 +209,9 @@ sub RokuComponent_Move_Update(ctx as Object)
 end sub
 
 sub RokuComponent_Spin_Update(ctx as Object)
+  for each body in ctx.node.components
+    if body.type = "RigidBody2DComponent" and body.enabled <> false and body.lockRotation <> false then return
+  end for
   speed = 90.0
   if ctx.component.degreesPerSecond <> invalid then speed = ctx.component.degreesPerSecond
   ctx.transform.rotation = ctx.transform.rotation + (speed * ctx.dt)
@@ -328,6 +331,8 @@ sub RokuComponent_AnimationPlayer_Input(ctx as Object)
 end sub
 
 sub RokuComponent_AudioSource_Input(ctx as Object)
+  runtime = RokuAudio_GetRuntime(ctx.engine,ctx.node,ctx.component)
+  if ctx.event <> invalid and ctx.event.isPress = false then return
   code = invalid
   actionKey = ""
   if ctx.event <> invalid and ctx.event.code <> invalid then code = ctx.event.code
@@ -337,28 +342,31 @@ sub RokuComponent_AudioSource_Input(ctx as Object)
   triggerAction = RokuComponent_ResolveTriggerAction(ctx)
   if ctx.component.playOnInput = true and actionKey = triggerAction then
     ctx.engine.PlayNodeAudio(ctx.node, ctx.component)
-    if ctx.runtime.audioReady = true and ctx.runtime.audioPlayer <> invalid then
-      ctx.runtime.audioPlayer.Stop()
-      ctx.runtime.audioPlayer.Play()
+    if runtime.audioReady = true and runtime.audioPlayer <> invalid then
+      runtime.audioPlayer.Stop()
+      runtime.audioPlayer.Play()
     end if
   end if
 end sub
 
 sub RokuComponent_AudioSource_Audio(ctx as Object)
   ctx.engine.PlayNodeAudio(ctx.node, ctx.component)
-  if ctx.runtime.audioReady = true and ctx.runtime.audioPlayer <> invalid then
+  runtime = RokuAudio_GetRuntime(ctx.engine,ctx.node,ctx.component)
+  if runtime.audioReady = true and runtime.audioPlayer <> invalid then
     ' Check playOnAwake from the audio manifest (single source of truth)
     shouldAutoplay = false
-    if ctx.engine.resources <> invalid and ctx.component.resourcePath <> invalid then
-      clipMeta = ctx.engine.resources.GetAudioByPath(ctx.component.resourcePath)
+    if ctx.engine.resources <> invalid then
+      clipMeta = invalid
+      if ctx.component.audioId <> invalid then clipMeta = ctx.engine.resources.GetAudio(ctx.component.audioId)
+      if clipMeta = invalid and ctx.component.resourcePath <> invalid then clipMeta = ctx.engine.resources.GetAudioByPath(ctx.component.resourcePath)
       if clipMeta <> invalid and (clipMeta.playOnAwake = true or clipMeta.autoplay = true) then
         shouldAutoplay = true
       end if
     end if
-    if shouldAutoplay = true and ctx.runtime.audioAutoplayStarted <> true then
-      ctx.runtime.audioPlayer.Stop()
-      ctx.runtime.audioPlayer.Play()
-      ctx.runtime.audioAutoplayStarted = true
+    if shouldAutoplay = true and runtime.audioAutoplayStarted <> true then
+      runtime.audioPlayer.Stop()
+      runtime.audioPlayer.Play()
+      runtime.audioAutoplayStarted = true
     end if
   end if
 end sub

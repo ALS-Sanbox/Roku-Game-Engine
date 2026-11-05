@@ -414,7 +414,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       type: 'AudioSourceComponent',
       displayName: 'AudioSource',
       description: 'References an audio clip from the Audio Mixer. Playback settings (volume, pitch, loop, bus, etc.) are configured in the Audio tab.',
-      defaults: { enabled: true, priority: 400, resourcePath: '' }
+      defaults: { enabled: true, priority: 400, resourcePath: '', playOnInput: false, triggerAction: 'action' }
     },
     InputControllerComponent: {
       type: 'InputControllerComponent',

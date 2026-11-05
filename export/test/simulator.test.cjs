@@ -21,12 +21,13 @@ test('engine build includes canonical UI runtime, resource metadata, and valid n
     assert.match(buildMainBrightScriptTemplate('A "quoted" scene', 'A "quoted" title'), /RokuEngine_Create\("A ""quoted"" scene"\)/);
   } finally { if (inside(os.tmpdir(), temp) && path.basename(temp).startsWith('roku-engine-build-')) fs.rmSync(temp, { recursive: true }); }
 });
-test('advanced editor-only camera/UI settings produce explicit native warnings', () => {
+test('warnings distinguish supported cameras/clipping from remaining UI rotation limits', () => {
   const warnings = runtimeWarnings([{ runtimeScene: { nodes: [
     { name: 'Path', type: 'CameraPath2D' },
     { name: 'Camera', type: 'Camera2D', properties: { zoom: 2 } },
     { name: 'Menu', type: 'TextureRect', properties: { imagePath: 'res://menu.svg', clipContent: true, anchorPreset: 'center' }, transform: { rotation: 10, pivotX: 20, scaleX: 2 } }
   ] } }]);
   assert.ok(!warnings.some(w => /zoom is not applied|anchor layout needs|pivots are not applied/.test(w)));
-  for (const feature of ['CameraPath2D', 'clipping', 'rotation']) assert.ok(warnings.some(w => w.includes(feature)), feature);
+  assert.ok(!warnings.some(w=>/CameraPath2D|clipping/.test(w)));
+  assert.ok(warnings.some(w=>w.includes('rotation')));
 });

@@ -155,25 +155,34 @@ end sub
 sub RokuEngine_ApplySpriteTransform(node as Object, world as Object, spriteState as Object, drawX as Integer, drawY as Integer)
   if spriteState = invalid or spriteState.member = invalid then return
   spriteState.member.MoveTo(drawX, drawY)
+  spriteState.drawX = drawX : spriteState.drawY = drawY
   scale = m.ComputeSpriteScale(node, world, spriteState)
   if scale = invalid or spriteState.sourceRegion = invalid then return
   ' roSprite has no SetScale method. Cache a scaled bitmap/region instead.
-  if spriteState.appliedScaleX = scale.x and spriteState.appliedScaleY = scale.y then return
+  angle = world.rotation
+  tint = _BRS_StrCoalesce(node.properties.tint, "#ffffff")
+  color = RokuEngine_HexToRgba(tint, world.opacity)
+  if spriteState.appliedScaleX = scale.x and spriteState.appliedScaleY = scale.y and spriteState.appliedAngle = angle and spriteState.appliedColor = color then return
   if m.scaledSpriteBytes = invalid then m.scaledSpriteBytes = 0
   if spriteState.scaledBytes <> invalid then m.scaledSpriteBytes = m.scaledSpriteBytes - spriteState.scaledBytes
   spriteState.scaledBytes = 0
   spriteState.scaledBitmap = invalid
   spriteState.appliedScaleX = scale.x
   spriteState.appliedScaleY = scale.y
-  if scale.x = 1 and scale.y = 1 then
+  spriteState.appliedAngle = angle
+  spriteState.appliedColor = color
+  if scale.x = 1 and scale.y = 1 and angle = 0 and color = &hFFFFFFFF then
     spriteState.member.SetRegion(spriteState.sourceRegion)
+    spriteState.drawable = spriteState.sourceRegion
     return
   end if
-  width = Int(Abs(spriteState.baseWidth * scale.x))
-  height = Int(Abs(spriteState.baseHeight * scale.y))
+  rect = RokuEngine_WorldRect(world, _BRS_NumCoalesce(node.properties.width, spriteState.baseWidth), _BRS_NumCoalesce(node.properties.height, spriteState.baseHeight))
+  width = Int(rect.width * m.scene.cameraZoom + 0.9999)
+  height = Int(rect.height * m.scene.cameraZoom + 0.9999)
   ' One bitmap per visible node; maximum 2048 per axis / 4 MiB per node.
   if width < 1 or height < 1 or width > 2048 or height > 2048 or width * height > 1048576 or m.scaledSpriteBytes + width * height * 4 > 16777216 then
     spriteState.member.SetRegion(spriteState.sourceRegion)
+    spriteState.drawable = spriteState.sourceRegion
     if spriteState.warnedLimit <> true then print "RokuEngine warning: scaled sprite cache limit: "; node.name
     spriteState.warnedLimit = true
     return
@@ -181,15 +190,14 @@ sub RokuEngine_ApplySpriteTransform(node as Object, world as Object, spriteState
   scaled = CreateObject("roBitmap", {width: width, height: height, alphaEnable: true})
   if scaled = invalid then return
   scaled.Clear(&h00000000)
-  originX = 0
-  originY = 0
-  if scale.x < 0 then originX = width
-  if scale.y < 0 then originY = height
-  scaled.DrawScaledObject(originX, originY, scale.x, scale.y, spriteState.sourceRegion)
+  originX = (world.x - rect.x) * m.scene.cameraZoom
+  originY = (world.y - rect.y) * m.scene.cameraZoom
+  scaled.DrawTransformedObject(Int(originX), Int(originY), -angle, scale.x, scale.y, spriteState.sourceRegion, color)
   spriteState.scaledBytes = width * height * 4
   m.scaledSpriteBytes = m.scaledSpriteBytes + spriteState.scaledBytes
   spriteState.scaledBitmap = scaled
-  spriteState.member.SetRegion(CreateObject("roRegion", scaled, 0, 0, width, height))
+  spriteState.drawable = CreateObject("roRegion", scaled, 0, 0, width, height)
+  spriteState.member.SetRegion(spriteState.drawable)
 end sub
 
 function RokuEngine_ComputeSpriteScale(node as Object, world as Object, spriteState as Object) as Object
@@ -203,8 +211,7 @@ function RokuEngine_ComputeSpriteScale(node as Object, world as Object, spriteSt
   targetHeight = baseHeight
   if props.width <> invalid and props.width > 0 then targetWidth = props.width
   if props.height <> invalid and props.height > 0 then targetHeight = props.height
-  rect = RokuEngine_WorldRect(world, targetWidth, targetHeight)
-  return { x: rect.width / baseWidth * m.scene.cameraZoom, y: rect.height / baseHeight * m.scene.cameraZoom }
+  return { x: targetWidth * world.scaleX / baseWidth * m.scene.cameraZoom, y: targetHeight * world.scaleY / baseHeight * m.scene.cameraZoom }
 end function
 
 function RokuEngine_ParseTileAssetPath(resourcePath as Dynamic) as Dynamic
@@ -237,13 +244,14 @@ function RokuEngine_LoadImageAsset(resourcePath as Dynamic) as Dynamic
 end function
 
 
-sub RokuEngine_RenderPassTileMaps()
+sub RokuEngine_RenderPassTileMaps(onlyNodeId = "" as String)
   if m.scene = invalid then return
   traversalIds = m.GetRenderTraversalNodeIds()
   for each nodeId in traversalIds
     if m.scene.nodeMap.DoesExist(nodeId) <> true then continue for
     node = m.scene.nodeMap[nodeId]
     if node = invalid or node.type <> "TileMap" then continue for
+    if onlyNodeId <> "" and nodeId <> onlyNodeId then continue for
     world = m.GetWorldTransform(node.id)
     if world = invalid or world.visible = false or world.opacity <= 0 then continue for
     props = node.properties
@@ -289,7 +297,10 @@ sub RokuEngine_RenderPassTileMaps()
           drawX = Int((rect.x - m.scene.cameraX) * m.scene.cameraZoom)
           drawY = Int((rect.y - m.scene.cameraY) * m.scene.cameraZoom)
           if not RokuEngine_IsWorldRectVisible(world, mapWidth * tileWidth, mapHeight * tileHeight, m.scene.cameraX, m.scene.cameraY, m.width / m.scene.cameraZoom, m.height / m.scene.cameraZoom) then exit for
-          m.screen.DrawScaledObject(drawX, drawY, rect.width * m.scene.cameraZoom / tileRegion.GetWidth(), rect.height * m.scene.cameraZoom / tileRegion.GetHeight(), tileRegion)
+          originX = world.x + world.a * col * tileWidth + world.c * row * tileHeight
+          originY = world.y + world.b * col * tileWidth + world.d * row * tileHeight
+          color = RokuEngine_HexToRgba(_BRS_StrCoalesce(props.tint,"#ffffff"),opacity)
+          m.screen.DrawTransformedObject(Int((originX-m.scene.cameraX)*m.scene.cameraZoom),Int((originY-m.scene.cameraY)*m.scene.cameraZoom),-world.rotation,tileWidth*world.scaleX*m.scene.cameraZoom/tileRegion.GetWidth(),tileHeight*world.scaleY*m.scene.cameraZoom/tileRegion.GetHeight(),tileRegion,color)
           if m.scene.debugStats <> invalid then m.scene.debugStats.spriteCount = m.scene.debugStats.spriteCount + 1
           m.stats.spriteCount = m.stats.spriteCount + 1
         end for

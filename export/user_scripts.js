@@ -41,6 +41,7 @@ function buildUserScriptRegistrySource(scriptEntries = []) {
       ['PostUpdate', 'postupdate'],
       ['Input', 'input'],
       ['Action', 'action'],
+      ['CameraZoneChanged', 'camerazonechanged'],
       ['SceneExit', 'sceneexit'],
       ['CollisionEnter', 'collisionenter'],
       ['CollisionStay', 'collisionstay'],
@@ -83,6 +84,7 @@ function collectProjectBrightScriptFiles(projectRoot) {
       const baseName = buildScriptHookBaseName(normalizedRelative);
       const sourceText = fs.readFileSync(fullPath, 'utf8');
       const hookMap = {
+        CameraZoneChanged: new RegExp(`(?:sub|function)\\s+${baseName}_CameraZoneChanged\\s*\\(`, 'i').test(sourceText),
         Action: new RegExp(`(?:sub|function)\\s+${baseName}_Action\\s*\\(`, 'i').test(sourceText),
         Ready: new RegExp(`(?:sub|function)\\s+${baseName}_Ready\\s*\\(`, 'i').test(sourceText),
         Init: new RegExp(`(?:sub|function)\\s+${baseName}_Init\\s*\\(`, 'i').test(sourceText),

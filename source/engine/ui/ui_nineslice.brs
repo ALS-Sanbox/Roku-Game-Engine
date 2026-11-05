@@ -121,61 +121,61 @@ sub RokuEngine_DrawNineSliceRegions(screen as Object, engine as Object, region a
   ' ── Corners (never scaled) ────────────────────────────────────────────────
   ' NW
   if actSL > 0 and actST > 0 then
-    _NS_DrawSlice(screen, region, 0, 0, sl, st, x, y, actSL, actST, false, false)
+    _NS_DrawSlice(screen, region, 0, 0, sl, st, x, y, actSL, actST, false, false, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
   end if
   ' NE
   if actSR > 0 and actST > 0 then
-    _NS_DrawSlice(screen, region, srcW - sr, 0, sr, st, x + w - actSR, y, actSR, actST, false, false)
+    _NS_DrawSlice(screen, region, srcW - sr, 0, sr, st, x + w - actSR, y, actSR, actST, false, false, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
   end if
   ' SW
   if actSL > 0 and actSB > 0 then
-    _NS_DrawSlice(screen, region, 0, srcH - sb, sl, sb, x, y + h - actSB, actSL, actSB, false, false)
+    _NS_DrawSlice(screen, region, 0, srcH - sb, sl, sb, x, y + h - actSB, actSL, actSB, false, false, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
   end if
   ' SE
   if actSR > 0 and actSB > 0 then
-    _NS_DrawSlice(screen, region, srcW - sr, srcH - sb, sr, sb, x + w - actSR, y + h - actSB, actSR, actSB, false, false)
+    _NS_DrawSlice(screen, region, srcW - sr, srcH - sb, sr, sb, x + w - actSR, y + h - actSB, actSR, actSB, false, false, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
   end if
 
   ' ── Edges ─────────────────────────────────────────────────────────────────
   ' N (top edge)
   if cSrcW > 0 and actST > 0 and actCW > 0 then
     if edgeMode = "tile" then
-      _NS_TileHorizontal(screen, region, sl, 0, cSrcW, st, x + actSL, y, actCW, actST)
+      _NS_TileHorizontal(screen, region, sl, 0, cSrcW, st, x + actSL, y, actCW, actST, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     else
-      _NS_DrawSlice(screen, region, sl, 0, cSrcW, st, x + actSL, y, actCW, actST, true, false)
+      _NS_DrawSlice(screen, region, sl, 0, cSrcW, st, x + actSL, y, actCW, actST, true, false, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     end if
   end if
   ' S (bottom edge)
   if cSrcW > 0 and actSB > 0 and actCW > 0 then
     if edgeMode = "tile" then
-      _NS_TileHorizontal(screen, region, sl, srcH - sb, cSrcW, sb, x + actSL, y + h - actSB, actCW, actSB)
+      _NS_TileHorizontal(screen, region, sl, srcH - sb, cSrcW, sb, x + actSL, y + h - actSB, actCW, actSB, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     else
-      _NS_DrawSlice(screen, region, sl, srcH - sb, cSrcW, sb, x + actSL, y + h - actSB, actCW, actSB, true, false)
+      _NS_DrawSlice(screen, region, sl, srcH - sb, cSrcW, sb, x + actSL, y + h - actSB, actCW, actSB, true, false, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     end if
   end if
   ' W (left edge)
   if cSrcH > 0 and actSL > 0 and actCH > 0 then
     if edgeMode = "tile" then
-      _NS_TileVertical(screen, region, 0, st, sl, cSrcH, x, y + actST, actSL, actCH)
+      _NS_TileVertical(screen, region, 0, st, sl, cSrcH, x, y + actST, actSL, actCH, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     else
-      _NS_DrawSlice(screen, region, 0, st, sl, cSrcH, x, y + actST, actSL, actCH, false, true)
+      _NS_DrawSlice(screen, region, 0, st, sl, cSrcH, x, y + actST, actSL, actCH, false, true, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     end if
   end if
   ' E (right edge)
   if cSrcH > 0 and actSR > 0 and actCH > 0 then
     if edgeMode = "tile" then
-      _NS_TileVertical(screen, region, srcW - sr, st, sr, cSrcH, x + w - actSR, y + actST, actSR, actCH)
+      _NS_TileVertical(screen, region, srcW - sr, st, sr, cSrcH, x + w - actSR, y + actST, actSR, actCH, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     else
-      _NS_DrawSlice(screen, region, srcW - sr, st, sr, cSrcH, x + w - actSR, y + actST, actSR, actCH, false, true)
+      _NS_DrawSlice(screen, region, srcW - sr, st, sr, cSrcH, x + w - actSR, y + actST, actSR, actCH, false, true, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     end if
   end if
 
   ' ── Center ────────────────────────────────────────────────────────────────
   if cSrcW > 0 and cSrcH > 0 and actCW > 0 and actCH > 0 then
     if centerMode = "tile" then
-      _NS_TileCenter(screen, region, sl, st, cSrcW, cSrcH, x + actSL, y + actST, actCW, actCH)
+      _NS_TileCenter(screen, region, sl, st, cSrcW, cSrcH, x + actSL, y + actST, actCW, actCH, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     else
-      _NS_DrawSlice(screen, region, sl, st, cSrcW, cSrcH, x + actSL, y + actST, actCW, actCH, true, true)
+      _NS_DrawSlice(screen, region, sl, st, cSrcW, cSrcH, x + actSL, y + actST, actCW, actCH, true, true, RokuEngine_ApplyAlpha(&hFFFFFFFF, opacity))
     end if
   end if
 end sub
@@ -183,7 +183,7 @@ end sub
 ' ── Tiling helpers ─────────────────────────────────────────────────────────────
 
 ' Tile a horizontal strip (N or S edge)
-sub _NS_TileHorizontal(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer)
+sub _NS_TileHorizontal(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer, color = &hFFFFFFFF as Integer)
   if srcW <= 0 or srcH <= 0 or dstW <= 0 or dstH <= 0 then return
   ox = 0
   while ox < dstW
@@ -191,16 +191,16 @@ sub _NS_TileHorizontal(screen as Object, region as Object, srcX as Integer, srcY
     slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, tw, srcH)
     if slice = invalid then exit while
     if dstH = srcH then
-      screen.DrawObject(dstX + ox, dstY, slice)
+      screen.DrawObject(dstX + ox, dstY, slice, color)
     else
-      screen.DrawScaledObject(dstX + ox, dstY, 1.0, dstH * 1.0 / srcH, slice)
+      screen.DrawScaledObject(dstX + ox, dstY, 1.0, dstH * 1.0 / srcH, slice, color)
     end if
     ox = ox + srcW
   end while
 end sub
 
 ' Tile a vertical strip (W or E edge)
-sub _NS_TileVertical(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer)
+sub _NS_TileVertical(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer, color = &hFFFFFFFF as Integer)
   if srcW <= 0 or srcH <= 0 or dstW <= 0 or dstH <= 0 then return
   oy = 0
   while oy < dstH
@@ -208,16 +208,16 @@ sub _NS_TileVertical(screen as Object, region as Object, srcX as Integer, srcY a
     slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, srcW, th)
     if slice = invalid then exit while
     if dstW = srcW then
-      screen.DrawObject(dstX, dstY + oy, slice)
+      screen.DrawObject(dstX, dstY + oy, slice, color)
     else
-      screen.DrawScaledObject(dstX, dstY + oy, dstW * 1.0 / srcW, 1.0, slice)
+      screen.DrawScaledObject(dstX, dstY + oy, dstW * 1.0 / srcW, 1.0, slice, color)
     end if
     oy = oy + srcH
   end while
 end sub
 
 ' Tile the center region in both axes
-sub _NS_TileCenter(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer)
+sub _NS_TileCenter(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer, color = &hFFFFFFFF as Integer)
   if srcW <= 0 or srcH <= 0 or dstW <= 0 or dstH <= 0 then return
   oy = 0
   while oy < dstH
@@ -227,7 +227,7 @@ sub _NS_TileCenter(screen as Object, region as Object, srcX as Integer, srcY as 
       tw = _NS_Min(srcW, dstW - ox)
       slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, tw, th)
       if slice = invalid then exit while
-      screen.DrawObject(dstX + ox, dstY + oy, slice)
+      screen.DrawObject(dstX + ox, dstY + oy, slice, color)
       ox = ox + srcW
     end while
     oy = oy + srcH
@@ -236,16 +236,16 @@ end sub
 
 ' ── Single-slice draw (stretch or 1:1) ────────────────────────────────────────
 
-sub _NS_DrawSlice(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer, scaleX as Boolean, scaleY as Boolean)
+sub _NS_DrawSlice(screen as Object, region as Object, srcX as Integer, srcY as Integer, srcW as Integer, srcH as Integer, dstX as Integer, dstY as Integer, dstW as Integer, dstH as Integer, scaleX as Boolean, scaleY as Boolean, color = &hFFFFFFFF as Integer)
   if srcW <= 0 or srcH <= 0 or dstW <= 0 or dstH <= 0 then return
   slice = CreateObject("roRegion", region.GetBitmap(), region.GetX() + srcX, region.GetY() + srcY, srcW, srcH)
   if slice = invalid then return
   sameW = (not scaleX) or (dstW = srcW)
   sameH = (not scaleY) or (dstH = srcH)
   if sameW and sameH then
-    screen.DrawObject(dstX, dstY, slice)
+    screen.DrawObject(dstX, dstY, slice, color)
   else
-    screen.DrawScaledObject(dstX, dstY, dstW * 1.0 / srcW, dstH * 1.0 / srcH, slice)
+    screen.DrawScaledObject(dstX, dstY, dstW * 1.0 / srcW, dstH * 1.0 / srcH, slice, color)
   end if
 end sub
 

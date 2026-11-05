@@ -113,6 +113,8 @@ function buildNativeProject(payload, options = {}) {
       if (fs.existsSync(path.join(output, relative))) props.imageDataUrl = '';
     }
   }
+  require('./native_audio.cjs').prepareAudio(scenes,projectRoot,output,diagnostics);
+  if(diagnostics.some(d=>d.severity==='error'))throw new BuildError(diagnostics);
   const metadata = buildClassicExportMetadataFiles(scenes, { projectRoot, exportOptions: payload.exportOptions || { bakeTerrain: payload.bakeTerrain !== false } });
   for (const scene of metadata.scenePayloads) fs.writeFileSync(path.join(output, 'assets/scenes', scene.sceneName + '.json'), scene.json);
   for (const [file, key] of Object.entries({ spriteframes: 'spriteframesJson', spritesheets: 'spritesheetsJson', tilesets: 'tilesetsJson', audio: 'audioJson', resources: 'resourcesJson', ui_screens: 'uiScreensJson', ui_transition_presets: 'uiTransitionPresetsJson', ui_option_defs: 'uiOptionDefsJson', ui_high_score_table: 'uiHighScoreTableJson', nine_slice_styles: 'nineSliceStylesJson' })) if (metadata[key]) fs.writeFileSync(path.join(output, 'assets', file + '.json'), metadata[key]);

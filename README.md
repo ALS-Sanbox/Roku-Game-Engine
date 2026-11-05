@@ -1,10 +1,48 @@
-# Roku Game Engine
+﻿# Roku Game Engine
 
-Build scenes, sprites, tilemaps, components and menus in the original Electron editor, then test the exported native BrightScript game with the integrated [BrightScript Simulation Engine](https://github.com/lvcabral/brs-engine). **Roku/BrightScript is the game target.** Simulator support does not automatically implement absent engine features.
+**Production Alpha · v0.1.0**
 
-## Install and run
+A desktop 2D game editor for Roku. Build scenes, design menus, connect BrightScript behaviors, and test a native Roku package from one workspace.
 
-Use Node.js 22.12 or newer and Git. On a fresh checkout:
+![Roku Game Engine scene editor with the sample project and selected player properties](docs/images/alpha/editor.png)
+
+This alpha is available as a source checkout. It includes an editable sample game, integrated simulator testing, native BrightScript export, and Roku sideload tools. Runtime coverage is still growing; validate your game on Roku hardware before release.
+
+## What you can build
+
+| Area | Available in this alpha |
+| --- | --- |
+| Scene editing | Node hierarchy, transforms, inspector, components, sprites, animated sprites, tilemaps, and scene instances |
+| UI design | Dedicated screen/layer designer, anchors, stretch and alignment tools, zoom/pan, typography, custom fonts, and undo/redo |
+| Artwork | Sprite sheet slicing, reusable atlas regions, and nine-slice UI backgrounds |
+| Scripting | BrightScript editor with syntax highlighting, scene element references, script attachments, and UI action connections |
+| Rendering | Native sprite rotation, flipping, tint, opacity, layer ordering, cropped textures, and UI clipping |
+| Cameras | Follow, smoothing, lookahead, deadzones, bounds, zones, paths, target groups, dynamic zoom, and shake |
+| Physics | AABB collision, swept solid movement, triggers, mass, restitution, and parent-aware position correction |
+| Audio | Streaming and one-shot playback; mixer, EQ, and effect settings baked into playback assets during export |
+| Build workflow | F5 / Build & Test, runtime logs, Roku ZIP export, and device sideloading |
+
+## Screenshots
+
+### UI Screens designer
+
+Isolate a CanvasLayer, select an element, and edit its layout and text properties beside the preview. Fit, zoom, and pan help with both full screens and small controls.
+
+![UI Screens designer showing the sample title screen and text properties](docs/images/alpha/ui.png)
+
+### BrightScript editor
+
+Edit scripts inside the engine, inspect their scene connections, and insert references to UI and gameplay elements.
+
+![BrightScript editor with syntax highlighting and scene script connections](docs/images/alpha/scripts.png)
+
+These screenshots show the included [Collect the Stars project](samples/collect-the-stars). No separate game download is required.
+
+## Install and launch
+
+Requirements: **Node.js 22.12 or newer**, **Git**, and an internet connection for the initial dependency and simulator setup. The desktop workflow is tested on Windows.
+
+From the repository folder in PowerShell:
 
 ```powershell
 npm.cmd ci
@@ -12,68 +50,65 @@ npm.cmd run simulator:setup
 npm.cmd start
 ```
 
-If dependencies and the simulator are already installed, run only `npm.cmd start`. This opens the original engine project manager as a desktop application. Do not open `index.html` directly.
+On subsequent launches, run `npm.cmd start`. Open the application through this command rather than opening `index.html` directly. In shells without Windows command wrappers, use `npm` in place of `npm.cmd`.
 
-1. Create or open an engine project containing `.rkscene` files.
-2. Build scenes using the existing viewport, node tree, inspector, artwork and component tools.
-3. Click **Build & Test** or press **F5**. The engine snapshots open scenes, exports native BrightScript, validates it, creates a Roku ZIP and opens the simulator automatically.
-4. Read runtime output, restart or stop the game, or download its ZIP in the simulator window.
+Simulator setup downloads and builds the upstream engine at the revision pinned in [tools/brs-engine.lock.json](tools/brs-engine.lock.json).
 
-F5 uses current in-memory scenes. Save the project separately to preserve scene changes. Builds go under `.visual-editor/engine-builds/`; testing does not overwrite original project assets/source. An internal localhost server starts on an available port with the isolation headers required for SharedArrayBuffer.
+## Try your first game
 
-**File → Export Game** and **Sideload to Roku** remain available. Final performance, audio and remote behavior still require checks on Roku hardware.
+1. In the project manager, open the folder **samples/collect-the-stars**.
+2. Open **CollectStars.rkscene** to explore its world, camera, and Title, Game, and Win UI layers.
+3. Click **Build & Test** or press **F5** to export, validate, package, and launch the game in the simulator.
+4. Use **Select** to start, hold **Right** to collect the stars, then use **Select** to restart after winning.
+5. Edit the scene or `components/behaviors/collect.brs`, then build again.
 
-## Camera and UI compatibility
+F5 includes current in-memory scene edits. Save separately to preserve your work. Generated builds live under `.visual-editor/engine-builds/`; the build process preserves original project assets and source.
 
-Camera following, static camera zoom/bounds, parent scale, sprite pivots, UI anchors and texture sizing have simulator regression checks. Advanced camera and UI authoring features are not all implemented in the native runtime. Builds report known gaps as warnings. Referenced SVG artwork is rasterized during the native build.
+The simulator provides runtime output, restart/stop controls, and a downloadable Roku ZIP. **File → Export Game** creates a package for distribution or testing, and **Sideload to Roku** sends a build to a development-enabled device. The simulator starts a local server automatically.
 
-Open `samples/collect-the-stars` in the project manager for an editable game with Title, Game and Win screens. Press Select to start, hold Right to collect four stars, then press Select to restart. Its BrightScript behavior lives in `components/behaviors/collect.brs`.
+## Alpha runtime coverage
 
-The converted Messenger of Light project lives outside this repository at `C:\Development\MOL_RGE`, keeping its game assets out of engine GitHub uploads. Open that folder, then `MOL.rkscene`, and press F5 to play. UI Screens lets you isolate a screen/layer, search its elements, and edit the selected element's properties beside the preview. Use `MOL_RGE_PROJECT` to point the MOL checks at a different folder.
+The editor exports **native BrightScript for Roku**. The integrated simulator runs that package through the [BrightScript Simulation Engine](https://github.com/lvcabral/brs-engine).
 
-UI Screens opens an expanded designer; **Return to dock** restores its dock position. Selecting a CanvasLayer updates the screen browser automatically. Text properties include size, alignment, bold, italic and font family; **Choose font** imports TTF/OTF assets for preview and native builds. Leave the family blank to use the chosen file automatically, or the Roku default when no file is selected. Custom families need their appropriate style faces for matching native bold/italic variants. Use Fit, zoom buttons or a percentage to zoom, Ctrl+wheel to zoom under the pointer, and wheel or Alt+drag to pan. Layout controls align or fill the parent, duplicate elements, and support arrow-key nudging (Shift: 10 pixels). Edits support undo/redo and retain gameplay visibility when previewing hidden screens.
+Some authoring options have limited native behavior:
 
-See [the compatibility report](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for implemented fixes, required rework and testing limits. DOM can run as a native ZIP in the simulator; converting its drawing code into editable engine scenes remains separate work.
+- Camera view rotation, UI rotation, and affine shear are not implemented.
+- Physics uses axis-aligned bounds. Compound and polygon shapes use an enclosing AABB; there is no general polygon, joint, or angular collision solver.
+- Audio mixer and effects are baked per clip during builds, rather than processed as a live multi-voice DSP graph. Native voice counts and playback controls depend on Roku capabilities.
+- Simulator checks do not establish device performance, audio behavior, or certification readiness.
 
-## Simulator
+Build diagnostics report known compatibility gaps. See [Native runtime controls](docs/NATIVE_CONTROLS.md) for implemented behavior and script APIs, and [Native compatibility](docs/NATIVE_RUNTIME_COMPATIBILITY.md) for detailed limits.
 
-`npm.cmd run simulator:setup` installs and builds the local upstream clone at the revision in `tools/brs-engine.lock.json`. The clone retains its MIT license and is ignored by this repository. No upstream changes are needed for this integration.
+## Guides
 
-`npm.cmd run simulator` serves the standalone upstream sample at **http://127.0.0.1:4174**. The earlier source-visualization utility remains available through `npm.cmd run start:visual`; the original game engine is the default application.
+- [Scripting and connecting scene elements](docs/SCRIPTING.md)
+- [Sprite slicing and nine-slice UI](docs/SPRITE_SLICING.md)
+- [UI system](docs/ui_system.md)
+- [Audio architecture](docs/RGE65_AUDIO_ARCHITECTURE.md)
+- [Engine architecture](docs/RGE91_ARCHITECTURE.md)
 
-## Checks
+## Development checks
 
 ```powershell
 npm.cmd test
 npm.cmd run check:runtime
-npm.cmd run test:browser
 npm.cmd run test:browser-suite
 npm.cmd run test:ui
-npm.cmd run test:mol
-npm.cmd run test:ui-screens
-npm.cmd run test:typography
+npm.cmd run test:native-audio
 ```
 
-The UI audit checks dock tabs, button bindings, resource actions, collapsible inspector sections, numeric controls and scrolling at a short editor size. It opens Project Settings at 700×420 and checks its tabs, scrolling and saved settings using an isolated fixture project. Reports and screenshots go to `.visual-editor/artifacts/ui/`. Native file pickers and uploads to a physical Roku require manual checks.
+These cover automated unit checks, BrightScript compilation, native rendering/camera/physics regressions, sample gameplay, editor controls, and audio export. Focused checks are also available through `test:typography`, `test:script-actions`, and `test:slicing`. Generated projects, logs, and screenshots stay in the ignored `.visual-editor/` folder.
 
-With the visual server running (`npm.cmd run start:visual`), `npm.cmd run test:visual-browser` play-tests neighboring `MOL/roku` and `DOM/roku` projects in Chrome. It checks start, movement/fire input, stable pause frames and resume, and saves screenshots and reports to `.visual-editor/artifacts/native-games/`. Both projects are required; their original source files are preserved.
+MOL integration checks require a separate converted game project. Set `MOL_RGE_PROJECT` to its folder before running `test:mol` or `test:ui-screens`; its assets are not bundled with the engine.
 
-The browser check opens hidden Electron windows, loads a fixture scene in the actual editor, builds native BrightScript and checks camera-follow, HUD and texture pixels in the simulator's frame buffer. The full browser suite also checks coordinates and sample gameplay, restart, and package equivalence across simulator, export and sideload builds. Logs and results are written to `.visual-editor/artifacts/results/`. Generated profiles and projects stay under ignored `.visual-editor/`. These are focused checks, not exhaustive gameplay or device validation.
+To refresh the README screenshots using the included sample:
 
-## Update GitHub
-
-Double-click **Roku-Game-Engine-Git-Push.bat** on Windows with Git for Windows installed. It stages changes, creates a timestamped commit when needed and pushes the current branch to origin. Review changes before running it; existing GitHub authentication is required.
-
-From Git Bash, Linux or macOS:
-
-```bash
-bash Roku-Game-Engine-Git-Push.sh "Describe the engine changes"
+```powershell
+node tools/check-engine.cjs --sample --release-screenshot --shot=editor
+node tools/check-engine.cjs --sample --release-screenshot --shot=ui
+node tools/check-engine.cjs --sample --release-screenshot --shot=scripts
 ```
 
-The scripts locate the repository automatically and stop on conflicts/push failures. They never force-push. Dependencies, generated builds, test profiles and the simulator clone are excluded from commits.
+## Simulator attribution
 
-## Script editing
-
-For sprite sheets and UI atlases, open **Tabs → Sprite Slicer**. See [Sprite slicing](docs/SPRITE_SLICING.md) for grid slicing, manual regions and resizable UI backgrounds.
-
-Open **Tabs → Scripts** to create, edit, and attach BrightScript scripts with syntax colors, insert references to scene elements, and connect UI buttons. Select an element to see its clickable script connections in Scripts or the Inspector. See [Scripting guide](docs/SCRIPTING.md) for working examples.
+The integrated simulator uses [lvcabral/brs-engine](https://github.com/lvcabral/brs-engine), which retains its MIT license. Its local clone and generated dependencies are excluded from this repository. `npm.cmd run simulator` starts the standalone upstream sample at `http://127.0.0.1:4174`.

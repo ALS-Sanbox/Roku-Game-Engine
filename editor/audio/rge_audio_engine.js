@@ -724,6 +724,26 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     }
   }
 
+  // Export uses the same DSP graph in an OfflineAudioContext, then packages WAV.
+  RGE_ROOT.RGEAudioDSP = { async renderNative(request) {
+    const raw=Uint8Array.from(atob(request.audio),c=>c.charCodeAt(0));
+    const decoder=new OfflineAudioContext(2,1,44100),buffer=await decoder.decodeAudioData(raw.buffer);
+    const clip=request.clip,pitch=clamp(Number(clip.pitch??1),0.1,4),period=buffer.duration/pitch;
+    const mixers=request.mixers||[],byId=new Map(mixers.map(m=>[m.id,m])),master=mixers.find(m=>m.isMaster),chain=[],seen=new Set();
+    let mixer=byId.get(clip.busId)||master,tail=0;
+    while(mixer){if(seen.has(mixer.id))throw new Error('Audio bus cycle');seen.add(mixer.id);chain.push(mixer);for(const fx of mixer.effects||[]){if(fx.enabled===false)continue;if(fx.type==='Reverb')tail=Math.max(tail,0.5+(fx.params?.roomSize??0.5)*3);if(fx.type==='Delay')tail=Math.max(tail,Math.min(10,(fx.params?.time??0.25)*20));}mixer=mixer.isMaster?null:byId.get(mixer.sendTo)||master;}
+    const warmup=clip.loop?Math.max(period,tail):0,length=Math.ceil((period+warmup+(clip.loop?0:tail))*44100);
+    if(length*8>128*1024*1024)throw new Error('Offline audio exceeds 128 MiB render limit.');
+    const ctx=new OfflineAudioContext(2,Math.max(1,length),44100),source=ctx.createBufferSource(),gain=ctx.createGain();
+    source.buffer=buffer;source.playbackRate.value=pitch;source.loop=!!clip.loop;gain.gain.value=Number(clip.volume??1);source.connect(gain);
+    let previous=gain;
+    const solo=mixers.some(m=>m.solo&&!m.isMaster),audible=!solo||chain.some(m=>m.solo);
+    const originalRandom=Math.random;let seed=1234567;Math.random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+    try{for(const m of chain){const bus=new BusNode(ctx,m.id,m.name,m.isMaster);bus._gainNode.gain.value=m.muted||!audible?0:Number(m.volume??1);if(bus._panNode)bus._panNode.pan.value=clamp(Number(m.pan||0),-1,1);bus._eqLow.gain.value=Number(m.eqLow||0);bus._eqMid.gain.value=Number(m.eqMid||0);bus._eqHigh.gain.value=Number(m.eqHigh||0);bus._sendGain.gain.value=Number(m.sendLevel??1);bus.rebuildFxChain(m.effects||[]);previous.connect(bus.input);previous=bus.output;}}finally{Math.random=originalRandom;}
+    previous.connect(ctx.destination);source.start();
+    const rendered=await ctx.startRendering(),start=clip.loop?Math.floor(warmup*44100):0,count=clip.loop?Math.floor(period*44100):rendered.length;
+    return {sampleRate:44100,left:Array.from(rendered.getChannelData(0).subarray(start,start+count)),right:Array.from(rendered.getChannelData(1).subarray(start,start+count))};
+  }};
   RGE_ROOT.RGEAudioEngine = new RGEAudioEngine();
   console.log('[RGEAudioEngine] Web Audio engine ready (RGE_82).');
 
