@@ -47,12 +47,12 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
     _buildDOM() {
       this._container.innerHTML = `
-        <div style="display:flex;flex-direction:column;height:100%;background:#1c1e26;color:#dde3f0;font-family:'Noto Sans','Segoe UI',system-ui,sans-serif;font-size:12px;">
-          <div style="display:flex;align-items:center;padding:8px 10px;background:#252830;border-bottom:1px solid #3a3f52;flex-shrink:0;gap:8px;">
+        <div style="display:flex;flex-direction:column;height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans','Segoe UI',system-ui,sans-serif;font-size:12px;">
+          <div style="display:flex;align-items:center;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px;">
             <span style="font-size:14px;">🧠</span>
             <span style="font-weight:700;">Memory Estimates</span>
             <div style="flex:1;"></div>
-            <button class="mi-refresh" style="background:#3a3f52;border:none;color:#dde3f0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Refresh</button>
+            <button class="mi-refresh" style="background:var(--border);border:none;color:var(--text);padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Refresh</button>
           </div>
           <div style="padding:6px 10px;">Asset estimates; total device memory is not measured.</div>
           <div class="mi-body" style="flex:1;overflow-y:auto;padding:10px;"></div>
@@ -106,54 +106,54 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       const body = this._container && this._container.querySelector('.mi-body');
       if (!body) return;
       const r = this._lastReport;
-      if (!r) { body.innerHTML = '<div style="color:#8a93b0;">No data — click Refresh.</div>'; return; }
+      if (!r) { body.innerHTML = '<div style="color:var(--text-dim);">No data — click Refresh.</div>'; return; }
 
       const bar = (used, total) => {
         const pct = Math.min(100, total > 0 ? Math.round((used / total) * 100) : 0);
-        const color = pct >= 100 ? '#e05555' : pct >= 80 ? '#e0a030' : '#4caf7d';
-        return `<div style="background:#2a2d38;border-radius:3px;height:6px;overflow:hidden;margin-top:3px;">
+        const color = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--yellow)' : 'var(--green)';
+        return `<div style="background:var(--panel-2);border-radius:3px;height:6px;overflow:hidden;margin-top:3px;">
           <div style="width:${pct}%;height:100%;background:${color};transition:width 0.3s;"></div>
-        </div><div style="font-size:10px;color:#8a93b0;margin-top:2px;">${Math.round(used)} / ${Math.round(total)} KB (${pct}%)</div>`;
+        </div><div style="font-size:10px;color:var(--text-dim);margin-top:2px;">${Math.round(used)} / ${Math.round(total)} KB (${pct}%)</div>`;
       };
 
       const warnHtml = r.warnings.length > 0
-        ? r.warnings.map(w => `<div style="color:#e0a030;font-size:11px;">⚠ ${escHtml(w)}</div>`).join('')
+        ? r.warnings.map(w => `<div style="color:var(--yellow);font-size:11px;">⚠ ${escHtml(w)}</div>`).join('')
         : '';
       const errHtml = r.errors.length > 0
-        ? r.errors.map(e => `<div style="color:#e05555;font-size:11px;">✗ ${escHtml(e)}</div>`).join('')
+        ? r.errors.map(e => `<div style="color:var(--red);font-size:11px;">✗ ${escHtml(e)}</div>`).join('')
         : '';
 
       body.innerHTML = `
         <div style="margin-bottom:10px;">
-          <div style="font-size:10px;font-weight:600;color:#6bc5f8;letter-spacing:.06em;">TOTAL APP RAM</div>
+          <div style="font-size:10px;font-weight:600;color:var(--accent-2);letter-spacing:.06em;">TOTAL APP RAM</div>
           ${bar(r.totalKb, r.budgetKb)}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
           <div>
-            <div style="font-size:10px;color:#8a93b0;">Textures</div>
+            <div style="font-size:10px;color:var(--text-dim);">Textures</div>
             ${bar(r.textureKb, RGE_ROOT.RGEMemoryBudget.LIMITS.textureKb)}
           </div>
           <div>
-            <div style="font-size:10px;color:#8a93b0;">Atlas</div>
+            <div style="font-size:10px;color:var(--text-dim);">Atlas</div>
             ${bar(r.atlasKb, RGE_ROOT.RGEMemoryBudget.LIMITS.atlasKb)}
           </div>
           <div>
-            <div style="font-size:10px;color:#8a93b0;">Audio</div>
+            <div style="font-size:10px;color:var(--text-dim);">Audio</div>
             ${bar(r.audioKb, RGE_ROOT.RGEMemoryBudget.LIMITS.audioKb)}
           </div>
           <div>
-            <div style="font-size:10px;color:#8a93b0;">Scene</div>
+            <div style="font-size:10px;color:var(--text-dim);">Scene</div>
             ${bar(r.sceneKb, RGE_ROOT.RGEMemoryBudget.LIMITS.sceneKb)}
           </div>
         </div>
         ${warnHtml}${errHtml}
         ${r.entries.length > 0 ? `
-        <div style="font-size:10px;font-weight:600;color:#6bc5f8;letter-spacing:.06em;margin-top:10px;margin-bottom:6px;">TOP ASSETS</div>
+        <div style="font-size:10px;font-weight:600;color:var(--accent-2);letter-spacing:.06em;margin-top:10px;margin-bottom:6px;">TOP ASSETS</div>
         ${r.entries.slice(0,12).map(e => `
-          <div style="display:flex;gap:6px;padding:2px 0;border-bottom:1px solid #252830;">
-            <span style="flex:1;color:#dde3f0;">${escHtml(e.label)}</span>
-            <span style="color:#8a93b0;font-size:10px;">${e.category}</span>
-            <span style="color:#dde3f0;text-align:right;min-width:50px;">${e.kb} KB</span>
+          <div style="display:flex;gap:6px;padding:2px 0;border-bottom:1px solid var(--panel);">
+            <span style="flex:1;color:var(--text);">${escHtml(e.label)}</span>
+            <span style="color:var(--text-dim);font-size:10px;">${e.category}</span>
+            <span style="color:var(--text);text-align:right;min-width:50px;">${e.kb} KB</span>
           </div>`).join('')}
         ` : ''}
       `;

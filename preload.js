@@ -3,6 +3,13 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getEditorTheme: () => ipcRenderer.invoke('get-editor-theme'),
+  setEditorTheme: theme => ipcRenderer.invoke('set-editor-theme', theme),
+  onEditorThemeUpdated: callback => {
+    const listener = (_event, theme) => callback(theme);
+    ipcRenderer.on('editor-theme-updated', listener);
+    return () => ipcRenderer.removeListener('editor-theme-updated', listener);
+  },
   closeWindow: () => ipcRenderer.send('window-close'),
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),

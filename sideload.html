@@ -176,7 +176,7 @@
       transition: background .1s, border-color .1s;
     }
     .device-item:hover  { background: var(--panel2); border-color: var(--accent); }
-    .device-item.active { background: #1f3550; border-color: var(--accent); }
+    .device-item.active { background: var(--selection); border-color: var(--accent); }
     .device-item-name   { flex: 1; font-size: 12px; }
     .device-item-ip     { font-size: 10px; color: var(--dim); font-family: monospace; }
     .device-del {
@@ -226,10 +226,10 @@
       font-size: 10.5px;
       line-height: 1.55;
       overflow-y: auto;
-      color: #9aa5c0;
+      color: var(--text-dim);
     }
     .log-line            { white-space: pre-wrap; word-break: break-all; }
-    .log-line.info       { color: #9aa5c0; }
+    .log-line.info       { color: var(--text-dim); }
     .log-line.ok         { color: var(--green); }
     .log-line.warn       { color: var(--yellow); }
     .log-line.error      { color: var(--red); }
@@ -274,12 +274,14 @@
       transition: background .1s, border-color .1s;
       white-space: nowrap;
     }
-    button.btn:hover:not(:disabled) { background: #333748; border-color: var(--accent); }
+    button.btn:hover:not(:disabled) { background: var(--panel-3); border-color: var(--accent); }
     button.btn:disabled { opacity: .4; cursor: not-allowed; }
-    button.btn.primary  { background: #1f4068; border-color: var(--accent); font-weight: 600; }
-    button.btn.primary:hover:not(:disabled) { background: #245080; }
+    button.btn.primary  { background: var(--primary); border-color: var(--accent); font-weight: 600; }
+    button.btn.primary:hover:not(:disabled) { background: var(--primary-hover); }
     button.btn.sm       { padding: 5px 9px; font-size: 11px; }
   </style>
+  <link rel="stylesheet" href="editor/styles/theme.css" />
+  <script src="editor/theme.js"></script>
 </head>
 <body>
 

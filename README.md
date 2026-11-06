@@ -21,6 +21,11 @@ This alpha is available as a source checkout. It includes an editable sample gam
 | Physics | AABB collision, swept solid movement, triggers, mass, restitution, and parent-aware position correction |
 | Audio | Streaming and one-shot playback; mixer, EQ, and effect settings baked into playback assets during export |
 | Build workflow | F5 / Build & Test, runtime logs, Roku ZIP export, and device sideloading |
+| Appearance | Dark, Light, and Mid-tone editor themes, saved across sessions and projects |
+
+## Editor appearance
+
+Open **Settings → Appearance → Editor color theme** and choose **Dark**, **Light**, or **Mid-tone** (a medium slate palette). Changes apply immediately to open editor windows and save automatically for future sessions. The preference applies across projects; scene artwork and node colors keep their authored values.
 
 ## Screenshots
 

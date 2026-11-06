@@ -33,6 +33,27 @@ const ENGINE_VERSION = 'v24';
 
 const PROJECT_SETTINGS_FILE = 'project.settings.json';
 
+function readEditorPreferences() {
+  try { return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'editor-preferences.json'), 'utf8')); }
+  catch (_) { return {}; }
+}
+ipcMain.handle('get-editor-theme', () => {
+  const theme = readEditorPreferences()?.theme;
+  return { success: true, theme: ['dark', 'light', 'mid'].includes(theme) ? theme : 'dark' };
+});
+ipcMain.handle('set-editor-theme', (_event, theme) => {
+  if (!['dark', 'light', 'mid'].includes(theme)) return { success: false, reason: 'Unknown editor theme.' };
+  try {
+    const folder = app.getPath('userData');
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(path.join(folder, 'editor-preferences.json'), JSON.stringify({ ...readEditorPreferences(), theme }, null, 2), 'utf8');
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) win.webContents.send('editor-theme-updated', theme);
+    }
+    return { success: true, theme };
+  } catch (error) { return { success: false, reason: error.message }; }
+});
+
 function defaultProjectSettings(projectRoot = getProjectRoot()) {
   const fallbackName = path.basename(projectRoot || getProjectRoot() || __dirname) || 'RokuEngine Game';
   return {

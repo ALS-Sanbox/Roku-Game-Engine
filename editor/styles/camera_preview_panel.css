@@ -3,7 +3,7 @@
 .camera-preview-panel {
   display: flex;
   flex-direction: column;
-  background: #13161f;
+  background: var(--viewport, #13161f);
   overflow: hidden;
   height: 100%;
   min-height: 0;
@@ -16,8 +16,8 @@
   flex-wrap: wrap;
   gap: 4px;
   padding: 4px 8px;
-  background: #1c2133;
-  border-bottom: 1px solid #2a3050;
+  background: var(--panel, #1c2133);
+  border-bottom: 1px solid var(--border, #2a3050);
   flex-shrink: 0;
   min-height: 32px;
 }
@@ -25,7 +25,7 @@
 .camera-preview-title {
   font-size: 12px;
   font-weight: 600;
-  color: #c8d6ea;
+  color: var(--text, #c8d6ea);
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
@@ -39,15 +39,15 @@
 
 .camera-preview-label {
   font-size: 11px;
-  color: #7a8fad;
+  color: var(--text-dim, #7a8fad);
   white-space: nowrap;
 }
 
 .camera-preview-selector {
   font-size: 11px;
-  background: #242838;
-  color: #c8d6ea;
-  border: 1px solid #3a4a6a;
+  background: var(--panel-2, #242838);
+  color: var(--text, #c8d6ea);
+  border: 1px solid var(--border, #3a4a6a);
   border-radius: 3px;
   padding: 2px 4px;
   height: 22px;
@@ -59,9 +59,9 @@
 .camera-preview-selector:focus { border-color: #00d4ff; }
 
 .camera-preview-btn {
-  background: #1c2133;
-  color: #c8d6ea;
-  border: 1px solid #3a4a6a;
+  background: var(--panel, #1c2133);
+  color: var(--text, #c8d6ea);
+  border: 1px solid var(--border, #3a4a6a);
   border-radius: 3px;
   padding: 2px 6px;
   font-size: 13px;
@@ -72,14 +72,14 @@
   justify-content: center;
   transition: background 0.1s, border-color 0.1s;
 }
-.camera-preview-btn:hover { background: #2a3555; border-color: #00d4ff; color: #00d4ff; }
+.camera-preview-btn:hover { background: var(--panel-3, #2a3555); border-color: #00d4ff; color: #00d4ff; }
 
 .camera-preview-viewport-wrap {
   position: relative;
   flex: 1 1 0;
   min-height: 80px;
   overflow: hidden;
-  background: #151821;
+  background: var(--bg, #151821);
 }
 
 .camera-preview-canvas {
@@ -122,8 +122,8 @@
 /* ── Camera Diagnostics Section ───────────────────────────────────────── */
 .camera-diagnostics {
   flex-shrink: 0;
-  border-top: 1px solid #2a3050;
-  background: #161a27;
+  border-top: 1px solid var(--border, #2a3050);
+  background: var(--bg, #161a27);
   padding: 6px 8px;
   font-family: monospace;
   font-size: 10px;
@@ -132,7 +132,7 @@
 .camera-diag-title {
   font-size: 10px;
   font-weight: 600;
-  color: #7a8fad;
+  color: var(--text-dim, #7a8fad);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 5px;
@@ -145,12 +145,12 @@
 }
 
 .diag-label {
-  color: #5a7090;
+  color: var(--text-faint, #5a7090);
   white-space: nowrap;
 }
 
 .diag-value {
-  color: #c8d6ea;
+  color: var(--text, #c8d6ea);
   text-align: right;
 }
 
@@ -167,7 +167,7 @@
 
 .camera-overlay-section-label {
   font-size: 10px;
-  color: #5a7090;
+  color: var(--text-faint, #5a7090);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 6px 12px 2px;
@@ -197,7 +197,7 @@
 }
 #btn-camera-overlays:hover,
 #btn-camera-overlays[aria-expanded="true"] {
-  background: #2a3555;
+  background: var(--panel-3, #2a3555);
   border-color: #00d4ff;
   color: #00d4ff;
 }
@@ -210,7 +210,7 @@
   right: 0;
   height: 26px;
   background: rgba(22,26,39,0.92);
-  border-top: 1px solid #2a3050;
+  border-top: 1px solid var(--border, #2a3050);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -220,7 +220,7 @@
 
 .camera-preview-zoom-btn {
   background: transparent;
-  color: #7a8fad;
+  color: var(--text-dim, #7a8fad);
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 1px 6px;
@@ -235,9 +235,9 @@
   white-space: nowrap;
 }
 .camera-preview-zoom-btn:hover {
-  background: #2a3555;
-  color: #c8d6ea;
-  border-color: #3a4a6a;
+  background: var(--panel-3, #2a3555);
+  color: var(--text, #c8d6ea);
+  border-color: var(--border, #3a4a6a);
 }
 .camera-preview-zoom-sep {
   flex: 1;

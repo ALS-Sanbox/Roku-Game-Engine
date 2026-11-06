@@ -20,11 +20,11 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   const MAX_DISPLAY_LINES = 500;
   const FPS_RING_SIZE     = 120; // 2 minutes at 1-sample/sec
   const LEVEL_COLORS = {
-    ERROR:   '#e05555',
-    WARN:    '#e0a030',
-    INFO:    '#6bc5f8',
-    DEBUG:   '#8a93b0',
-    DEFAULT: '#dde3f0',
+    ERROR:   'var(--red)',
+    WARN:    'var(--yellow)',
+    INFO:    'var(--accent-2)',
+    DEBUG:   'var(--text-dim)',
+    DEFAULT: 'var(--text)',
   };
   const ERROR_PATTERNS = [/error:/i, /exception:/i, /crash/i, /undefined/i, /nil/i, /invalid/i];
   const WARN_PATTERNS  = [/warning:/i, /warn:/i, /deprecated/i];
@@ -116,22 +116,22 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       const c = this._container;
       if (!c) return;
       c.innerHTML = `
-        <div class="rdc-root" style="display:flex;flex-direction:column;height:100%;background:#141620;color:#dde3f0;font-family:monospace;font-size:12px;">
-          <div class="rdc-toolbar" style="display:flex;gap:6px;align-items:center;padding:4px 8px;background:#1c1e26;border-bottom:1px solid #2a2d38;flex-shrink:0;">
-            <span style="font-weight:700;color:#6bc5f8;font-size:11px;">RUNTIME CONSOLE</span>
-            <input class="rdc-filter" placeholder="Filter…" style="flex:1;background:#252830;border:1px solid #3a3f52;color:#dde3f0;padding:2px 6px;border-radius:3px;font-size:11px;" />
-            <select class="rdc-level" style="background:#252830;border:1px solid #3a3f52;color:#dde3f0;padding:2px 4px;border-radius:3px;font-size:11px;">
+        <div class="rdc-root" style="display:flex;flex-direction:column;height:100%;background:var(--viewport);color:var(--text);font-family:monospace;font-size:12px;">
+          <div class="rdc-toolbar" style="display:flex;gap:6px;align-items:center;padding:4px 8px;background:var(--bg);border-bottom:1px solid var(--panel-2);flex-shrink:0;">
+            <span style="font-weight:700;color:var(--accent-2);font-size:11px;">RUNTIME CONSOLE</span>
+            <input class="rdc-filter" placeholder="Filter…" style="flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);padding:2px 6px;border-radius:3px;font-size:11px;" />
+            <select class="rdc-level" style="background:var(--panel);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:3px;font-size:11px;">
               <option value="ALL">All</option>
               <option value="ERROR">Errors</option>
               <option value="WARN">Warnings</option>
               <option value="INFO">Info</option>
             </select>
-            <button class="rdc-clear" style="background:#2a2d38;border:1px solid #3a3f52;color:#8a93b0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Clear</button>
-            <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:#8a93b0;cursor:pointer;">
+            <button class="rdc-clear" style="background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Clear</button>
+            <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-dim);cursor:pointer;">
               <input type="checkbox" class="rdc-autoscroll" checked /> Auto
             </label>
           </div>
-          <div class="rdc-stats" style="display:flex;gap:12px;padding:3px 8px;background:#1a1c24;border-bottom:1px solid #2a2d38;flex-shrink:0;font-size:11px;color:#8a93b0;">
+          <div class="rdc-stats" style="display:flex;gap:12px;padding:3px 8px;background:var(--bg);border-bottom:1px solid var(--panel-2);flex-shrink:0;font-size:11px;color:var(--text-dim);">
             <span class="rdc-fps">FPS: —</span>
             <span class="rdc-mem">MEM: —</span>
             <span class="rdc-errcnt">Errors: 0</span>
@@ -205,7 +205,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         const line = escHtml(e.line);
         const time = new Date(e.t).toTimeString().slice(0, 8);
         return `<div style="color:${color};line-height:1.5;white-space:pre-wrap;">`
-          + `<span style="color:#3a3f52;user-select:none;">${time} </span>${line}</div>`;
+          + `<span style="color:var(--border);user-select:none;">${time} </span>${line}</div>`;
       }).join('');
 
       linesEl.innerHTML = html;
@@ -227,7 +227,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       const errorCount = this._lineBuffer.filter(e => e.level === 'ERROR').length;
       if (errEl) {
         errEl.textContent = `Errors: ${errorCount}`;
-        errEl.style.color = errorCount > 0 ? '#e05555' : '#8a93b0';
+        errEl.style.color = errorCount > 0 ? 'var(--red)' : 'var(--text-dim)';
       }
     }
   }

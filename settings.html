@@ -18,7 +18,7 @@
     .subtitle { color:var(--dim); margin-top:4px; }
     .tabs { display:flex; gap:6px; padding:14px 18px 0; }
     .tab { border:1px solid var(--border); background:var(--panel2); color:var(--text); border-radius:6px 6px 0 0; padding:8px 12px; cursor:pointer; }
-    .tab.active { background:#233a59; border-color:var(--accent); }
+    .tab.active { background:var(--selection); border-color:var(--accent); }
     .panel { display:none; padding:18px; background:var(--panel); border-top:1px solid var(--border); flex:1; min-height:0; overflow:auto; }
     .panel.active { display:block; }
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -31,9 +31,11 @@
     .status { color:var(--dim); }
     .actions { display:flex; gap:8px; }
     button.action { border:1px solid var(--border); background:var(--panel2); color:var(--text); border-radius:6px; padding:10px 14px; cursor:pointer; }
-    button.primary { background:#1f4068; border-color:var(--accent); }
+    button.primary { background:var(--primary); border-color:var(--accent); }
     .hint { color:var(--dim); font-size:12px; margin-top:4px; }
   </style>
+  <link rel="stylesheet" href="editor/styles/theme.css" />
+  <script src="editor/theme.js"></script>
 </head>
 <body>
   <div class="wrap">
@@ -46,8 +48,20 @@
       <button class="tab active" data-tab="project">Project Name</button>
       <button class="tab" data-tab="input">Input</button>
       <button class="tab" data-tab="screen">Screen</button>
+      <button class="tab" data-tab="appearance">Appearance</button>
     </div>
 
+    <section class="panel" data-panel="appearance">
+      <div class="field">
+        <label for="editor-theme">Editor color theme</label>
+        <select id="editor-theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="mid">Mid-tone</option>
+        </select>
+        <div class="hint" id="editor-theme-status" role="status">Changes apply immediately and save automatically for all projects.</div>
+      </div>
+    </section>
     <section class="panel active" data-panel="project">
       <div class="field">
         <label for="project-name">Project Name</label>

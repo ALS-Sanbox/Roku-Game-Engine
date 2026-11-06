@@ -1,0 +1,48 @@
+/* Application chrome only: scene artwork and node colors keep their authored values. */
+:root[data-editor-theme] {
+  color-scheme: dark;
+  --bg: #1c1e26; --panel: #252830; --panel-2: #2a2d38; --panel-3: #313545;
+  --border: #3a3f52; --border-hi: #4e5470;
+  --text: #dde3f0; --text-dim: #8a93b0; --text-faint: #737e9e;
+  --accent: #478cbf; --accent-2: #5fb2d3; --accent-hi: #6ec6e8;
+  --green: #6dbd79; --yellow: #e5c97a; --red: #e06c75; --orange: #d19a66;
+  --viewport: #141620; --titlebar: #17191f;
+  --selection: #233a59; --selection-hover: #2d4a6e;
+  --primary: #1f4068; --primary-hover: #26527e;
+  --code-bg: #111722; --code-text: #e7edf5;
+  --code-comment: #819875; --code-string: #c3e88d; --code-keyword: #82cfff;
+  --code-number: #f5bb72; --code-function: #ffcb6b;
+  --panel2: var(--panel-2); --dim: var(--text-dim);
+  --bg-elev: var(--panel); --bg-card: var(--panel-2);
+  --bg-card-hover: var(--panel-3); --bg-card-selected: var(--selection);
+  --line: var(--border); --line-strong: var(--accent);
+  --accent-strong: var(--accent-hi); --danger: var(--red);
+}
+:root[data-editor-theme="light"] {
+  color-scheme: light;
+  --bg: #edf0f5; --panel: #ffffff; --panel-2: #e5eaf1; --panel-3: #d5dde8;
+  --border: #b7c2d1; --border-hi: #8b9bb0;
+  --text: #202b3b; --text-dim: #4e6077; --text-faint: #63748a;
+  --accent: #216ca5; --accent-2: #176d8b; --accent-hi: #145a91;
+  --green: #26703b; --yellow: #806014; --red: #b63243; --orange: #935020;
+  --viewport: #dce2eb; --titlebar: #d5dde8;
+  --selection: #d5e7f8; --selection-hover: #c2ddf4;
+  --primary: #d1e5f7; --primary-hover: #bad8f1;
+  --code-bg: #f7f9fc; --code-text: #263244;
+  --code-comment: #576f48; --code-string: #367231; --code-keyword: #135f9f;
+  --code-number: #92520b; --code-function: #865918;
+}
+:root[data-editor-theme="mid"] {
+  color-scheme: dark;
+  --bg: #434b58; --panel: #505b6b; --panel-2: #596678; --panel-3: #657387;
+  --border: #78879b; --border-hi: #9baabd;
+  --text: #f5f7fb; --text-dim: #e0e6ef; --text-faint: #c4cfdd;
+  --accent: #8dc9ff; --accent-2: #a3ddf1; --accent-hi: #d0ecff;
+  --green: #a7edb6; --yellow: #ffe29b; --red: #ffb0b8; --orange: #ffd0a6;
+  --viewport: #373f4c; --titlebar: #39424f;
+  --selection: #3e6386; --selection-hover: #476f95;
+  --primary: #345a80; --primary-hover: #3c6893;
+  --code-bg: #39424f; --code-text: #f1f5fc;
+  --code-comment: #bccdb3; --code-string: #c8eba9; --code-keyword: #b1e2ff;
+  --code-number: #ffd2a0; --code-function: #ffe0a6;
+}
