@@ -22,7 +22,8 @@
     "test:native-features": "node tools/check-engine.cjs --native-features",
     "test:native-audio": "node tools/check-native-audio.cjs",
     "test:visual-browser": "node visual-editor/check-browser.js",
-    "test": "node --test visual-editor/test/*.test.js export/test/*.test.cjs"
+    "test": "node --test visual-editor/test/*.test.js export/test/*.test.cjs",
+    "docs:manual": "node tools/build-user-manual.cjs"
   },
   "engines": {
     "node": ">=22.12"

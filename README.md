@@ -25,7 +25,13 @@ This alpha is available as a source checkout. It includes an editable sample gam
 
 ## Editor appearance
 
-Open **Settings → Appearance → Editor color theme** and choose **Dark**, **Light**, or **Mid-tone** (a medium slate palette). Changes apply immediately to open editor windows and save automatically for future sessions. The preference applies across projects; scene artwork and node colors keep their authored values.
+Open **Settings → Appearance → Editor color theme** and choose **Dark**, **Light**, or **Mid-tone** (the default medium slate palette). Changes apply immediately to open editor windows and save automatically for future sessions. Existing saved theme choices are preserved. The preference applies across projects; scene artwork and node colors keep their authored values.
+
+## User manual
+
+Read the illustrated [PDF user manual](docs/manual/Roku-Game-Engine-User-Manual.pdf) or the [searchable HTML edition](docs/manual/Roku-Game-Engine-User-Manual.html). It covers setup, workflows, icons and controls, all creatable nodes and components, BrightScript APIs, deployment, troubleshooting and native limits.
+
+The editable walkthrough is [user-manual.md](docs/manual/user-manual.md). Rebuild both editions with `npm.cmd run docs:manual` using an installed Chrome or Edge; `MANUAL_BROWSER` can select another Chromium executable. `node tools/build-user-manual.cjs --html-only` rebuilds the HTML without a browser. Reference catalogs come from the current schema/runtime, with coverage recorded in [coverage.json](docs/manual/coverage.json).
 
 ## Screenshots
 

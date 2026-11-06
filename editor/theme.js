@@ -5,13 +5,13 @@
   const api = window.electronAPI;
   let revision = 0;
   function apply(theme) {
-    const value = themes.includes(theme) ? theme : 'dark';
+    const value = themes.includes(theme) ? theme : 'mid';
     document.documentElement.dataset.editorTheme = value;
     try { localStorage.setItem(key, value); } catch (_) {}
     const select = document.getElementById('editor-theme');
     if (select) select.value = value;
   }
-  let cached = 'dark';
+  let cached = 'mid';
   try { cached = localStorage.getItem(key); } catch (_) {}
   apply(cached);
   api?.onEditorThemeUpdated?.(theme => { revision++; apply(theme); });

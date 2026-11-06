@@ -37,9 +37,15 @@ function readEditorPreferences() {
   try { return JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'editor-preferences.json'), 'utf8')); }
   catch (_) { return {}; }
 }
+function getEditorBackground() {
+  const theme = readEditorPreferences()?.theme;
+  if (theme === 'dark') return '#1c1e26';
+  if (theme === 'light') return '#edf0f5';
+  return '#434b58';
+}
 ipcMain.handle('get-editor-theme', () => {
   const theme = readEditorPreferences()?.theme;
-  return { success: true, theme: ['dark', 'light', 'mid'].includes(theme) ? theme : 'dark' };
+  return { success: true, theme: ['dark', 'light', 'mid'].includes(theme) ? theme : 'mid' };
 });
 ipcMain.handle('set-editor-theme', (_event, theme) => {
   if (!['dark', 'light', 'mid'].includes(theme)) return { success: false, reason: 'Unknown editor theme.' };
@@ -739,7 +745,7 @@ function createSettingsWindow() {
     parent: mainWindow || undefined,
     modal: false,
     show: false,
-    backgroundColor: '#1c1e26',
+    backgroundColor: getEditorBackground(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -768,7 +774,7 @@ function createSideloadWindow() {
     parent:    mainWindow || undefined,
     modal:     false,
     show:      false,
-    backgroundColor: '#1c1e26',
+    backgroundColor: getEditorBackground(),
     webPreferences: {
       preload:          path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -805,7 +811,7 @@ function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    backgroundColor: '#0f1117',
+    backgroundColor: getEditorBackground(),
     frame: false,
     resizable: true,
     minimizable: true,
