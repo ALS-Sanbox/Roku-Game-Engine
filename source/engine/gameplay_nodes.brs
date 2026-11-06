@@ -29,11 +29,13 @@ end sub
 function RokuGameplay_IsSleeping(engine as Object, node as Object) as Boolean
   if engine.scene = invalid then return false
   sleeping = engine.scene.runtime.gameplaySleeping
-  if sleeping = invalid then return false
+  if sleeping = invalid then sleeping = {}
   seen = {}
   while node <> invalid
     if seen.DoesExist(node.id) then exit while
     seen[node.id] = true
+    runtime = engine.scene.runtime.nodes[node.id]
+    if runtime <> invalid and runtime.poolActive = false then return true
     if sleeping.DoesExist(node.id) and sleeping[node.id] = true then return true
     node = RokuGameplay_Resolve(engine, node.parentId)
   end while

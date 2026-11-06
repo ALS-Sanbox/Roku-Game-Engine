@@ -1023,6 +1023,7 @@ sub RokuEngine_RunScriptHooks(dt as Float, event as Dynamic)
     if node = invalid then continue for
     components = node.components
     if type(components) <> "roArray" then continue for
+    if eventName <> "SceneExit" and RokuGameplay_IsSleeping(m, node) then continue for
     for each component in components
       if component = invalid or component.enabled = false then continue for
       if component.type <> "ScriptComponent" then continue for

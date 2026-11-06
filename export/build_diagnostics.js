@@ -40,6 +40,9 @@ function validateSnapshot(root, scenes, startupScene, settings = {}) {
       let parent = n, visited = new Set();
       while (parent?.parentId) { if (visited.has(parent.id)) { add('error', 'PARENT_CYCLE', 'Parent hierarchy contains a cycle.', location); break; } visited.add(parent.id); parent = doc.nodes.find(p => p.id === parent.parentId); }
       const p = n.properties || {};
+      if (['CircleButton','TriangleButton','OvalButton'].includes(n.type)) add('warning', 'NATIVE_UI_SHAPE', 'This button shape is editable but is not rendered or included in focus navigation by the native runtime. Use Button for native builds.', location);
+      if (['HBoxContainer','VBoxContainer','MarginContainer','ScrollContainer'].includes(n.type)) add('warning', 'NATIVE_UI_LAYOUT', 'This container has no native layout/scroll implementation; exported children use their saved positions. Automatic spacing, padding and scrolling will not run.', location);
+      if (n.type === 'MenuList') add('warning', 'NATIVE_MENU_INPUT', 'MenuList renders its selectedIndex, but built-in remote input does not change the selected item. Use individual Buttons or implement selection in a script.', location);
       require('./gameplay_diagnostics').validateGameplayNode(doc, n, (code, message, property) => add('error', code, message, { ...location, property }));
       if (p.followTargetName && !nodeNames.has(p.followTargetName.toLowerCase())) add('error', 'TARGET_REFERENCE', 'Camera follow target does not exist.', { ...location, property: 'followTargetName' });
       for (const key of ['focusUp', 'focusDown', 'focusLeft', 'focusRight']) if (p[key] && !ids.has(p[key]) && !nodeNames.has(String(p[key]).toLowerCase())) add('error', 'TARGET_REFERENCE', 'Focus target does not exist.', { ...location, property: key });

@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const { getSchema } = require('../project_snapshot');
 const { buildNativeProject } = require('../native_build');
 const { validateGameplayNode } = require('../gameplay_diagnostics');
+const { validateSnapshot } = require('../build_diagnostics');
 const { getClassicRuntimeSourceFiles } = require('../classic2d_export');
 const schema = getSchema();
 const types = ['Marker2D','Timer','TriggerZone2D','Path2D','PathFollow2D','Parallax2D','VisibilityEnabler2D','Spawner2D','FocusGroup'];
@@ -42,6 +43,17 @@ test('gameplay validation catches invalid paths, timing, spawn recursion and foc
   for (const node of doc.nodes) validateGameplayNode(doc, node, (code, message, property) => errors.push({ node: node.id, property, message }));
   for (const [node, property] of [['spawn','properties.template'],['spawn','properties.interval'],['spawn','properties.spawnPoints'],['focus','properties.initialFocus'],['timer','properties.waitTime']]) assert.ok(errors.some(e => e.node === node && e.property === property), node + property);
   assert.ok(!errors.some(e => e.node === 'follow'));
+});
+
+test('native export surfaces missing UI implementations instead of silently accepting them', () => {
+  const root = schema.createDefaultNode('SceneRoot', { id: 'root' });
+  const missing = ['CircleButton','TriangleButton','OvalButton','HBoxContainer','VBoxContainer','MarginContainer','ScrollContainer','MenuList'];
+  const nodes = [root, ...missing.map(type => schema.createDefaultNode(type, { id: type, parentId: 'root' }))];
+  root.children = missing;
+  const doc = { formatVersion: 2, scene: { name: 'Audit', rootNodeId: 'root' }, nodes };
+  const diagnostics = validateSnapshot(os.tmpdir(), [{ runtimeScene: doc }], 'Audit');
+  assert.ok(!diagnostics.some(d => d.severity === 'error'), JSON.stringify(diagnostics));
+  for (const type of missing) assert.ok(diagnostics.some(d => d.nodeId === type && /^NATIVE_(UI_SHAPE|UI_LAYOUT|MENU_INPUT)$/.test(d.code)), type);
 });
 
 test('sample exports all helper types and event hooks in the native package', () => {
@@ -83,7 +95,7 @@ const interpreterPath = path.resolve(__dirname, '../../tools/brs-engine/packages
 test('native gameplay behaviors execute correctly in BrightScript', { skip: !fs.existsSync(interpreterPath) }, () => {
   const brs = require(interpreterPath);
   const runtime = Object.values(getClassicRuntimeSourceFiles()).join('\n');
-  const fixture = fs.readFileSync(path.join(__dirname, 'fixtures/gameplay_checks.brs'), 'utf8');
+  const fixture = ['gameplay_checks.brs', 'runtime_audit_checks.brs'].map(file => fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8')).join('\n');
   const tokens = brs.Lexer.scan(runtime + '\n' + fixture);
   assert.deepEqual(tokens.errors, []);
   const parsed = brs.Parser.parse(tokens.tokens);
@@ -94,4 +106,5 @@ test('native gameplay behaviors execute correctly in BrightScript', { skip: !fs.
   assert.deepEqual(interpreter.errors, [], output);
   assert.ok(!output.includes('FAIL:'), output);
   assert.ok(output.includes('PASS: gameplay runtime'), output);
+  assert.ok(output.includes('PASS: runtime audit regressions'), output);
 });

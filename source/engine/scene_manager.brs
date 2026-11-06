@@ -17,6 +17,9 @@ function RokuEngine_LoadScene(sceneName as String) as Object
 
   if GetInterface(sceneDoc, "ifAssociativeArray") = invalid then return invalid
   if type(sceneDoc.nodes) <> "roArray" then return invalid
+  ' Resources cache authored documents. Runtime mutation must not change the
+  ' template used by restart, retry, or a later scene transition.
+  sceneDoc = ParseJSON(FormatJSON(sceneDoc), "i")
 
   sceneState = {
     name: sceneName
@@ -66,6 +69,8 @@ function RokuEngine_LoadScene(sceneName as String) as Object
 
   m.scene = sceneState
   m.accumulator = 0.0
+  m.focus = invalid
+  m.screenMgr = invalid
   m.InitializeUiRuntime()
   m.InitializeFocusManager()
   m.collisionPairsPrevious = {}
