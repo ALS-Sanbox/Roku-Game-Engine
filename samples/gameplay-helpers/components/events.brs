@@ -1,3 +1,19 @@
+sub RokuScript_components_events_MenuSelectionChanged(context as Object)
+  print "Menu selection changed: "; context.node.name
+end sub
+
+sub RokuScript_components_events_MenuItemSelected(context as Object)
+  print "Menu item selected: "; context.node.name
+end sub
+
+sub RokuScript_components_events_AnimationEvent(context as Object)
+  print "Animation event: "; context.extra.event.name
+end sub
+
+sub RokuScript_components_events_AnimationStateChanged(context as Object)
+  print "Animation state: "; context.extra.stateId
+end sub
+
 sub RokuScript_components_events_Timeout(context as Object)
   print "Timer timeout: "; context.node.name
 end sub

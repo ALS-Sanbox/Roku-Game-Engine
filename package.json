@@ -31,6 +31,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "brighterscript": "^0.73.8",
     "electron": "^45.2.1",
-    "konva": "^9.3.22"
+    "konva": "^9.3.22",
+    "roku-deploy": "^3.18.4"
   }
 }

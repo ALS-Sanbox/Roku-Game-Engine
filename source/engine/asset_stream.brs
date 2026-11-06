@@ -17,6 +17,9 @@ function RokuStream_Create(engine as Object) as Object
     loadedGuids:    {}
     accessTimes:    {}
     sizesKb:        {}
+    accessCounter:  0
+    paths:          {}
+    lastWarning:    ""
     totalKb:        0
     budgetKb:       81920   ' 80 MB
     batchSize:      3       ' assets per frame
@@ -25,6 +28,8 @@ function RokuStream_Create(engine as Object) as Object
     PreloadGroup:   RokuStream_PreloadGroup
     EnqueueLazy:    RokuStream_EnqueueLazy
     ProcessQueue:   RokuStream_ProcessQueue
+    TrackBitmap:    RokuStream_TrackBitmap
+    IsPinned:       RokuStream_IsPinned
     LoadAsset:      RokuStream_LoadAsset
     EvictLRU:       RokuStream_EvictLRU
     IsLoaded:       RokuStream_IsLoaded
@@ -47,7 +52,7 @@ end function
 
 ' ── Preload group ─────────────────────────────────────────────────────────────
 
-sub RokuStream_PreloadGroup(groupId as String)
+sub RokuStream_PreloadGroup(groupId as String, lazy = false as Boolean)
   engine = m.engine
   if engine = invalid or engine.resources = invalid then return
   rm = engine.resources
@@ -64,9 +69,13 @@ sub RokuStream_PreloadGroup(groupId as String)
   if type(group.textures) = "roArray" then
     for each guid in group.textures
       if not m.IsLoaded(guid) then
-        entry = manifest.assets[guid]
+        entry = rm.textureManifest[guid]
         if entry <> invalid and entry.path <> invalid then
-          m.LoadAsset(guid, entry.path, entry.kind)
+          if lazy then
+            m.EnqueueLazy(guid, entry.path, "texture")
+          else
+            m.LoadAsset(guid, entry.path, "texture")
+          end if
         end if
       end if
     end for
@@ -76,9 +85,13 @@ sub RokuStream_PreloadGroup(groupId as String)
   if type(group.audio) = "roArray" then
     for each guid in group.audio
       if not m.IsLoaded(guid) then
-        entry = manifest.assets[guid]
-        if entry <> invalid then m.LoadAsset(guid, entry.path, entry.kind)
+        entry = rm.GetAudio(guid)
       end if
+    end for
+  end if
+  if type(group.scenes) = "roArray" then
+    for each sceneName in group.scenes
+      sceneDocument = rm.GetScene(sceneName)
     end for
   end if
 end sub
@@ -114,84 +127,54 @@ sub RokuStream_ProcessQueue()
     if keep then filtered.Push(item)
   end for
   m.lazyQueue = filtered
+  m.EvictLRU()
 end sub
 
 ' ── Load ─────────────────────────────────────────────────────────────────────
 
-sub RokuStream_LoadAsset(guid as String, path as String, kind as String)
-  if guid = "" or path = "" then return
-  if m.IsLoaded(guid) then
-    m.MarkAccess(guid)
-    return
-  end if
-
-  engine = m.engine
-  rm     = engine.resources
-  if rm = invalid then return
-
-  sizeKb = 0
-
-  if kind = "texture" or kind = "spritesheet" or kind = "atlas" then
-    bm = rm.GetBitmap(path)
-    if bm <> invalid then
-      sizeKb = (bm.GetWidth() * bm.GetHeight() * 4) / 1024
-    end if
-  end if
-
-  if kind = "audio" then
-    ' Audio loaded on demand by audio system; register presence
-    sizeKb = 64  ' conservative 64 KB placeholder
-  end if
-
-  m.loadedGuids[guid] = true
-  m.sizesKb[guid]     = sizeKb
-  m.totalKb           = m.totalKb + sizeKb
-  m.MarkAccess(guid)
-
-  if m.totalKb > m.budgetKb then m.EvictLRU()
-end sub
+function RokuStream_LoadAsset(guid as String, path as String, kind as String) as Boolean
+  if guid = "" or path = "" then return false
+  rm = m.engine.resources
+  if rm = invalid then return false
+  if kind = "audio" then return rm.GetAudio(guid) <> invalid
+  bitmap = rm.GetBitmap(path)
+  if bitmap = invalid then return false
+  key = rm.ResolveBitmapPath(path)
+  m.paths[guid] = key
+  m.TrackBitmap(key, bitmap)
+  return true
+end function
 
 function RokuStream_IsLoaded(guid as String) as Boolean
-  return m.loadedGuids[guid] = true
+  key = guid
+  if m.paths.DoesExist(guid) then key = m.paths[guid]
+  return m.loadedGuids.DoesExist(key)
 end function
 
 sub RokuStream_MarkAccess(guid as String)
-  m.accessTimes[guid] = CreateObject("roTimespan").TotalMilliseconds()
+  m.accessCounter = m.accessCounter+1
+  m.accessTimes[guid] = m.accessCounter
 end sub
 
 ' ── LRU eviction ─────────────────────────────────────────────────────────────
 
 sub RokuStream_EvictLRU()
-  ' Collect evictable entries sorted by access time
-  entries = []
-  for each guid in m.loadedGuids
-    t = m.accessTimes[guid]
-    if t = invalid then t = 0
-    entries.Push({ guid: guid, t: t, kb: m.sizesKb[guid] })
-  end for
-
-  ' Sort ascending by access time (oldest first) — BrightScript has no built-in sort
-  n = entries.Count()
-  for i = 0 to n - 2
-    for j = 0 to n - 2 - i
-      if entries[j].t > entries[j + 1].t then
-        tmp         = entries[j]
-        entries[j]  = entries[j + 1]
-        entries[j + 1] = tmp
-      end if
+  m.lastWarning = ""
+  while m.totalKb > m.budgetKb
+    oldest = "" : age = 1e30
+    for each key in m.loadedGuids
+      if not m.IsPinned(key) and m.accessTimes[key] < age then oldest = key : age = m.accessTimes[key]
     end for
-  end for
-
-  target = m.totalKb - m.budgetKb
-  freed  = 0
-  for each e in entries
-    if freed >= target then exit for
-    m.loadedGuids.Delete(e.guid)
-    m.accessTimes.Delete(e.guid)
-    freed = freed + e.kb
-    m.totalKb = m.totalKb - e.kb
-    m.sizesKb.Delete(e.guid)
-  end for
+    if oldest = "" then
+      m.lastWarning = "Active scene textures exceed the streaming budget; pinned assets retained."
+      exit while
+    end if
+    m.engine.resources.bitmapCache.Delete(oldest)
+    m.engine.resources.regionCache.Clear()
+    m.engine.resources.transformedTileCache.Clear()
+    m.totalKb = m.totalKb-m.sizesKb[oldest]
+    m.loadedGuids.Delete(oldest) : m.accessTimes.Delete(oldest) : m.sizesKb.Delete(oldest)
+  end while
 end sub
 
 ' ── Placeholder fallback ──────────────────────────────────────────────────────
@@ -210,13 +193,13 @@ function RokuStream_ValidateManifest(manifest as Dynamic) as Object
     return result
   end if
 
-  if type(manifest.assets) <> "roAssociativeArray" then
-    result.warnings.Push("No assets table in manifest")
+  if type(manifest.textures) <> "roAssociativeArray" then
+    result.warnings.Push("No textures table in manifest")
     return result
   end if
 
-  for each guid in manifest.assets
-    entry = manifest.assets[guid]
+  for each guid in manifest.textures
+    entry = manifest.textures[guid]
     if entry = invalid or entry.path = invalid or entry.path = "" then
       result.missing.Push(guid)
       result.valid = false
@@ -224,4 +207,68 @@ function RokuStream_ValidateManifest(manifest as Dynamic) as Object
   end for
 
   return result
+end function
+
+sub RokuStream_TrackBitmap(key as String, bitmap as Object)
+  if bitmap = invalid then return
+  if m.loadedGuids.DoesExist(key) <> true then
+    kb = bitmap.GetWidth()*bitmap.GetHeight()*4.0/1024.0
+    m.loadedGuids[key] = true : m.sizesKb[key] = kb : m.totalKb = m.totalKb+kb
+  end if
+  m.MarkAccess(key)
+end sub
+
+function RokuStream_IsPinned(path as String) as Boolean
+  engine = m.engine : rm = engine.resources
+  if engine.scene = invalid then return false
+  for each node in engine.scene.doc.nodes
+    p = node.properties
+    if p = invalid then continue for
+    if p.imagePath <> invalid and p.imagePath <> "" then
+      if rm.ResolveBitmapPath(p.imagePath) = path then return true
+    end if
+    sheets = []
+    if p.spriteSheetId <> invalid then sheets.Push(p.spriteSheetId)
+    libraries = []
+    if p.spriteFramesId <> invalid then libraries.Push(p.spriteFramesId)
+    if engine.scene.runtime <> invalid and engine.scene.runtime.nodes <> invalid then
+      runtime = engine.scene.runtime.nodes[node.id]
+      if runtime <> invalid and runtime.graphController <> invalid then
+        for each clipId in runtime.graphController.graph.clips
+          graphClip = runtime.graphController.graph.clips[clipId]
+          if graphClip.spriteFramesId <> invalid then libraries.Push(graphClip.spriteFramesId)
+        end for
+      end if
+    end if
+    for each libraryId in libraries
+      if not rm.spriteFramesManifest.DoesExist(libraryId) then continue for
+      library = rm.spriteFramesManifest[libraryId]
+      if library.defaultSheetId <> invalid then sheets.Push(library.defaultSheetId)
+      if type(library.clips) = "roArray" then
+        for each clip in library.clips
+          if clip.spriteSheetId <> invalid then sheets.Push(clip.spriteSheetId)
+        end for
+      end if
+    end for
+    if p.tilesetId <> invalid and rm.tilesetManifest.DoesExist(p.tilesetId) then
+      tileset = rm.tilesetManifest[p.tilesetId]
+      if tileset.spriteSheetId <> invalid then sheets.Push(tileset.spriteSheetId)
+      if tileset.imagePath <> invalid and tileset.imagePath <> "" then
+        if rm.ResolveBitmapPath(tileset.imagePath) = path then return true
+      end if
+    end if
+    for each id in sheets
+      if rm.spriteSheetManifest.DoesExist(id) then
+        sheet = rm.spriteSheetManifest[id]
+        if sheet.resourcePath <> invalid and rm.ResolveBitmapPath(sheet.resourcePath) = path then return true
+      end if
+    end for
+    if p.nineSliceStyleId <> invalid and p.nineSliceStyleId <> "" then
+      for each id in rm.nineSliceStyleManifest
+        style = rm.nineSliceStyleManifest[id]
+        if style.imagePath <> invalid and rm.ResolveBitmapPath(style.imagePath) = path then return true
+      end for
+    end if
+  end for
+  return false
 end function

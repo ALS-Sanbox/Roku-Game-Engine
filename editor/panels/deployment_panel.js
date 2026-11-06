@@ -61,6 +61,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
           </div>
 
           <!-- Device section -->
+          <label style="padding:6px">Target <select class="dp-target" aria-label="Target Roku"></select></label>
+          <div style="padding:6px;display:flex;gap:6px"><input class="dp-user" aria-label="Developer username" value="rokudev"><input class="dp-password" type="password" aria-label="Developer password" placeholder="Developer password"></div>
           <div style="padding:8px 10px;border-bottom:1px solid #3a3f52;flex-shrink:0;">
             <div style="font-size:10px;font-weight:600;color:#6bc5f8;letter-spacing:.06em;margin-bottom:6px;">DEVICES</div>
             <div class="dp-device-list" style="display:flex;flex-direction:column;gap:4px;"></div>
@@ -78,6 +80,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
             <div class="dp-warnings" style="margin-top:4px;font-size:11px;color:#e0a030;"></div>
           </div>
 
+          <div style="padding:6px;display:flex;gap:6px"><button class="dp-connect">Connect logs</button><button class="dp-disconnect">Disconnect</button><button class="dp-screenshot">Screenshot</button></div>
           <!-- History -->
           <div style="padding:8px 10px;flex:1;overflow-y:auto;">
             <div style="font-size:10px;font-weight:600;color:#6bc5f8;letter-spacing:.06em;margin-bottom:6px;">HISTORY</div>
@@ -88,7 +91,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       this._dom = {
         profile:    c.querySelector('.dp-profile'),
         deviceList: c.querySelector('.dp-device-list'),
-        deviceIp:   c.querySelector('.dp-device-ip'),
+        deviceIp: c.querySelector('.dp-device-ip'),
+        target: c.querySelector('.dp-target'), user: c.querySelector('.dp-user'), password: c.querySelector('.dp-password'),
         addBtn:     c.querySelector('.dp-add-device'),
         discoverBtn:c.querySelector('.dp-discover'),
         deployBtn:  c.querySelector('.dp-deploy'),
@@ -107,7 +111,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       this._dom.addBtn.addEventListener('click', () => {
         const ip = this._dom.deviceIp.value.trim();
         if (!ip) return;
-        dm.addDevice(ip, 'rokudev', '');
+        dm.addDevice(ip, this._dom.user.value.trim() || 'rokudev', this._dom.password.value);
         this._dom.deviceIp.value = '';
         this._refreshDeviceList();
       });
@@ -115,14 +119,29 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       this._dom.discoverBtn.addEventListener('click', async () => {
         this._dom.discoverBtn.disabled = true;
         this._dom.discoverBtn.textContent = '…';
-        await dm.discoverDevices();
-        this._dom.discoverBtn.disabled = false;
-        this._dom.discoverBtn.textContent = 'Scan';
-        this._refreshDeviceList();
+        try { await dm.discoverDevices(); this._refreshDeviceList(); }
+        catch (error) { this._setStatus(error.message, '#e05555'); }
+        finally { this._dom.discoverBtn.disabled = false; this._dom.discoverBtn.textContent = 'Scan'; }
       });
 
       this._dom.deployBtn.addEventListener('click', () => this._onDeploy());
 
+      this._container.querySelector('.dp-connect').addEventListener('click', async () => {
+        const dev = dm.listDevices().find(d => d.ip === this._dom.target.value);
+        if (!dev) return this._setStatus('Select a device.', '#e05555');
+        const result = await RGE_ROOT.RGEDeviceBridge.connect(dev.ip, dev.username, dev.password);
+        this._setStatus(result?.success ? 'Live logs connected.' : result?.reason || 'Connection failed.', result?.success ? '#4caf7d' : '#e05555');
+      });
+      this._container.querySelector('.dp-disconnect').addEventListener('click', () => RGE_ROOT.RGEDeviceBridge.disconnect());
+      this._container.querySelector('.dp-screenshot').addEventListener('click', async () => {
+        const dev = dm.listDevices().find(d => d.ip === this._dom.target.value);
+        if (!dev) return;
+        const result = await window.electronAPI.sideloadScreenshot({ ip: dev.ip, user: dev.username, pass: dev.password });
+        if (!result.success) return this._setStatus(result.reason, '#e05555');
+        const dialog = document.createElement('dialog'), image = document.createElement('img'), close = document.createElement('button');
+        image.src = result.dataUrl; image.style.maxWidth = '80vw'; close.textContent = 'Close'; close.onclick = () => dialog.close();
+        dialog.append(close, image); dialog.addEventListener('close', () => dialog.remove()); document.body.append(dialog); dialog.showModal();
+      });
       // Bus events
       if (RGE_ROOT.RGEBus) {
         this._unsubscribers.push(
@@ -145,7 +164,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         this._setStatus('No devices registered.', '#e05555');
         return;
       }
-      const target = devices[0]; // use first device
+      const target = devices.find(d => d.ip === this._dom.target.value) || devices[0];
+      if (this._dom.password.value) { target.password = this._dom.password.value; target.username = this._dom.user.value || target.username; }
 
       this._dom.deployBtn.disabled = true;
       this._dom.deployBtn.textContent = '⏳ Building…';
@@ -157,16 +177,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
       // Gather export payload
       let exportPayload = null;
-      try {
-        if (window.Exporter) {
-          const sceneState  = window._currentSceneState  || {};
-          const editorState = window._currentEditorState || {};
-          exportPayload = {
-            scenes: [sceneState],
-            manifest: window.Exporter.buildRuntimeResourceManifest([sceneState], [editorState]),
-          };
-        }
-      } catch (_) {}
+      try { exportPayload = window.getNativeBuildSnapshot(); }
+      catch (error) { this._setStatus(String(error), '#e05555'); this._dom.deployBtn.disabled = false; this._dom.deployBtn.textContent = 'Deploy'; return; }
 
       try {
         const record = await dm.deploy({
@@ -196,6 +208,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       const el = this._dom.deviceList;
       if (!dm || !el) return;
       const devices = dm.listDevices();
+      const selected = this._dom.target.value;
+      this._dom.target.replaceChildren(...devices.map(device => { const option = document.createElement('option'); option.value = device.ip; option.textContent = device.label; return option; }));
+      if (devices.some(d => d.ip === selected)) this._dom.target.value = selected;
       if (devices.length === 0) {
         el.innerHTML = '<div style="color:#3a3f52;font-size:11px;">No devices — add one below.</div>';
         return;
@@ -221,9 +236,9 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       });
 
       el.querySelectorAll('.dp-restart').forEach(btn => {
-        btn.addEventListener('click', () => {
-          dm.remoteRestart(btn.dataset.ip);
-          this._setStatus(`Restarting ${btn.dataset.ip}…`, '#8a93b0');
+        btn.addEventListener('click', async () => {
+          try { await dm.remoteRestart(btn.dataset.ip); this._setStatus('Restarted ' + btn.dataset.ip, '#4caf7d'); }
+          catch (error) { this._setStatus(String(error), '#e05555'); }
         });
       });
     }

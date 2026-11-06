@@ -283,6 +283,7 @@ sub RokuComponent_HandleDirectionalInput(ctx as Object, useFollowSpeed as Boolea
 end sub
 
 sub RokuComponent_AnimationPlayer_Update(ctx as Object)
+  if RokuAnim_UpdateNode(ctx) then return
   if ctx.component.animation <> invalid and ctx.component.animation <> "" then ctx.props.animation = ctx.component.animation
   if ctx.component.autoplay <> invalid and ctx.props.autoplay = invalid then ctx.props.autoplay = ctx.component.autoplay
   if ctx.component.playing <> invalid and ctx.runtime.animationInputToggled <> true then ctx.props.playing = ctx.component.playing

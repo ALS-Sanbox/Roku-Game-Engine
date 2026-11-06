@@ -61,7 +61,7 @@ function RokuEngine_IsNodeFocusable(node as Object) as Boolean
 
   ' Per-type defaults
   ntype = node.type
-  if ntype = "Button" then return true
+  if ntype = "Button" or ntype = "CircleButton" or ntype = "TriangleButton" or ntype = "OvalButton" then return true
   if ntype = "MenuList" then return true
   if ntype = "CheckBox" then return true
   if ntype = "Slider"   then return true
@@ -335,6 +335,10 @@ sub RokuEngine_HandleFocusInput(event as Object)
   m.InitializeFocusManager()
 
   if m.GetFocusedNode() = invalid and actionName <> "back" then return
+  focused = m.GetFocusedNode()
+  if focused <> invalid and focused.type = "MenuList" then
+    if RokuUi_MenuInput(m, focused, actionName) then event.consumed = true : return
+  end if
 
   ' Directional navigation
   if actionName = "move_up"    then m.MoveFocusDirection("up")    : event.consumed = true : return

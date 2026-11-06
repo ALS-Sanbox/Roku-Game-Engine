@@ -1691,6 +1691,24 @@ function getNativeBuildSnapshot() {
   return { projectRoot: state.projectRoot, projectTitle: state.projectSettings.projectName, settings: state.projectSettings, startupScene: state.projectSettings.startupScene || state.scenes[0]?.sceneState?.scene?.name,
     scenes: state.scenes.map(entry => ({ filePath: entry.documentState?.currentScenePath || '', sceneName: entry.sceneState.scene.name, runtimeScene: entry.sceneState, editorState: entry.editorState })) };
 }
+function getMemoryAssetSnapshot() {
+  const assets = new Map();
+  const addImage = (resourcePath, id, width, height, kind = 'texture') => {
+    if (!resourcePath) return;
+    const image = state.imageCache.get(id);
+    assets.set(resourcePath, { path: resourcePath, kind, name: resourcePath.split('/').pop(), meta: {
+      width: image?.naturalWidth || Number(width) || 256, height: image?.naturalHeight || Number(height) || 256
+    } });
+  };
+  for (const node of getNodes()) addImage(node.properties?.imagePath, node.id, 0, 0);
+  for (const sheet of state.spritesheets || []) addImage(sheet.resourcePath, sheet.id, sheet.imageWidth, sheet.imageHeight, 'spritesheet');
+  for (const style of state.nineSliceStyles || []) addImage(style.imagePath, style.id, 0, 0);
+  for (const clip of Object.values(window._rgeAudioClips || {})) {
+    const path = clip.path || clip.resourcePath;
+    if (path) assets.set(path, { path, kind: 'audio', name: clip.name || path.split('/').pop(), meta: { durationSec: clip.duration || clip.durationSec || 5, format: path.split('.').pop() } });
+  }
+  return { projectRoot: state.projectRoot, nodeCount: getNodes().length, assets: [...assets.values()] };
+}
 function showBuildDiagnostics(diagnostics) {
   let panel = document.getElementById('native-build-diagnostics');
   if (!panel) { panel = document.createElement('dialog'); panel.id = 'native-build-diagnostics'; panel.style.cssText = 'width: min(900px,90vw);max-height:70vh;background:#182330;color:#e4eef9;border:1px solid #678;padding:20px;overflow:auto'; document.body.append(panel); }
@@ -8157,6 +8175,7 @@ function drawCameraPreviewOverlays() {
 
 
 function renderViewport() {
+  RGE_ROOT.RGESystemPanels?.requestSync();
   if (!sceneLayer || !cameraGroup || !gridGroup || !contentGroup || !uiContentGroup) return;
   // Already rendered in this flush pass — skip duplicate work
   if (_viewportRenderedThisFlush) return;

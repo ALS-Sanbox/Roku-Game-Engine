@@ -7,6 +7,10 @@ const fs = require('fs');
 const scriptFiles = require('./editor/script_files.cjs');
 const os = require('os');
 const http = require('http');
+const { DeviceServices } = require('./deployment/device_services.cjs');
+const deviceServices = new DeviceServices();
+const rokuDeploy = require('roku-deploy');
+app.on('before-quit', () => deviceServices.close());
 const { writeClassicRuntimeFiles } = require('./export/classic2d_export');
 const { buildScriptHookBaseName } = require('./export/user_scripts');
 const { buildSimulatorProject } = require('./export/simulator_build');
@@ -1790,108 +1794,65 @@ ipcMain.handle('open-sideload-window', async () => {
 });
 
 ipcMain.handle('sideload-ping', async (_event, payload = {}) => {
-  const ip = String(payload.ip || '').trim();
-  if (!ip) return { success: false, reason: 'missing_ip' };
-  const t0 = Date.now();
-  return new Promise((resolve) => {
-    const req = http.get(`http://${ip}:80/`, { timeout: 4000 }, (res) => {
-      res.resume();
-      resolve({ success: true, ms: Date.now() - t0, statusCode: res.statusCode });
+  try { return payload.scan ? await deviceServices.discover() : await deviceServices.ping(payload.ip); }
+  catch (error) { return { success: false, reason: error.message }; }
+});
+ipcMain.handle('sideload-restart', async (_event, payload = {}) => {
+  try { return await deviceServices.restart(payload.ip); }
+  catch (error) { return { success: false, reason: error.message }; }
+});
+const debugOwners = new WeakSet();
+ipcMain.handle('sideload-debug-connect', async (event, payload = {}) => {
+  try {
+    if (!debugOwners.has(event.sender)) {
+      debugOwners.add(event.sender);
+      const ownerId = event.sender.id;
+      event.sender.once('destroyed', () => deviceServices.disconnect(ownerId));
+    }
+    return await deviceServices.connect(event.sender.id, payload.ip, data => {
+      if (!event.sender.isDestroyed()) event.sender.send('sideload-progress', data);
     });
-    req.on('timeout', () => { req.destroy(); resolve({ success: false, reason: 'timeout' }); });
-    req.on('error',   (e) => { resolve({ success: false, reason: e.message }); });
-  });
+  } catch (error) { return { success: false, reason: error.message }; }
+});
+ipcMain.handle('sideload-debug-disconnect', event => {
+  deviceServices.disconnect(event.sender.id); return { success: true };
+});
+ipcMain.handle('sideload-screenshot', async (_event, payload = {}) => {
+  try {
+    deviceServices.target(payload.ip);
+    const output = path.join(app.getPath('temp'), 'roku-engine-captures');
+    const image = await rokuDeploy.takeScreenshot({ host: payload.ip, username: payload.user || 'rokudev', password: payload.pass, outDir: output, outFile: crypto.randomUUID() });
+    const dataUrl = 'data:image/' + (image.endsWith('.png') ? 'png' : 'jpeg') + ';base64,' + fs.readFileSync(image).toString('base64');
+    if (path.dirname(path.resolve(image)) === path.resolve(output)) fs.unlinkSync(image);
+    return { success: true, dataUrl };
+  } catch (error) { return { success: false, reason: error.message }; }
 });
 
 ipcMain.handle('sideload-build',async (_event,payload={})=>{try{if(mainWindow&&!mainWindow.isDestroyed()&&!mainWindow.webContents.getURL().includes('project_manager')) editorBuildSnapshot=await mainWindow.webContents.executeJavaScript('getNativeBuildSnapshot()');return buildSimulatorProject({...getEditorBuildSnapshot(),...payload,projectRoot:payload.projectRoot||getProjectRoot()});}catch(error){return {success:false,reason:error.message,diagnostics:error.diagnostics||[]};}});
 
 ipcMain.handle('sideload-delete', async (_event, payload = {}) => {
-  const { ip, user = 'rokudev', pass } = payload;
-  if (!ip || !pass) return { success: false, reason: 'missing_ip_or_password' };
-  const body = Buffer.from('mysubmit=Delete&archive=');
-  const auth = Buffer.from(`${user}:${pass}`).toString('base64');
-  return new Promise((resolve) => {
-    const req = http.request({
-      hostname: ip, port: 80, path: '/plugin_install', method: 'POST', timeout: 8000,
-      headers: {
-        'Authorization':  `Basic ${auth}`,
-        'Content-Type':   'application/x-www-form-urlencoded',
-        'Content-Length': body.length,
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', (c) => { data += c; });
-      res.on('end',  () => { resolve({ success: true, status: res.statusCode, body: data.substring(0, 300) }); });
-    });
-    req.on('timeout', () => { req.destroy(); resolve({ success: false, reason: 'timeout' }); });
-    req.on('error',   (e) => { resolve({ success: false, reason: e.message }); });
-    req.write(body);
-    req.end();
-  });
+  try {
+    deviceServices.target(payload.ip);
+    if (!payload.pass) return { success: false, reason: 'missing_password' };
+    await rokuDeploy.deleteInstalledChannel({ host: payload.ip, username: payload.user || 'rokudev', password: payload.pass });
+    return { success: true };
+  } catch (error) { return { success: false, reason: error.message }; }
 });
 
 ipcMain.handle('sideload-upload', async (event, payload = {}) => {
-  const { ip, user = 'rokudev', pass, zipPath } = payload;
-  if (!ip || !pass || !zipPath)    return { success: false, reason: 'missing_params' };
-  if (!fs.existsSync(zipPath))     return { success: false, reason: 'zip_not_found: ' + zipPath };
-
-  const zipBuf   = fs.readFileSync(zipPath);
-  const auth     = Buffer.from(`${user}:${pass}`).toString('base64');
-  const boundary = '----RGESideloadBoundary' + Date.now().toString(16);
-
-  const partHeader = Buffer.from(
-    `--${boundary}\r\nContent-Disposition: form-data; name="mysubmit"\r\n\r\nReplace\r\n` +
-    `--${boundary}\r\nContent-Disposition: form-data; name="archive"; filename="channel.zip"\r\n` +
-    `Content-Type: application/zip\r\n\r\n`
-  );
-  const partFooter  = Buffer.from(`\r\n--${boundary}--\r\n`);
-  const totalBody   = Buffer.concat([partHeader, zipBuf, partFooter]);
-  const totalBytes  = totalBody.length;
-  let   sentBytes   = 0;
-
-  return new Promise((resolve) => {
-    const req = http.request({
-      hostname: ip, port: 80, path: '/plugin_install', method: 'POST', timeout: 120000,
-      headers: {
-        'Authorization':  `Basic ${auth}`,
-        'Content-Type':   `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': totalBytes,
-      },
-    }, (res) => {
-      let body = '';
-      res.on('data', (c) => { body += c; });
-      res.on('end',  () => {
-        const ok = res.statusCode === 200;
-        resolve({ success: ok, status: res.statusCode, bytes: sentBytes,
-          reason: ok ? undefined : `HTTP ${res.statusCode}`, body: body.substring(0, 500) });
-      });
-    });
-    req.on('timeout', () => { req.destroy(); resolve({ success: false, reason: 'upload_timeout' }); });
-    req.on('error',   (e) => { resolve({ success: false, reason: e.message }); });
-
-    const CHUNK = 65536;
-    let offset = 0;
-    function writeChunk() {
-      if (offset >= totalBody.length) { req.end(); return; }
-      const slice = totalBody.slice(offset, offset + CHUNK);
-      offset    += slice.length;
-      sentBytes += slice.length;
-      const pct = Math.round((sentBytes / totalBytes) * 100);
-      if (sideloadWindow && !sideloadWindow.isDestroyed()) {
-        sideloadWindow.webContents.send('sideload-progress', {
-          percent:     pct / 100,
-          transferred: `${sideloadFmtBytes(sentBytes)} / ${sideloadFmtBytes(totalBytes)}`,
-        });
-      }
-      const ok = req.write(slice);
-      if (ok) setImmediate(writeChunk);
-      else req.once('drain', writeChunk);
-    }
-    writeChunk();
-  });
+  try {
+    deviceServices.target(payload.ip);
+    if (!payload.pass || !payload.zipPath) return { success: false, reason: 'missing_params' };
+    const zipPath = path.resolve(payload.zipPath);
+    if (!fs.existsSync(zipPath)) return { success: false, reason: 'zip_not_found' };
+    const notify = data => { if (!event.sender.isDestroyed()) event.sender.send('sideload-progress', data); };
+    notify({ percent: 0, transferred: 'Uploading?' });
+    await rokuDeploy.publish({ host: payload.ip, username: payload.user || 'rokudev', password: payload.pass, outDir: path.dirname(zipPath), outFile: path.basename(zipPath) });
+    const bytes = fs.statSync(zipPath).size;
+    notify({ percent: 1, transferred: sideloadFmtBytes(bytes) });
+    return { success: true, bytes };
+  } catch (error) { return { success: false, reason: error.message }; }
 });
-
-// ── Sideload helpers ──────────────────────────────────────────────────────────
 
 function sideloadFmtBytes(b) {
   if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';

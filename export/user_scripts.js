@@ -46,6 +46,10 @@ function buildUserScriptRegistrySource(scriptEntries = []) {
       ['ScreenEntered', 'screenentered'],
       ['ScreenExited', 'screenexited'],
       ['Spawned', 'spawned'],
+      ['MenuSelectionChanged', 'menuselectionchanged'],
+      ['MenuItemSelected', 'menuitemselected'],
+      ['AnimationEvent', 'animationevent'],
+      ['AnimationStateChanged', 'animationstatechanged'],
       ['CameraZoneChanged', 'camerazonechanged'],
       ['SceneExit', 'sceneexit'],
       ['CollisionEnter', 'collisionenter'],
@@ -106,7 +110,7 @@ function collectProjectBrightScriptFiles(projectRoot) {
         CollisionStay: new RegExp(`(?:sub|function)\\s+${baseName}_CollisionStay\\s*\\(`, 'i').test(sourceText),
         CollisionExit: new RegExp(`(?:sub|function)\\s+${baseName}_CollisionExit\\s*\\(`, 'i').test(sourceText)
       };
-      for (const hook of ['Timeout', 'PathFinished', 'ScreenEntered', 'ScreenExited', 'Spawned']) {
+      for (const hook of ['Timeout', 'PathFinished', 'ScreenEntered', 'ScreenExited', 'Spawned', 'MenuSelectionChanged', 'MenuItemSelected', 'AnimationEvent', 'AnimationStateChanged']) {
         hookMap[hook] = new RegExp('(?:sub|function)\\s+' + baseName + '_' + hook + '\\s*\\(', 'i').test(sourceText);
       }
       const hasAnyHookFunctions = Object.values(hookMap).some(Boolean);

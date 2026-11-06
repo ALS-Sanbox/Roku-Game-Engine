@@ -97,7 +97,13 @@ sub RokuRender_WorldOrdered(engine as Object)
       sprite = runtime.spriteState
       if sprite <> invalid and sprite.member <> invalid and sprite.drawable <> invalid then
         for each offset in RokuGameplay_RepeatOffsets(engine, node)
-          engine.screen.DrawObject(sprite.drawX+offset.x*engine.scene.cameraZoom, sprite.drawY+offset.y*engine.scene.cameraZoom, sprite.drawable)
+          dx = sprite.drawX+offset.x*engine.scene.cameraZoom : dy = sprite.drawY+offset.y*engine.scene.cameraZoom
+          weight = 1.0
+          if runtime.graphPreviousDrawable <> invalid then
+            weight = runtime.graphBlendWeight
+            engine.screen.DrawObject(dx, dy, runtime.graphPreviousDrawable, RokuEngine_ApplyAlpha(&hFFFFFFFF, 1-weight))
+          end if
+          engine.screen.DrawObject(dx, dy, sprite.drawable, RokuEngine_ApplyAlpha(&hFFFFFFFF, weight))
         end for
       end if
     else if node.type = "TileMap" then

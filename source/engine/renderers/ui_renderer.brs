@@ -47,7 +47,7 @@ function RokuUi_AncestorClip(engine as Object,node as Object) as Dynamic
   while parentId <> invalid and parentId <> "" and engine.scene.nodeMap.DoesExist(parentId)
     if seen.DoesExist(parentId) then exit while
     seen[parentId] = true : parent = engine.scene.nodeMap[parentId]
-    if parent.properties <> invalid and parent.properties.clipContent = true then
+    if parent.type = "ScrollContainer" or (parent.properties <> invalid and parent.properties.clipContent = true) then
       tf = engine.GetNodeScreenTransform(parentId)
       right = clip.x+clip.w : bottom = clip.y+clip.h
       px = Int(tf.x) : py = Int(tf.y) : pr = Int(tf.x+tf.width*tf.scaleX) : pb = Int(tf.y+tf.height*tf.scaleY)
@@ -161,7 +161,7 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
       m.DrawUiText("?tex", x + 4, y + Int(height * 0.5), "#ffffff")
     end if
 
-  else if node.type = "Button" then
+  else if node.type = "Button" or node.type = "CircleButton" or node.type = "TriangleButton" or node.type = "OvalButton" then
     ' Try nine-slice style first (uses focused/pressed state color tinting)
     if props.nineSliceStyleId <> invalid and props.nineSliceStyleId <> "" then
       style = RokuEngine_ResolveNineSliceStyle(m, RokuEngine_Trim(RokuEngine_ToString(props.nineSliceStyleId)))
@@ -188,11 +188,10 @@ sub RokuEngine_RenderUiNode(node as Object, screenTransform as Object)
     if pressed  then colorHex = props.pressedColor
     if props.disabled = true then colorHex = props.disabledColor
     fillColor = RokuEngine_HexToRgba(colorHex, opacity)
-    btnBorderColor = &hDCE7F4
-    if focused then btnBorderColor = &hF6D365
+    btnBorderColor = &hDCE7F4FF
+    if focused then btnBorderColor = &hF6D365FF
     borderColor = RokuEngine_ApplyAlpha(btnBorderColor, opacity)
-    m.screen.DrawRect(x, y, width, height, fillColor)
-    RokuEngine_DrawUiOutlineRect(m.screen, x, y, width, height, borderColor)
+    RokuUi_DrawButtonShape(m.screen, node.type, x, y, width, height, fillColor, borderColor)
     m.DrawUiTextAligned(props.text, x, y, width, height, props.textColor, _BRS_NumCoalesce(props.fontSize, 22), _BRS_StrCoalesce(props.align, "center"), _BRS_StrCoalesce(props.valign, "center"), opacity, props)
 
   else if node.type = "NineSlicePanel" then
@@ -231,6 +230,7 @@ sub RokuEngine_DrawMenuList(screen as Object, engine as Object, node as Object, 
   if type(items) <> "roArray" then items = []
   selectedIndex = _BRS_IntOr(props.selectedIndex, 0)
   itemH = _BRS_IntOr(props.itemHeight, 48)
+  if itemH < 1 then itemH = 1
   normalColor   = RokuEngine_HexToRgba(_BRS_StrCoalesce(props.normalColor, "#263247"), opacity)
   selectedColor = RokuEngine_HexToRgba(_BRS_StrCoalesce(props.selectedColor, "#375a7f"), opacity)
   textColor     = _BRS_StrCoalesce(props.textColor, "#e7eef7")
@@ -241,9 +241,11 @@ sub RokuEngine_DrawMenuList(screen as Object, engine as Object, node as Object, 
   screen.DrawRect(x, y, w, h, normalColor)
 
   maxVisible = Int(h / itemH)
-  for i = 0 to items.Count() - 1
-    if i >= maxVisible then exit for
-    iy = y + (i * itemH)
+  firstVisible = 0
+  if selectedIndex >= maxVisible then firstVisible = selectedIndex-maxVisible+1
+  for i = firstVisible to items.Count() - 1
+    if i-firstVisible >= maxVisible then exit for
+    iy = y + ((i-firstVisible) * itemH)
     isSelected = (i = selectedIndex)
     if isSelected then
       screen.DrawRect(x, iy, w, itemH, selectedColor)
@@ -256,7 +258,7 @@ sub RokuEngine_DrawMenuList(screen as Object, engine as Object, node as Object, 
     if isSelected then color = selTextColor
     engine.DrawUiText(label, x + 12, iy + Int(itemH * 0.7), color)
     ' Divider line
-    if i < items.Count() - 1 and i < maxVisible - 1 then
+    if i < items.Count() - 1 and i-firstVisible < maxVisible - 1 then
       screen.DrawLine(x, iy + itemH - 1, x + w, iy + itemH - 1, RokuEngine_ApplyAlpha(&h4a5568FF, opacity))
     end if
   end for

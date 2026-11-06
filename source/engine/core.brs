@@ -101,6 +101,7 @@ function RokuEngine_Create(initialSceneName as String) as Object
     SetTimeScale: RokuEngine_SetTimeScale
     LoadScene: RokuEngine_LoadScene
     StartTimer: RokuEngine_StartTimer
+    SetAnimationParameter: RokuEngine_SetAnimationParameter
     StopTimer: RokuEngine_StopTimer
     SpawnFromSpawner: RokuEngine_SpawnFromSpawner
     Update: RokuEngine_Update
@@ -274,6 +275,8 @@ function RokuEngine_Create(initialSceneName as String) as Object
   engine.RegisterBuiltinComponents(engine.componentRegistry)
   engine.resources = engine.CreateResourceManager(engine)
   engine.resources.LoadManifest()
+  engine.assetStream = RokuStream_Create(engine)
+  engine.assetStream.PreloadGroup("boot", true)
   engine.collisionSystem = RokuEngine_CreateCollisionSystem(engine)
   engine.projectSettings = engine.resources.GetJsonDocument("pkg:/assets/project_settings.json")
   engine.inputActionMap = engine.RokuEngine_NormalizeActionMap(invalid)
@@ -343,6 +346,15 @@ sub RokuEngine_RunFrame(rawDt as Float)
   m.phaseClock.Mark()
   m.SyncRenderState()
   m.Render()
+  if m.projectSettings <> invalid and m.projectSettings.runtimeTelemetry = true then
+    m.telemetryElapsed = _BRS_NumCoalesce(m.telemetryElapsed, 0)+m.stats.rawDt
+    if m.telemetryElapsed >= 1 then
+      m.telemetryElapsed = 0.0
+      textureKb = 0.0
+      if m.assetStream <> invalid then textureKb = m.assetStream.totalKb
+      print "RGE_STATS "; FormatJSON({ fps: m.stats.fps, textureKb: textureKb, memKb: textureKb+_BRS_NumCoalesce(m.scaledSpriteBytes, 0)/1024.0, estimated: true, frameMs: m.stats.frameMs })
+    end if
+  end if
 end sub
 
 sub RokuEngine_BeginFrameTiming(rawDt as Float)
@@ -609,6 +621,7 @@ sub RokuEngine_StageInputEvents()
 end sub
 
 sub RokuEngine_RunPreUpdatePhase()
+  if m.assetStream <> invalid then m.assetStream.ProcessQueue()
   RokuGameplay_UpdateVisibility(m)
   inputDt = m.stats.scaledDt
   if m.scene <> invalid and m.scene.paused = true and m.scene.uiUpdatesWhenPaused <> true then inputDt = 0.0

@@ -36,6 +36,7 @@ function getClassicRuntimeSourceFiles() {
     'source/engine/runtime_bindings.brs':   readEngineFile('runtime_bindings.brs'),
     // RGE v91: new runtime systems
     'source/engine/animation_state_machine.brs': readEngineFile('animation_state_machine.brs'),
+    'source/engine/animation_graph_player.brs': readEngineFile('animation_graph_player.brs'),
     'source/engine/asset_stream.brs':            readEngineFile('asset_stream.brs'),
     // Existing engine files
     'source/engine/component_registry.brs': readEngineFile('component_registry.brs'),
@@ -48,6 +49,7 @@ function getClassicRuntimeSourceFiles() {
     'source/engine/audio_runtime.brs':      readEngineFile('audio_runtime.brs'),
     'source/engine/resource_manager.brs':   readEngineFile('resource_manager.brs'),
     'source/engine/ui_system.brs':          readEngineFile('ui_system.brs'),
+    'source/engine/ui_layout.brs':          readEngineFile('ui_layout.brs'),
     'source/engine/focus_manager.brs':      readEngineFile('focus_manager.brs'),
     'source/engine/input.brs':              readEngineFile('input.brs'),
     'source/engine/render.brs':             readEngineFile('render.brs'),

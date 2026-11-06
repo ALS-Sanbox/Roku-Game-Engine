@@ -7,16 +7,15 @@ var RGE_ROOT = globalThis.RGE_ROOT;
  *  1. Build validation
  *  2. Package assembly (zip of pkg:/ tree)
  *  3. Device discovery (LAN broadcast, known device list)
- *  4. Sideload upload via Roku ECP REST API
+ *  4. Sideload upload via the authenticated developer installer
  *  5. Post-deploy: log streaming, remote restart, screenshot
  *
  * This module runs in the Electron main/renderer bridge. It calls
  * electronAPI methods that proxy to main.js IPC handlers.
  *
  * Build profiles:
- *  'debug'   — all logging enabled, symbol tables preserved
- *  'dev'     — moderate logging, dev assertions active
- *  'release' — stripped, minimal logging
+ *  'debug' / 'dev' — emit runtime telemetry
+ *  'release' — omit runtime telemetry; user script logging is unchanged
  */
 
 (function () {
@@ -144,7 +143,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       if (!dev) return false;
       try {
         const result = await window.electronAPI.sideloadPing({ ip, username: dev.username, password: dev.password });
-        dev.reachable = !!(result && result.ok);
+        dev.reachable = !!(result && result.success);
         dev.lastSeenAt = ts();
         if (result && result.model) dev.model = result.model;
         emit('deploy:device_status', { ip, reachable: dev.reachable, model: dev.model });
@@ -159,13 +158,15 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     async discoverDevices() {
       emit('deploy:discovery_start', {});
       try {
-        // electronAPI.sideloadBuild doubles as a scan in main.js
-        // LAN discovery is handled by the main process (SSDP / known IPs sweep)
         const result = await window.electronAPI.sideloadPing({ scan: true });
+        if (!result?.success) throw new Error(result?.reason || 'Device discovery failed.');
         if (result && Array.isArray(result.devices)) {
           for (const d of result.devices) this.addDevice(d.ip, d.username, d.password);
         }
-      } catch (_) {}
+      } catch (error) {
+        emit('deploy:discovery_done', { count: this._devices.length, error: error.message });
+        throw error;
+      }
       emit('deploy:discovery_done', { count: this._devices.length });
     }
 
@@ -210,47 +211,50 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       let buildResult;
       try {
         buildResult = await window.electronAPI.sideloadBuild({
-          exportPayload,
+          ...exportPayload,
           profile: usedProfile,
           ip,
-          username: dev.username,
-          password: dev.password,
+          user: dev.username,
+          pass: dev.password,
         });
       } catch (err) {
         record.finish(false, String(err));
         return record;
       }
 
-      if (!buildResult || !buildResult.ok) {
-        record.finish(false, buildResult ? buildResult.error : 'Build failed');
+      if (!buildResult || !buildResult.success) {
+        record.finish(false, buildResult ? (buildResult.reason || buildResult.error) : 'Build failed');
         return record;
       }
-      record.packageSizeKb = buildResult.sizeKb || 0;
+      record.packageSizeKb = Math.round((buildResult.zipBytes || buildResult.bytes || 0) / 1024);
       record.addLog(`Package built: ${record.packageSizeKb} KB`);
 
       // Package size warning
-      if (record.packageSizeKb > 4096) {
-        record.addLog('WARNING: Package exceeds 4 MB; Roku may reject sideloads over this limit.');
-      }
+
 
       // ── Phase 3: upload ───────────────────────────────────────────────
       record.status = 'uploading';
       record.addLog(`Uploading to ${ip}…`);
       try {
         const uploadResult = await window.electronAPI.sideloadUpload({
-          packagePath: buildResult.packagePath,
+          zipPath: buildResult.zipPath,
           ip,
-          username: dev.username,
-          password: dev.password,
+          user: dev.username,
+          pass: dev.password,
         });
-        if (!uploadResult || !uploadResult.ok) throw new Error(uploadResult ? uploadResult.error : 'Upload failed');
+        if (!uploadResult || !uploadResult.success) throw new Error(uploadResult ? (uploadResult.reason || uploadResult.error) : 'Upload failed');
         record.addLog('Upload successful. App is running on device.');
       } catch (err) {
         record.finish(false, String(err));
         return record;
       }
 
+      record.buildWarnings.push(...(buildResult.warnings || []));
       record.finish(true);
+      if (RGE_ROOT.RGEDeviceBridge) {
+        Promise.resolve(RGE_ROOT.RGEDeviceBridge.connect(ip, dev.username, dev.password))
+          .catch(error => record.addLog('Log connection failed: ' + error.message));
+      }
       return record;
     }
 
@@ -260,8 +264,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       const warnings = [];
       const errors   = [];
       if (!exportPayload) { errors.push('No export payload provided'); return { warnings, errors }; }
-      const manifest = exportPayload.manifest;
-      if (!manifest) { warnings.push('No resource manifest in export; missing assets may crash at runtime'); }
+      if (!Array.isArray(exportPayload.scenes) || !exportPayload.scenes.length) errors.push('No scenes in the build snapshot.');
       return { warnings, errors };
     }
 
@@ -270,10 +273,10 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     async remoteRestart(ip) {
       const dev = this._devices.find(d => d.ip === ip);
       if (!dev) return;
-      try {
-        await window.electronAPI.sideloadDelete({ ip, username: dev.username, password: dev.password });
-        emit('deploy:remote_restart', { ip });
-      } catch (_) {}
+      const result = await window.electronAPI.sideloadRestart({ ip });
+      if (!result?.success) throw new Error(result?.reason || 'Restart failed');
+      emit('deploy:remote_restart', { ip });
+      return result;
     }
 
     // ── History ───────────────────────────────────────────────────────────

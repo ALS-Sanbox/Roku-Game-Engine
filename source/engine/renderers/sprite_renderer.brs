@@ -111,7 +111,8 @@ sub RokuEngine_SyncNodeSprite(nodeId as String, active as Object, layer as Integ
       else
         frameIndex = 0
         if spriteState.currentFrameIndex <> invalid then frameIndex = spriteState.currentFrameIndex
-        if node.runtime <> invalid and node.runtime.currentAnimationFrameIndex <> invalid then frameIndex = node.runtime.currentAnimationFrameIndex
+        animationRuntime = m.EnsureNodeRuntime(node)
+        if animationRuntime.currentAnimationFrameIndex <> invalid then frameIndex = animationRuntime.currentAnimationFrameIndex
         if frameIndex < 0 then frameIndex = 0
         if frameIndex >= frameCount then frameIndex = frameCount - 1
         frame = frames[frameIndex]
@@ -123,6 +124,7 @@ sub RokuEngine_SyncNodeSprite(nodeId as String, active as Object, layer as Integ
         propsKey = propsKey + "|"
         if props.spriteSheetId <> invalid then propsKey = propsKey + props.spriteSheetId
         propsKey = propsKey + "|" + StrI(frameCount) + "|" + StrI(frameIndex)
+        if animationRuntime.graphController <> invalid then propsKey = propsKey+"|graph:"+animationRuntime.graphController.currentStateId
 
         needsCreate = (spriteState.member = invalid or spriteState.kind <> "animated_frame" or spriteState.textureKey <> propsKey or spriteState.layer <> layer)
         if needsCreate then

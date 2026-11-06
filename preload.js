@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Sideload ──────────────────────────────────────────────────────────────
   openSideloadWindow: () => ipcRenderer.invoke('open-sideload-window'),
   sideloadPing:   (payload) => ipcRenderer.invoke('sideload-ping',   payload),
+  sideloadRestart: payload => ipcRenderer.invoke('sideload-restart', payload),
+  sideloadDebugConnect: payload => ipcRenderer.invoke('sideload-debug-connect', payload),
+  sideloadDebugDisconnect: () => ipcRenderer.invoke('sideload-debug-disconnect'),
+  sideloadScreenshot: payload => ipcRenderer.invoke('sideload-screenshot', payload),
   sideloadBuild:  (payload) => ipcRenderer.invoke('sideload-build',  payload),
   sideloadDelete: (payload) => ipcRenderer.invoke('sideload-delete', payload),
   sideloadUpload: (payload) => ipcRenderer.invoke('sideload-upload', payload),

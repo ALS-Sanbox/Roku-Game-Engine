@@ -52,6 +52,10 @@ function rewriteSvg(value, root, output, conversions) {
 function buildNativeProject(payload, options = {}) {
   const projectRoot = fs.realpathSync(path.resolve(payload.projectRoot));
   const settings = normalizeSettings(projectRoot, payload.settings);
+  if (payload.profile != null) {
+    if (!['debug','dev','release'].includes(payload.profile)) throw new BuildError([{ severity: 'error', code: 'BUILD_PROFILE', message: 'Unknown build profile: ' + payload.profile }]);
+    settings.runtimeTelemetry = payload.profile !== 'release';
+  }
   let scenes;
   try { scenes = gatherProjectScenes(projectRoot, payload.scenes || []); }
   catch (e) { throw new BuildError([{ severity: 'error', code: 'SCENE_READ', path: projectRoot, message: e.message }]); }

@@ -18,10 +18,22 @@ function RokuEngine_BuildAnimationFrames(node as Object) as Object
 
   spriteFramesId = props.spriteFramesId
   animationName = props.animation
+  runtime = m.EnsureNodeRuntime(node)
+  graphClip = invalid
+  if runtime.graphController <> invalid then
+    controller = runtime.graphController
+    state = controller.graph.states[controller.currentStateId]
+    if state <> invalid then graphClip = controller.graph.clips[state.clipId]
+    if graphClip <> invalid then
+      spriteFramesId = _BRS_StrCoalesce(graphClip.spriteFramesId, spriteFramesId)
+      animationName = _BRS_StrCoalesce(graphClip.name, animationName)
+    end if
+  end if
   if spriteFramesId = invalid or spriteFramesId = "" or animationName = invalid or animationName = "" then return frames
 
   runtime = m.EnsureNodeRuntime(node)
   cacheKey = spriteFramesId + "|" + animationName
+  if graphClip <> invalid then cacheKey = cacheKey+"|graph:"+graphClip.id
   if props.spriteSheetId <> invalid and props.spriteSheetId <> "" then cacheKey = cacheKey + "|" + props.spriteSheetId
   if runtime.animationFramesCacheKey = cacheKey and type(runtime.animationFrames) = "roArray" and runtime.animationFrames.Count() > 0 then
     return runtime.animationFrames
@@ -38,6 +50,13 @@ function RokuEngine_BuildAnimationFrames(node as Object) as Object
       exit for
     end if
   end for
+  if graphClip <> invalid and type(graphClip.frames) = "roArray" then
+    if targetClip = invalid and targetLib.clips.Count() > 0 then targetClip = targetLib.clips[0]
+    if targetClip <> invalid then
+      targetClip = ParseJSON(FormatJSON(targetClip), "i")
+      targetClip.frames = graphClip.frames
+    end if
+  end if
   if targetClip = invalid or type(targetClip.frames) <> "roArray" then return frames
 
   sheetId = targetClip.spriteSheetId

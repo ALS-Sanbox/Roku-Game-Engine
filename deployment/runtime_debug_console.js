@@ -222,7 +222,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       const errEl = this._container.querySelector('.rdc-errcnt');
       if (fpsEl) fpsEl.textContent = `FPS: ${fps > 0 ? fps.toFixed(1) : '—'}`;
       if (memEl && this._lastStats && this._lastStats.memKb != null) {
-        memEl.textContent = `MEM: ${Math.round(this._lastStats.memKb / 1024)} MB`;
+        memEl.textContent = `${this._lastStats.estimated ? 'CACHE ESTIMATE' : 'MEM'}: ${Math.round(this._lastStats.memKb / 1024)} MB`;
       }
       const errorCount = this._lineBuffer.filter(e => e.level === 'ERROR').length;
       if (errEl) {

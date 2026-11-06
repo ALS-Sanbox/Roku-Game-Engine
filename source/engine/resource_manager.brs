@@ -127,15 +127,19 @@ end function
 
 function RokuEngine_Resources_GetBitmap(resourceIdOrPath as Dynamic) as Dynamic
   if resourceIdOrPath = invalid or resourceIdOrPath = "" then return invalid
-  cacheKey = RokuEngine_Trim(RokuEngine_ToString(resourceIdOrPath))
-  if m.bitmapCache.DoesExist(cacheKey) then return m.bitmapCache[cacheKey]
-
   resolvedPath = m.ResolveBitmapPath(resourceIdOrPath)
   if resolvedPath = invalid or resolvedPath = "" then return invalid
+  cacheKey = resolvedPath
+  if m.bitmapCache.DoesExist(cacheKey) then
+    bitmap = m.bitmapCache[cacheKey]
+    if m.engine.assetStream <> invalid then m.engine.assetStream.TrackBitmap(cacheKey, bitmap)
+    return bitmap
+  end if
 
   bitmap = CreateObject("roBitmap", resolvedPath)
   if bitmap = invalid then return invalid
   m.bitmapCache[cacheKey] = bitmap
+  if m.engine.assetStream <> invalid then m.engine.assetStream.TrackBitmap(cacheKey, bitmap)
   return bitmap
 end function
 

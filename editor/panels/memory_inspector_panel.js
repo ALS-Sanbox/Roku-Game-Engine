@@ -32,7 +32,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       // Register with scheduler for throttled panel redraws
       if (RGE_ROOT.RGEScheduler) {
         RGE_ROOT.RGEScheduler.register(
-          'memory_inspector', () => this._redraw(), null, 500, containerEl
+          'memory_inspector', () => this._refresh(), null, 500, containerEl
         );
       }
     }
@@ -50,10 +50,11 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         <div style="display:flex;flex-direction:column;height:100%;background:#1c1e26;color:#dde3f0;font-family:'Noto Sans','Segoe UI',system-ui,sans-serif;font-size:12px;">
           <div style="display:flex;align-items:center;padding:8px 10px;background:#252830;border-bottom:1px solid #3a3f52;flex-shrink:0;gap:8px;">
             <span style="font-size:14px;">🧠</span>
-            <span style="font-weight:700;">Memory Inspector</span>
+            <span style="font-weight:700;">Memory Estimates</span>
             <div style="flex:1;"></div>
             <button class="mi-refresh" style="background:#3a3f52;border:none;color:#dde3f0;padding:2px 8px;border-radius:3px;cursor:pointer;font-size:11px;">Refresh</button>
           </div>
+          <div style="padding:6px 10px;">Asset estimates; total device memory is not measured.</div>
           <div class="mi-body" style="flex:1;overflow-y:auto;padding:10px;"></div>
         </div>
       `;
@@ -66,11 +67,14 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     }
 
     _refresh() {
+      RGE_ROOT.RGESystemPanels?.syncAssets();
       const budget = RGE_ROOT.RGEMemoryBudget && RGE_ROOT.RGEMemoryBudget.budget;
       const registry = RGE_ROOT.RGEAssetRegistry;
       if (!budget || !registry) { this._lastReport = null; this._redraw(); return; }
 
       budget.clear();
+      const snapshot = window.getMemoryAssetSnapshot?.();
+      if (snapshot) budget.addScene('current-scene', 'Current scene', snapshot.nodeCount || 0);
 
       // Populate from asset registry
       for (const kind of ['texture', 'spritesheet']) {

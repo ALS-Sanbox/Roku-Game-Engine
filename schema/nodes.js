@@ -426,7 +426,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       type: 'AnimationPlayerComponent',
       displayName: 'AnimationPlayer',
       description: 'Controls AnimatedSprite2D playback state and animation selection.',
-      defaults: { enabled: true, priority: 350, animation: '', autoplay: true, playing: true, speedScale: 1, triggerAction: 'action' }
+      defaults: { enabled: true, priority: 350, animation: '', graphPath: '', graphParameters: '{}', autoplay: true, playing: true, speedScale: 1, triggerAction: 'action' }
     }
   };
 

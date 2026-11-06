@@ -45,7 +45,7 @@ test('gameplay validation catches invalid paths, timing, spawn recursion and foc
   assert.ok(!errors.some(e => e.node === 'follow'));
 });
 
-test('native export surfaces missing UI implementations instead of silently accepting them', () => {
+test('native export accepts the implemented UI shapes, containers and menu input', () => {
   const root = schema.createDefaultNode('SceneRoot', { id: 'root' });
   const missing = ['CircleButton','TriangleButton','OvalButton','HBoxContainer','VBoxContainer','MarginContainer','ScrollContainer','MenuList'];
   const nodes = [root, ...missing.map(type => schema.createDefaultNode(type, { id: type, parentId: 'root' }))];
@@ -53,20 +53,25 @@ test('native export surfaces missing UI implementations instead of silently acce
   const doc = { formatVersion: 2, scene: { name: 'Audit', rootNodeId: 'root' }, nodes };
   const diagnostics = validateSnapshot(os.tmpdir(), [{ runtimeScene: doc }], 'Audit');
   assert.ok(!diagnostics.some(d => d.severity === 'error'), JSON.stringify(diagnostics));
-  for (const type of missing) assert.ok(diagnostics.some(d => d.nodeId === type && /^NATIVE_(UI_SHAPE|UI_LAYOUT|MENU_INPUT)$/.test(d.code)), type);
+  assert.ok(!diagnostics.some(d => /^NATIVE_(UI_SHAPE|UI_LAYOUT|MENU_INPUT)$/.test(d.code)));
 });
 
 test('sample exports all helper types and event hooks in the native package', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'roku-gameplay-'));
   try {
     const root = path.resolve(__dirname, '../../samples/gameplay-helpers');
-    const result = buildNativeProject({ projectRoot: root }, { buildRoot: directory });
+    const result = buildNativeProject({ projectRoot: root, profile: 'debug' }, { buildRoot: directory });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(result.output, 'assets/project_settings.json'))).runtimeTelemetry, true);
     const scene = JSON.parse(fs.readFileSync(path.join(result.output, 'assets/scenes/Helpers.json')));
     for (const type of types) assert.ok(scene.nodes.some(n => n.type === type), type);
     const registry = fs.readFileSync(path.join(result.output, 'source/engine/user_scripts_registry.brs'), 'utf8');
-    for (const hook of ['Timeout','PathFinished','ScreenEntered','ScreenExited','Spawned','CollisionEnter']) assert.ok(registry.includes('_' + hook + '(context)'), hook);
+    for (const hook of ['Timeout','PathFinished','ScreenEntered','ScreenExited','Spawned','CollisionEnter','MenuSelectionChanged','MenuItemSelected','AnimationEvent','AnimationStateChanged']) assert.ok(registry.includes('_' + hook + '(context)'), hook);
     assert.ok(fs.existsSync(path.join(result.output, 'source/engine/gameplay_nodes.brs')));
     assert.ok(fs.existsSync(path.join(result.output, 'source/engine/focus_group.brs')));
+    for (const file of ['ui_layout.brs', 'animation_graph_player.brs']) assert.ok(fs.existsSync(path.join(result.output, 'source/engine', file)), file);
+    const release = buildNativeProject({ projectRoot: root, profile: 'release', settings: { runtimeTelemetry: true } }, { buildRoot: directory });
+    assert.equal(JSON.parse(fs.readFileSync(path.join(release.output, 'assets/project_settings.json'))).runtimeTelemetry, false);
+    assert.throws(() => buildNativeProject({ projectRoot: root, profile: 'unknown' }, { buildRoot: directory }), /Unknown build profile/);
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
@@ -95,7 +100,7 @@ const interpreterPath = path.resolve(__dirname, '../../tools/brs-engine/packages
 test('native gameplay behaviors execute correctly in BrightScript', { skip: !fs.existsSync(interpreterPath) }, () => {
   const brs = require(interpreterPath);
   const runtime = Object.values(getClassicRuntimeSourceFiles()).join('\n');
-  const fixture = ['gameplay_checks.brs', 'runtime_audit_checks.brs'].map(file => fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8')).join('\n');
+  const fixture = ['gameplay_checks.brs', 'runtime_audit_checks.brs', 'remaining_gaps_checks.brs'].map(file => fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8')).join('\n');
   const tokens = brs.Lexer.scan(runtime + '\n' + fixture);
   assert.deepEqual(tokens.errors, []);
   const parsed = brs.Parser.parse(tokens.tokens);
@@ -107,4 +112,5 @@ test('native gameplay behaviors execute correctly in BrightScript', { skip: !fs.
   assert.ok(!output.includes('FAIL:'), output);
   assert.ok(output.includes('PASS: gameplay runtime'), output);
   assert.ok(output.includes('PASS: runtime audit regressions'), output);
+  assert.ok(output.includes('PASS: remaining gaps repaired'), output);
 });

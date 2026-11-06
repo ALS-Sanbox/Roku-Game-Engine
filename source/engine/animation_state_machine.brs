@@ -149,7 +149,7 @@ end sub
 ' ── Update ────────────────────────────────────────────────────────────────────
 
 function RokuAnim_Update(ctrl as Object, dt as Float) as Object
-  result = { stateId: "", clipId: "", frameIndex: 0, changed: false }
+  result = { stateId: "", clipId: "", frameIndex: 0, changed: false, events: [], transitionDuration: 0.0 }
   if ctrl = invalid or ctrl.graph = invalid then return result
 
   graph = ctrl.graph
@@ -158,6 +158,7 @@ function RokuAnim_Update(ctrl as Object, dt as Float) as Object
 
   speed = state.speed
   if speed = invalid then speed = 1.0
+  previousElapsed = ctrl.elapsed
   ctrl.elapsed = ctrl.elapsed + dt * speed
 
   clip = invalid
@@ -176,11 +177,15 @@ function RokuAnim_Update(ctrl as Object, dt as Float) as Object
       if tr.hasExitTime = true and duration > 0 then
         exitOk = ctrl.elapsed >= tr.exitTime * duration
       end if
-      if exitOk and RokuAnim_EvalConditions(tr.conditions, ctrl.params) then
+      conditionsOk = RokuAnim_EvalConditions(tr.conditions, ctrl.params)
+      if tr.hasExitTime = true and type(tr.conditions) = "roArray" and tr.conditions.Count() = 0 then conditionsOk = true
+      if exitOk and conditionsOk and graph.states.DoesExist(tr.to) then
         ctrl.currentStateId = tr.to
         ctrl.elapsed = 0.0
         ctrl.frameIndex = 0
         changed = true
+        result.transitionDuration = tr.duration
+        previousElapsed = -1.0
         exit for
       end if
     end if
@@ -194,7 +199,7 @@ function RokuAnim_Update(ctrl as Object, dt as Float) as Object
   if clip <> invalid and type(clip.frames) = "roArray" and clip.frames.Count() > 0 and clip.fps > 0 then
     frameF = ctrl.elapsed * clip.fps
     frameCount = clip.frames.Count()
-    if clip.loop then
+    if clip.loop and state.loop then
       fi = Int(frameF) Mod frameCount
       if fi < 0 then fi = fi + frameCount
       ctrl.frameIndex = fi
@@ -202,12 +207,20 @@ function RokuAnim_Update(ctrl as Object, dt as Float) as Object
       ctrl.frameIndex = Int(frameF)
       if ctrl.frameIndex >= frameCount then ctrl.frameIndex = frameCount - 1
     end if
-    ' fire frame events
-    for each ev in clip.events
-      if ev <> invalid and ev.frame = ctrl.frameIndex then
-        ' Dispatch via script hooks if available
-      end if
+    ' Emit all crossed frames, including frame zero on entry and skipped frames.
+    startFrame = Int(previousElapsed*clip.fps)
+    if ctrl.started <> true or changed then startFrame = -1
+    endFrame = Int(frameF)
+    if not clip.loop or state.loop = false then
+      if endFrame >= frameCount then endFrame = frameCount-1
+    end if
+    if endFrame-startFrame > frameCount*8 then startFrame = endFrame-frameCount*8
+    for tick = startFrame+1 to endFrame
+      for each ev in clip.events
+        if ev <> invalid and ev.frame = (tick mod frameCount) and result.events.Count() < 64 then result.events.Push(ev)
+      end for
     end for
+    ctrl.started = true
   end if
 
   ' clear triggers
@@ -255,6 +268,7 @@ end function
 sub RokuAnim_Reset(ctrl as Object)
   if ctrl = invalid then return
   ctrl.currentStateId = ctrl.graph.defaultState
+  ctrl.started        = false
   ctrl.elapsed        = 0.0
   ctrl.frameIndex     = 0
   for each key in ctrl.params

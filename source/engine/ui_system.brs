@@ -5,6 +5,7 @@
 
 function RokuEngine_IsUiNodeType(nodeType as Dynamic) as Boolean
   key = RokuEngine_Trim(RokuEngine_ToString(nodeType))
+  if key = "CircleButton" or key = "TriangleButton" or key = "OvalButton" or key = "HBoxContainer" or key = "VBoxContainer" or key = "MarginContainer" or key = "ScrollContainer" then return true
   return key = "FocusGroup" or key = "CanvasLayer" or key = "Control" or key = "Label" or key = "Panel" or key = "TextureRect" or key = "Button" or key = "NineSlicePanel" or key = "MenuList" or key = "ProgressBar" or key = "CheckBox" or key = "Slider"
 end function
 
@@ -29,6 +30,7 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
     if current.parentId = invalid or not m.scene.nodeMap.DoesExist(current.parentId) then exit while
     current = m.scene.nodeMap[current.parentId]
   end while
+  parentNode = invalid
   for each ancestor in ancestors
     t = ancestor.transform
     if t = invalid then t = {}
@@ -59,6 +61,12 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
       end if
     end if
     sx = _BRS_NumCoalesce(t.scaleX, 1) : sy = _BRS_NumCoalesce(t.scaleY, 1)
+    if parentNode <> invalid then
+      slot = RokuUi_LayoutChild(m, parentNode, ancestor, result.width, result.height)
+      if slot <> invalid then
+        x = slot.x : y = slot.y : w = slot.width : h = slot.height : anchored = true
+      end if
+    end if
     if not anchored then
       x = x - _BRS_NumCoalesce(t.pivotX, 0) * sx
       y = y - _BRS_NumCoalesce(t.pivotY, 0) * sy
@@ -69,6 +77,7 @@ function RokuEngine_GetNodeScreenTransform(nodeId as String) as Object
     result.width = w : result.height = h
     result.opacity = result.opacity * _BRS_NumCoalesce(p.opacity, 1)
     if ancestor.visible = false then result.visible = false
+    parentNode = ancestor
   end for
   return result
 end function

@@ -422,6 +422,9 @@
     <div class="bottom-dock" id="bottom-dock" style="height:220px">
       <div class="bottom-tabs">
         <button class="bottom-tab active" data-bottom="output">Output</button>
+        <button class="bottom-tab" data-bottom="deployment">Deploy</button>
+        <button class="bottom-tab" data-bottom="runtime-debug">Device Logs</button>
+        <button class="bottom-tab" data-bottom="memory">Memory Estimates</button>
         <button class="bottom-tab" data-bottom="node">Node</button>
         <button class="bottom-tab" data-bottom="spriteframes">SpriteFrames</button>
         <button class="bottom-tab" data-bottom="tilesets">Tile Sets</button>
@@ -434,6 +437,9 @@
       </div>
 
       <!-- Output -->
+      <div class="bottom-panel" data-bottom-panel="deployment" id="deployment-panel"></div>
+      <div class="bottom-panel" data-bottom-panel="runtime-debug" id="runtime-debug-panel"></div>
+      <div class="bottom-panel" data-bottom-panel="memory" id="memory-panel"></div>
       <div class="bottom-panel active" data-bottom-panel="output">
         <div class="log-view" id="log-view">Ready.</div>
       </div>
@@ -1055,6 +1061,7 @@
 <script src="editor/final_stability.js"></script>
 <script src="editor/tab_fallback.js"></script>
 <script src="editor/resizer_fallback.js"></script>
+<script src="editor/system_panels.js"></script>
 <!-- v49: Regression tests — loaded last so all APIs are available -->
 <script src="editor/modules/regression_tests.js"></script>
 
