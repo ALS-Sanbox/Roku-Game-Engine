@@ -27,6 +27,7 @@ sub RokuEngine_RenderDebugNode(node as Object, world as Object)
 end sub
 
 sub RokuEngine_DrawDebugText()
+  if m.projectSettings <> invalid and m.projectSettings.debugOverlay = false then return
   fontRegistry = CreateObject("roFontRegistry")
   font = fontRegistry.GetDefaultFont()
   stats = m.scene.debugStats

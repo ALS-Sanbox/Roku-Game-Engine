@@ -76,6 +76,9 @@ function RokuRender_SortIds(engine as Object,source as Object) as Object
   result = []
   for each id in source
     if not engine.scene.nodeMap.DoesExist(id) then continue for
+    if engine.scene.nodeMap[id].visible = false then continue for
+    runtime = engine.scene.runtime.nodes[id]
+    if runtime <> invalid and runtime.poolActive = false then continue for
     z = _BRS_NumCoalesce(engine.scene.nodeMap[id].zIndex,0) : at = result.Count()
     result.Push(id)
     while at > 0

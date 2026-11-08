@@ -393,7 +393,7 @@ sub RokuComponent_Script_Input(ctx as Object)
   end if
   if code = invalid and actionKey = "" then return
   ctx.engine.EnsureScriptReady(ctx.node, ctx.component, ctx.dt)
-  inputEvent = { name: "Input", code: code, action: actionKey, raw: rawEvent, phase: "input" }
+  inputEvent = { name: "Input", code: code, action: actionKey, raw: rawEvent, phase: "input", isPress: ctx.event.isPress = true, isRelease: ctx.event.isRelease = true, isRepeat: ctx.event.isRepeat = true }
   ctx.engine.InvokeScriptComponent(ctx.node, ctx.component, "Input", ctx.dt, inputEvent)
 end sub
 

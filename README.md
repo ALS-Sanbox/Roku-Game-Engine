@@ -49,6 +49,10 @@ Edit scripts inside the engine, inspect their scene connections, and insert refe
 
 These screenshots show the included [Collect the Stars project](samples/collect-the-stars). No separate game download is required.
 
+## Messenger of Light
+
+The editable [MOL rebuild](projects/MOL/README.md) uses native RGE scenes, sprite nodes, object pools, collision events/queries, timers, focus controls, audio and saves. It includes the 22-day campaign, four bosses, eight power-ups, scoring and delivery. Open `projects/MOL` in the engine and use **F5 / Build & Test**. The project guide explains controls, architecture, validation and the remaining hardware checks.
+
 ## Install and launch
 
 Requirements: **Node.js 22.12 or newer**, **Git**, and an internet connection for the initial dependency and simulator setup. The desktop workflow is tested on Windows.

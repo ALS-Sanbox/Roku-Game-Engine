@@ -104,8 +104,7 @@ end function
 
 function RokuEngine_ComputeAnimationFrameIndex(node as Object, frameCount as Integer) as Integer
   if frameCount <= 0 then return 0
-  runtime = node.runtime
-  if runtime = invalid then runtime = {}
+  runtime = m.EnsureNodeRuntime(node)
   elapsed = 0.0
   if runtime.elapsed <> invalid then elapsed = runtime.elapsed
   fps = 8.0

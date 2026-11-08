@@ -17,6 +17,8 @@
 '   ]
 '
 ' Each definition can also include:
+'   "initialSize" - smaller initial reserve (defaults to size)
+'   "growBy"      - bounded growth batch when reserve runs out (default 8)
 '   "zIndex"     — z-order for spawned nodes (default 0)
 '   "parentName" — name of the parent node to attach pool nodes to (default root)
 '   "properties" — default properties AA applied to each instance
@@ -68,7 +70,11 @@ function RokuPool_InitPool(def as Object, ownerNode as Object, engine as Object)
 
   ' Pre-spawn all instances as invisible
   instances = []
-  for i = 0 to poolSize - 1
+  initialSize = poolSize
+  if def.initialSize <> invalid then initialSize = Int(def.initialSize)
+  if initialSize < 1 then initialSize = 1
+  if initialSize > poolSize then initialSize = poolSize
+  for i = 0 to initialSize - 1
     template = {
       type:       nodeType
       name:       poolName + "_pool_" + Stri(i)
@@ -78,13 +84,13 @@ function RokuPool_InitPool(def as Object, ownerNode as Object, engine as Object)
       properties: {}
       components: []
     }
-    if nodeProps <> invalid then template.properties = ParseJSON(FormatJSON(nodeProps))
+    if nodeProps <> invalid then template.properties = ParseJSON(FormatJSON(nodeProps), "i")
     if type(nodeComps) = "roArray" and nodeComps.Count() > 0 then
       ' Deep-copy components and give each a fresh id
       freshComps = []
       for each comp in nodeComps
         if comp <> invalid then
-          fc = ParseJSON(FormatJSON(comp))
+          fc = ParseJSON(FormatJSON(comp), "i")
           fc.id = engine.GenerateId()
           freshComps.Push(fc)
         end if
@@ -107,6 +113,8 @@ function RokuPool_InitPool(def as Object, ownerNode as Object, engine as Object)
     size:       poolSize
     instances:  instances   ' array of node ids
     nextHint:   0           ' round-robin hint for faster search
+    definition: def
+    parentId: parentId
   }
 
   return true
@@ -122,11 +130,11 @@ sub RokuComponent_ObjectPool_PreUpdate(ctx as Object)
   poolsJson = "[]"
   if ctx.component.pools <> invalid and ctx.component.pools <> "" then poolsJson = ctx.component.pools
 
-  defs = ParseJSON(poolsJson)
+  defs = ParseJSON(poolsJson, "i")
 
   if defs = invalid then
     ' Fallback: try ParseJSON directly (older firmware)
-    defs = ParseJSON(poolsJson)
+    defs = ParseJSON(poolsJson, "i")
     if type(defs) <> "roArray" then defs = []
   end if
 
@@ -181,6 +189,31 @@ function RokuEngine_PoolAcquire(poolName as String, x as Float, y as Float) as D
     end if
     idx = (idx + 1) mod n
   end for
+
+  ' Optional bounded growth keeps large gameplay reserves from blocking the
+  ' initial menu. Existing definitions retain their fully preallocated behavior.
+  if pool.definition <> invalid and n < pool.size then
+    count = 8
+    if pool.definition.growBy <> invalid then count = Int(pool.definition.growBy)
+    if count < 1 then count = 1
+    if n+count > pool.size then count = pool.size-n
+    for i = 1 to count
+      template = { type: pool.nodeType, name: poolName+"_pool_"+(n+i-1).ToStr(), visible: false, properties: {}, components: [], zIndex: _BRS_NumCoalesce(pool.definition.zIndex,0) }
+      if pool.definition.properties <> invalid then template.properties = ParseJSON(FormatJSON(pool.definition.properties), "i")
+      if type(pool.definition.components) = "roArray" then
+        for each component in pool.definition.components
+          fresh = ParseJSON(FormatJSON(component), "i") : fresh.id = m.GenerateId()
+          template.components.Push(fresh)
+        end for
+      end if
+      added = m.SpawnNode(template,pool.parentId)
+      if added <> invalid then
+        rt = m.EnsureNodeRuntime(added) : rt.poolName = poolName : rt.poolActive = false
+        pool.instances.Push(added.id)
+      end if
+    end for
+    if pool.instances.Count() > n then return m.PoolAcquire(poolName,x,y)
+  end if
 
   return invalid  ' pool exhausted
 end function

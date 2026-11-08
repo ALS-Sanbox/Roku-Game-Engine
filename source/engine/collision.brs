@@ -1,5 +1,42 @@
 ' collision.brs - generated classic 2D runtime
 
+' Ordered world-space segment query against the native collider rectangles.
+' Radius expands rectangles for a swept projectile. A caller can reuse the
+' collider snapshot for a batch; no game-specific collision implementation needed.
+function RokuEngine_QuerySegment(x1 as Float, y1 as Float, x2 as Float, y2 as Float, radius = 0.0 as Float, skipId = "" as String, colliders = invalid as Dynamic) as Object
+  hits = []
+  if type(colliders) <> "roArray" then colliders = m.BuildColliderList()
+  if radius < 0 then radius = 0
+  dx = x2-x1 : dy = y2-y1
+  for each collider in colliders
+    if collider.nodeId = skipId then continue for
+    nearTime = 0.0 : farTime = 1.0 : intersects = true
+    for axis = 0 to 1
+      origin = x1 : delta = dx : low = collider.x-radius : high = collider.x+collider.width+radius
+      if axis = 1 then origin = y1 : delta = dy : low = collider.y-radius : high = collider.y+collider.height+radius
+      if Abs(delta) < 0.000001 then
+        if origin < low or origin > high then intersects = false
+      else
+        firstTime = (low-origin)/delta : lastTime = (high-origin)/delta
+        if firstTime > lastTime then swapTime = firstTime : firstTime = lastTime : lastTime = swapTime
+        if firstTime > nearTime then nearTime = firstTime
+        if lastTime < farTime then farTime = lastTime
+        if nearTime > farTime then intersects = false
+      end if
+    end for
+    if intersects then
+      hit = { nodeId: collider.nodeId, fraction: nearTime, x: x1+dx*nearTime, y: y1+dy*nearTime, collider: collider }
+      at = hits.Count() : hits.Push(hit)
+      while at > 0
+        if hits[at-1].fraction <= nearTime then exit while
+        hits[at] = hits[at-1] : at = at-1
+      end while
+      hits[at] = hit
+    end if
+  end for
+  return hits
+end function
+
 function RokuEngine_CreateCollisionSystem(engine as Object) as Object
   system = {
     engine: engine

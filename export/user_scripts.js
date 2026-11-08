@@ -20,8 +20,18 @@ function buildUserScriptRegistrySource(scriptEntries = []) {
   const lines = [
     "' user_scripts_registry.brs - generated from project scripts",
     '',
-    'function RokuEngine_UserScriptDispatch(scriptPath as String, entryPoint as String, context as Object) as Boolean'
+    'function RokuEngine_UserScriptPhases(scriptPath as String) as Dynamic'
   ];
+  for (const entry of scriptEntries) {
+    const phases = [];
+    if (entry.hookMap?.Input) phases.push('input');
+    if (entry.hookMap?.PreUpdate || entry.hookMap?.Ready || entry.hookMap?.Init) phases.push('pre_update');
+    for (const [hook, phase] of [['PhysicsUpdate','fixed_update'],['Update','update'],['LateUpdate','late_update'],['PostUpdate','post_update']]) if (entry.hookMap?.[hook]) phases.push(phase);
+    lines.push(`  if scriptPath = ${JSON.stringify(entry.scriptPath)} then return [${phases.map(p=>JSON.stringify(p)).join(', ')}]`);
+  }
+  lines.push('  return invalid', 'end function', '',
+    'function RokuEngine_UserScriptDispatch(scriptPath as String, entryPoint as String, context as Object) as Boolean'
+  );
   if (!scriptEntries.length) {
     lines.push('  return false', 'end function', '');
     return lines.join('\n');

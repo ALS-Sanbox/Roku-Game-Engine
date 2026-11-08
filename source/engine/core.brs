@@ -250,6 +250,7 @@ function RokuEngine_Create(initialSceneName as String) as Object
     EnsureNodeRuntime: RokuEngine_EnsureNodeRuntime
     GetNodeCollider: RokuEngine_GetNodeCollider
     BuildColliderList: RokuEngine_BuildColliderList
+    QuerySegment: RokuEngine_QuerySegment
     ApplyRigidBodyMotion: RokuEngine_ApplyRigidBodyMotion
     ResolveRigidBodyCollisions: RokuEngine_ResolveRigidBodyCollisions
     OverlapsCollider: RokuEngine_OverlapsCollider
@@ -773,7 +774,12 @@ sub RokuEngine_RebuildPhaseCaches()
             metadata = m.GetComponentPhaseMetadata(component)
             if metadata <> invalid and type(metadata.phases) = "roArray" then
               nodeOrder = i
-              for each phaseName in metadata.phases
+              phases = metadata.phases
+              if component.type = "ScriptComponent" then
+                declared = RokuEngine_UserScriptPhases(RokuEngine_NormalizeScriptPath(component.scriptPath))
+                if type(declared) = "roArray" then phases = declared
+              end if
+              for each phaseName in phases
                 if phaseName = invalid or phaseName = "" then continue for
                 priority = m.ResolveComponentPriority(component, phaseName, metadata.priority)
                 entry = {
@@ -869,25 +875,32 @@ function RokuEngine_SortPhaseEntries(entries as Object) as Object
 
   if sorted.Count() <= 1 then return sorted
 
-  for i = 1 to sorted.Count() - 1
-    j = i
-    while j > 0
-      current = sorted[j]
-      previous = sorted[j - 1]
-      shouldSwap = false
-      if current.priority < previous.priority then
-        shouldSwap = true
-      else if current.priority = previous.priority and current.nodeOrder < previous.nodeOrder then
-        shouldSwap = true
-      else if current.priority = previous.priority and current.nodeOrder = previous.nodeOrder and current.ordinal < previous.ordinal then
-        shouldSwap = true
-      end if
-      if shouldSwap <> true then exit while
-      sorted[j] = previous
-      sorted[j - 1] = current
-      j = j - 1
+  ' Stable bottom-up merge sort. Large alternating script/animation pools
+  ' must not spend quadratic work sorting their phase entries before rendering.
+  width = 1 : count = sorted.Count()
+  while width < count
+    merged = [] : start = 0
+    while start < count
+      middle = start+width : ifEnd = start+width*2
+      if middle > count then middle = count
+      if ifEnd > count then ifEnd = count
+      left = start : right = middle
+      while left < middle or right < ifEnd
+        takeLeft = left < middle
+        if takeLeft and right < ifEnd then
+          a = sorted[left] : b = sorted[right]
+          takeLeft = a.priority < b.priority or (a.priority = b.priority and a.nodeOrder < b.nodeOrder) or (a.priority = b.priority and a.nodeOrder = b.nodeOrder and a.ordinal <= b.ordinal)
+        end if
+        if takeLeft then
+          merged.Push(sorted[left]) : left = left+1
+        else
+          merged.Push(sorted[right]) : right = right+1
+        end if
+      end while
+      start = ifEnd
     end while
-  end for
+    sorted = merged : width = width*2
+  end while
 
   return sorted
 end function
@@ -1139,8 +1152,17 @@ function RokuEngine_SpawnNode(template as Object, parentId as Dynamic) as Dynami
   ' Insert into scene document
   m.scene.doc.nodes.Push(node)
 
-  ' Rebuild caches so the node is immediately visible to all systems
-  m.RefreshSceneCaches()
+  ' Insertion does not change existing transforms. Maintain lookup/hierarchy
+  ' indexes directly so pool initialization does not rebuild the whole scene
+  ' hundreds of times before the first frame can be displayed.
+  m.scene.nodeMap[node.id] = node
+  if m.scene.childrenByParent.DoesExist(node.parentId) <> true then m.scene.childrenByParent[node.parentId] = []
+  m.scene.childrenByParent[node.parentId].Push(node.id)
+  if m.scene.namedNodeMap = invalid then m.scene.namedNodeMap = RokuEngine_BuildNamedNodeMap(m.scene.doc.nodes)
+  if node.name <> invalid and node.name <> "" then m.scene.namedNodeMap[LCase(RokuEngine_Trim(node.name))] = node.id
+  if RokuEngine_IsWorldNodeType(node.type) then m.scene.hasWorldNodes = true
+  if m.scene.ui <> invalid then m.scene.ui.focusDirty = true
+  if m.focus <> invalid then m.focus.dirty = true
   m.MarkNodeTransformDirty(node.id)
   m.MarkPhaseCachesDirty()
 
