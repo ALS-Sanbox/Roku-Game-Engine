@@ -1,0 +1,10 @@
+{
+  "projectName": "Scene to Scene",
+  "startupScene": "Title",
+  "screen": {
+    "width": 1280,
+    "height": 720,
+    "mode": "720p"
+  },
+  "debugOverlay": false
+}

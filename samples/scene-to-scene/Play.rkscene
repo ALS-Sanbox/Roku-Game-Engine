@@ -1,0 +1,209 @@
+{
+  "formatVersion": 2,
+  "scene": {
+    "name": "Play",
+    "rootNodeId": "root"
+  },
+  "nodes": [
+    {
+      "id": "root",
+      "type": "SceneRoot",
+      "name": "Play",
+      "parentId": null,
+      "children": [
+        "ui"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0,
+        "pivotPreset": "top-left"
+      },
+      "properties": {},
+      "metadata": {},
+      "components": [
+        {
+          "id": "38f3beda-8d5d-4049-9541-1fd063b4629d",
+          "type": "ScriptComponent",
+          "name": "Script",
+          "enabled": true,
+          "priority": 300,
+          "scriptPath": "res://components/workflow.brs",
+          "entryPoint": "Update",
+          "exposeNode": true
+        }
+      ]
+    },
+    {
+      "id": "ui",
+      "type": "CanvasLayer",
+      "name": "Main",
+      "parentId": "root",
+      "children": [
+        "background",
+        "heading",
+        "next"
+      ],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0,
+        "pivotPreset": "top-left"
+      },
+      "properties": {
+        "width": 1280,
+        "height": 720,
+        "opacity": 1,
+        "layer": 0,
+        "followViewport": true,
+        "uiScreenName": "Main"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "background",
+      "type": "Panel",
+      "name": "Background",
+      "parentId": "ui",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0,
+        "pivotPreset": "top-left"
+      },
+      "properties": {
+        "width": 1280,
+        "height": 720,
+        "opacity": 1,
+        "anchorLeft": 0,
+        "anchorTop": 0,
+        "anchorRight": 0,
+        "anchorBottom": 0,
+        "marginLeft": 0,
+        "marginTop": 0,
+        "marginRight": 0,
+        "marginBottom": 0,
+        "color": "#26324a",
+        "borderColor": "#5e7594",
+        "borderWidth": 2
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "heading",
+      "type": "Label",
+      "name": "Heading",
+      "parentId": "ui",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 140,
+        "y": 160,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0,
+        "pivotPreset": "top-left"
+      },
+      "properties": {
+        "width": 1000,
+        "height": 80,
+        "opacity": 1,
+        "anchorLeft": 0,
+        "anchorTop": 0,
+        "anchorRight": 0,
+        "anchorBottom": 0,
+        "marginLeft": 0,
+        "marginTop": 0,
+        "marginRight": 0,
+        "marginBottom": 0,
+        "text": "Scene 2: Play",
+        "fontSize": 42,
+        "textColor": "#e7eef7",
+        "align": "center",
+        "valign": "center"
+      },
+      "metadata": {},
+      "components": []
+    },
+    {
+      "id": "next",
+      "type": "Button",
+      "name": "Next",
+      "parentId": "ui",
+      "children": [],
+      "visible": true,
+      "locked": false,
+      "zIndex": 0,
+      "transform": {
+        "x": 460,
+        "y": 480,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0,
+        "pivotPreset": "top-left"
+      },
+      "properties": {
+        "width": 360,
+        "height": 80,
+        "opacity": 1,
+        "anchorLeft": 0,
+        "anchorTop": 0,
+        "anchorRight": 0,
+        "anchorBottom": 0,
+        "marginLeft": 0,
+        "marginTop": 0,
+        "marginRight": 0,
+        "marginBottom": 0,
+        "text": "Return to title",
+        "normalColor": "#375a7f",
+        "focusedColor": "#5b8def",
+        "pressedColor": "#8ab4ff",
+        "textColor": "#ffffff",
+        "disabledColor": "#4b5563",
+        "disabled": false,
+        "focusMode": "all",
+        "focusable": true,
+        "defaultFocus": true,
+        "action": "transition_scene:Title",
+        "actionBack": "",
+        "focusUp": "",
+        "focusDown": "",
+        "focusLeft": "",
+        "focusRight": "",
+        "fontSize": 28
+      },
+      "metadata": {},
+      "components": []
+    }
+  ]
+}

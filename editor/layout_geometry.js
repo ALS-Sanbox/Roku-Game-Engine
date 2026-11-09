@@ -41,6 +41,14 @@
     if (p.anchorLeft !== p.anchorRight) p.marginRight = left + p.width - (Number(p.anchorRight) || 0) * parentWidth;
     if (p.anchorTop !== p.anchorBottom) p.marginBottom = top + p.height - (Number(p.anchorBottom) || 0) * parentHeight;
   }
+  function placeInSlot(node, x, y, width, height) {
+    const t = node.transform, p = node.properties;
+    p.width = width; p.height = height;
+    const pivot = pivots[t.pivotPreset];
+    if (pivot) { t.pivotX = width * pivot[0]; t.pivotY = height * pivot[1]; }
+    t.x = x + (Number(t.pivotX) || 0) * (Number(t.scaleX) || 1);
+    t.y = y + (Number(t.pivotY) || 0) * (Number(t.scaleY) || 1);
+  }
   function resize(node, start, dx, dy, handle, quantize = v => v, minimum = 8) {
     const t = node.transform, p = node.properties;
     const sx = Number(t.scaleX) || 1, sy = Number(t.scaleY) || 1;
@@ -71,7 +79,7 @@
     }
     return { x, y, width: w, height: h, crop: { x: cx, y: cy, width: sw, height: sh } };
   }
-  const api = { layout, preset, resize, captureOffsets, textureRect };
+  const api = { layout, preset, resize, captureOffsets, textureRect, placeInSlot };
   root.RGELayoutGeometry = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -472,3 +472,11 @@ The following catalogs cover every creatable node/component and its schema-expos
 ### Sprite Slicer live frame preview
 
 Import an image or use the selected element image. The whole image is selected initially and the resized preview appears below the source. Use Grid or Draw rectangle to choose an atlas region. Set All slice margins for equal borders, then adjust Left, Top, Right and Bottom individually or drag the pink guides over the source image. Smaller margins produce thinner preserved borders. Output width and height resize the center while keeping the corner dimensions. Save selected regions after changing margins, then Apply or Create; the output dimensions are applied to the element. Use Panel or Button for nine-slice frames; Sprite2D and TextureRect use ordinary image stretching and accept regions without borders. Select a saved region to restore its margins.
+
+### Building a reliable scene-to-scene flow
+
+Start with `samples/scene-to-scene` for a minimal Title ? Play ? Title example. Open both scene files to expose their names in the Action picker. Select the button and choose **Fade to scene: Play** or **Open scene: Play**. The UI designer offers matching Action/Back Action suggestions while allowing custom text. Set the toolbar **Startup scene** to the scene that should run first, then use F5 / Build & Test. Editing a scene does not by itself change the startup scene.
+
+New CanvasLayers use a top-left origin at X=0/Y=0, so UI child positions are screen-relative. Explicit pivots saved in existing scenes are preserved. A layout container controls its visible UI children; position children freely under a Control or CanvasLayer when automatic layout is not desired. Hidden children do not occupy HBox/VBox slots. Nested containers resolve parents before children, and centered pivots retain the same visible rectangle as the runtime slot. UI rotation remains subject to the runtime limitations described in this manual.
+
+Build diagnostics check scene names, UI screen names, MenuList item actions, and built-in Game/Options scene destinations. A successful build does not replace testing your actual button actions. The scene-workflow simulator check verifies default focus, transitions in both directions, and authored button placement; validate your final game on Roku hardware too.

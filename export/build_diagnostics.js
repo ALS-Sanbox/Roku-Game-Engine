@@ -43,15 +43,26 @@ function validateSnapshot(root, scenes, startupScene, settings = {}) {
       require('./gameplay_diagnostics').validateGameplayNode(doc, n, (code, message, property) => add('error', code, message, { ...location, property }));
       if (p.followTargetName && !nodeNames.has(p.followTargetName.toLowerCase())) add('error', 'TARGET_REFERENCE', 'Camera follow target does not exist.', { ...location, property: 'followTargetName' });
       for (const key of ['focusUp', 'focusDown', 'focusLeft', 'focusRight']) if (p[key] && !ids.has(p[key]) && !nodeNames.has(String(p[key]).toLowerCase())) add('error', 'TARGET_REFERENCE', 'Focus target does not exist.', { ...location, property: key });
-      for (const [key, value] of Object.entries(p)) if (typeof value === 'string' && /^(?:transition_scene:|scene:|push:)/i.test(value)) {
-        const target = value.slice(value.indexOf(':') + 1);
-        if (!scenes.some(s => s.runtimeScene.scene?.name === target)) add('error', 'SCENE_REFERENCE', 'Target scene does not exist (names are case-sensitive): ' + target, { ...location, property: key });
+      const screens = [...(record.editorState?.uiScreens || []).map(s => s.name), ...doc.nodes.filter(n => n?.type === 'CanvasLayer').map(n => n.properties?.uiScreenName || n.name)];
+      function validateAction(value, property) {
+        if (typeof value !== 'string') return;
+        const action = value.trim();
+        const sceneMatch = action.match(/^(?:transition_scene:|scene:|push:)(.*)$/i);
+        const screenMatch = action.match(/^(?:screen:|pushscreen:|transition_screen:)(.*)$/i);
+        const implicit = { start_game: 'Game', open_options: 'Options' }[action.toLowerCase()];
+        if (sceneMatch || implicit) {
+          const target = (sceneMatch ? sceneMatch[1] : implicit).trim();
+          if (!scenes.some(s => s.runtimeScene.scene?.name === target)) add('error', 'SCENE_REFERENCE', 'Target scene does not exist (names are case-sensitive): ' + target, { ...location, property });
+        }
+        if (screenMatch) {
+          const target = screenMatch[1].trim();
+          if (!screens.includes(target)) add('error', 'SCREEN_REFERENCE', 'Target UI screen does not exist: ' + target, { ...location, property });
+        }
       }
-      for (const key of ['action', 'actionBack']) if (/^(?:screen:|pushscreen:|transition_screen:)/i.test(p[key] || '')) {
-        const target = p[key].slice(p[key].indexOf(':') + 1);
-        const screens = [...(record.editorState?.uiScreens || []).map(s => s.name), ...doc.nodes.filter(n => n?.type === 'CanvasLayer').map(n => n.properties?.uiScreenName || n.name)];
-        if (!screens.includes(target)) add('error', 'SCREEN_REFERENCE', 'Target UI screen does not exist: ' + target, { ...location, property: key });
-      }
+      for (const [key, value] of Object.entries(p)) if (key === 'action' || key === 'actionBack' || /^(?:transition_scene:|scene:|push:)/i.test(String(value))) validateAction(value, key);
+      if (n.type === 'MenuList' && Array.isArray(p.items)) p.items.forEach((item, index) => {
+        if (item && typeof item === 'object') validateAction(item.action, `items[${index}].action`);
+      });
       function references(value, property) {
         if (typeof value === 'string' && /^(?:res:\/\/|pkg:\/)/.test(value)) {
           try { const file = packagePath(root, value); if (!fs.existsSync(file.target)) add('error', 'MISSING_FILE', 'Referenced asset or script does not exist.', { ...location, property, path: value }); }

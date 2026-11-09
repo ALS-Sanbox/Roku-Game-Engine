@@ -402,7 +402,8 @@ end sub
 
 sub _FM_DispatchNamedAction(actionStr as String, sourceNodeId = "" as String)
   if actionStr = invalid or actionStr = "" then return
-  action = LCase(RokuEngine_Trim(actionStr))
+  actionStr = RokuEngine_Trim(actionStr)
+  action = LCase(actionStr)
 
   ' Built-in actions
   if action = "back" then

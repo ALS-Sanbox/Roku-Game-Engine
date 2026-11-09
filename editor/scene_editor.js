@@ -3436,7 +3436,7 @@ function addNode(type, parentId = getRootNodeId()) {
   const parent = getNode(parentId) || getNode(getRootNodeId());
   pushHistory(`Add ${def.displayName || type}`);
   const node = createDefaultNode(type);
-  if (type === 'TileMap' || type === 'CameraPath2D') {
+  if (type === 'TileMap' || type === 'CameraPath2D' || type === 'CanvasLayer') {
     node.transform.x = 0;
     node.transform.y = 0;
     node.transform.pivotX = 0;
@@ -3462,7 +3462,7 @@ function addNode(type, parentId = getRootNodeId()) {
 	  node.properties.previewFrame = lib.clips[0]?.frames?.[0] ?? 0;
 	}
   node.parentId   = parent?.id || getRootNodeId();
-  if (type !== 'TileMap' && type !== 'CameraPath2D') {
+  if (type !== 'TileMap' && type !== 'CameraPath2D' && type !== 'CanvasLayer') {
     // Compute a world-space offset, then convert to local space when parented,
     // so the child appears near center-viewport rather than stuck at 0,0.
     const worldX = snapValue(80 + (getNodes().length * 18));
@@ -3969,6 +3969,29 @@ function bindSceneSearch() {
   clear?.addEventListener('click', () => {
     input.value = ''; state.tree.search = ''; refreshTree(); input.focus();
   });
+}
+
+function getUiActionChoices() {
+      const choices = [
+        { value: '',               label: '— None —' },
+        { value: 'back',           label: 'back — Go back / pop scene' },
+        { value: 'quit_to_title',  label: 'quit_to_title — Return to title' },
+        { value: 'start_game',     label: 'start_game — Load Game scene' },
+        { value: 'resume_game',    label: 'resume_game — Unpause game' },
+        { value: 'open_options',   label: 'open_options — Push Options scene' },
+        { value: 'close',          label: 'close — Close dialog' },
+        { value: 'popscreen',      label: 'popscreen — Pop UI screen' },
+        { value: 'options_reset',  label: 'options_reset — Reset all options' },
+      ];
+      // Offer real destinations so simple scene wiring does not require typed names.
+      const sceneNames = [...new Set(state.scenes.map(entry => entry.sceneState?.scene?.name).filter(Boolean))];
+      for (const name of sceneNames) {
+        choices.push({ value: 'transition_scene:' + name, label: 'Fade to scene: ' + name });
+        choices.push({ value: 'scene:' + name, label: 'Open scene: ' + name });
+      }
+      const screenNames = [...new Set(getNodes().filter(n => n.type === 'CanvasLayer').map(n => n.properties?.uiScreenName || n.name).filter(Boolean))];
+      for (const name of screenNames) choices.push({ value: 'screen:' + name, label: 'Show UI screen: ' + name });
+  return choices;
 }
 
 function refreshTree() {
@@ -6189,17 +6212,7 @@ function buildField(node, field) {
     }
     case 'ui_action_picker': {
       // Dropdown of built-in actions + custom text field
-      const BUILTIN_ACTIONS = [
-        { value: '',               label: '— None —' },
-        { value: 'back',           label: 'back — Go back / pop scene' },
-        { value: 'quit_to_title',  label: 'quit_to_title — Return to title' },
-        { value: 'start_game',     label: 'start_game — Load Game scene' },
-        { value: 'resume_game',    label: 'resume_game — Unpause game' },
-        { value: 'open_options',   label: 'open_options — Push Options scene' },
-        { value: 'close',          label: 'close — Close dialog' },
-        { value: 'popscreen',      label: 'popscreen — Pop UI screen' },
-        { value: 'options_reset',  label: 'options_reset — Reset all options' },
-      ];
+      const BUILTIN_ACTIONS = getUiActionChoices();
       const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-direction:column;gap:3px;';
       const selEl = document.createElement('select');
       selEl.style.cssText = 'width:100%;font-size:11px;height:22px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:3px;padding:0 4px;';
@@ -19031,6 +19044,7 @@ RGE_ROOT.RGESceneBridge = {
   isRootNodeId,
   setStatus,
   getEditorState: () => state.editorState,
+  getUiActionChoices,
   setEditorStateProp: (key, value) => { state.editorState[key] = value; },
   // Nine-slice style access
   saveSlicedRegions: (regions) => {

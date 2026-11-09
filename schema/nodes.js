@@ -1426,7 +1426,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
   function getDefaultPivotForNode(type, properties = {}) {
     if (gameplayNodes[type]) return { pivotPreset: 'top-left', pivotX: 0, pivotY: 0 };
-    if (type === 'SceneRoot') {
+    if (type === 'SceneRoot' || type === 'CanvasLayer') {
       return { pivotPreset: 'top-left', pivotX: 0, pivotY: 0 };
     }
 

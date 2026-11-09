@@ -14,6 +14,7 @@
     "test:browser-suite": "node tools/check-browser-suite.cjs",
     "test:ui": "node tools/check-engine.cjs --ui",
     "test:mol": "node tools/check-engine.cjs --mol",
+    "test:scene-workflow": "node tools/check-scene-workflow.cjs",
     "test:mol-rge": "node tools/check-mol-rge.cjs",
     "test:ui-screens": "node tools/check-engine.cjs --mol-ui",
     "test:typography": "node tools/check-engine.cjs --typography",

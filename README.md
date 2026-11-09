@@ -8,6 +8,8 @@ A desktop 2D game editor for Roku. Build scenes, design menus, connect BrightScr
 
 This alpha is available as a source checkout. It includes an editable sample game, integrated simulator testing, native BrightScript export, and Roku sideload tools. Runtime coverage is still growing; validate your game on Roku hardware before release.
 
+Try the minimal [Scene to Scene example](samples/scene-to-scene/README.md) to verify a Title ? Play ? Title flow with native UI buttons. Open both scenes, choose a destination in the button's Action picker, and use F5 to test the configured startup scene. New CanvasLayers start at the screen origin; build validation checks scene/screen links, including menu items.
+
 ## What you can build
 
 | Area | Available in this alpha |

@@ -165,6 +165,14 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       if (type === 'checkbox') input.checked = key === 'visible' ? value !== false : value === true;
       else input.value = value ?? '';
       input.dataset.uiField = key; input.disabled = locked && key !== 'locked';
+      if (key === 'properties.action' || key === 'properties.actionBack') {
+        const list = document.createElement('datalist');
+        list.id = 'ui-action-' + node.id + '-' + key.split('.').pop();
+        for (const choice of bridge()?.getUiActionChoices?.() || []) {
+          const option = document.createElement('option'); option.value = choice.value; option.label = choice.label; list.append(option);
+        }
+        input.setAttribute('list', list.id); row.append(list);
+      }
       if (type === 'number') input.step = 'any';
       input.addEventListener('change', () => {
         const next = type === 'checkbox' ? input.checked : type === 'number' ? Number(input.value) : input.value;
@@ -431,7 +439,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       if (parent) visit(parent);
       const width = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.width) || resW : resW;
       const height = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.height) || resH : resH;
-      RGE_ROOT.RGELayoutGeometry.layout(node, width, height);
+      if (!parent || !LAYOUT_CONTAINER_TYPES.has(parent.type)) RGE_ROOT.RGELayoutGeometry.layout(node, width, height);
     }
     all.forEach(visit);
   }
@@ -444,10 +452,35 @@ var RGE_ROOT = globalThis.RGE_ROOT;
 
     // Collect all layout containers — process parents before children
     // so nested containers are laid out in the correct order.
-    const containers = all.filter(n => LAYOUT_CONTAINER_TYPES.has(n.type));
-
+    const depths = new Map(), childrenByParent = new Map();
+    const depth = node => {
+      if (depths.has(node.id)) return depths.get(node.id);
+      let d = 0, current = node; const seen = new Set();
+      while (current?.parentId && !seen.has(current.id)) { seen.add(current.id); current = byId.get(current.parentId); d++; }
+      depths.set(node.id, d); return d;
+    };
+    for (const child of all) {
+      if (child.visible === false || !bridge()?.isUiNodeType(child.type)) continue;
+      if (!childrenByParent.has(child.parentId)) childrenByParent.set(child.parentId, []);
+      childrenByParent.get(child.parentId).push(child);
+    }
+    const resolution = previewRes(getUiMeta());
+    function resolveAncestors(node, seen = new Set()) {
+      if (!node || seen.has(node.id)) return;
+      seen.add(node.id);
+      const parent = byId.get(node.parentId);
+      resolveAncestors(parent, seen);
+      if (!parent || !LAYOUT_CONTAINER_TYPES.has(parent.type)) {
+        const width = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.width) || resolution.w : resolution.w;
+        const height = parent && parent.type !== 'CanvasLayer' ? Number(parent.properties?.height) || resolution.h : resolution.h;
+        RGE_ROOT.RGELayoutGeometry.layout(node, width, height);
+      }
+    }
+    const containers = all.filter(n => LAYOUT_CONTAINER_TYPES.has(n.type)).sort((a,b)=>depth(a)-depth(b));
     for (const container of containers) {
-      const children = all.filter(n => n.parentId === container.id);
+      // Ancestor containers have already sized their slots; resolve intervening anchors now.
+      resolveAncestors(container);
+      const children = childrenByParent.get(container.id) || [];
       if (!children.length) continue;
 
       const cw = Math.max(1, Number(container.properties?.width  ?? 0));
@@ -479,10 +512,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         else                             cursor = 0;  // begin
 
         children.forEach((child, i) => {
-          child.transform.x        = Math.round(cursor);
-          child.transform.y        = 0;
-          child.properties.width   = finalWidths[i];
-          child.properties.height  = ch;           // cross-axis: fill container height
+          RGE_ROOT.RGELayoutGeometry.placeInSlot(child, Math.round(cursor), 0, finalWidths[i], ch);
           cursor += finalWidths[i] + sep;
         });
 
@@ -511,10 +541,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         else                             cursor = 0;  // begin
 
         children.forEach((child, i) => {
-          child.transform.x        = 0;
-          child.transform.y        = Math.round(cursor);
-          child.properties.width   = cw;           // cross-axis: fill container width
-          child.properties.height  = finalHeights[i];
+          RGE_ROOT.RGELayoutGeometry.placeInSlot(child, 0, Math.round(cursor), cw, finalHeights[i]);
           cursor += finalHeights[i] + sep;
         });
 
@@ -527,10 +554,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         const innerH = Math.max(1, ch - pT - pB);
         // All children fill the inner area (Godot: MarginContainer forces single child to fill)
         for (const child of children) {
-          child.transform.x        = pL;
-          child.transform.y        = pT;
-          child.properties.width   = innerW;
-          child.properties.height  = innerH;
+          RGE_ROOT.RGELayoutGeometry.placeInSlot(child, pL, pT, innerW, innerH);
         }
 
       } else if (container.type === 'ScrollContainer') {
@@ -538,8 +562,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
         const offY = Number(container.properties?.scrollOffsetY ?? 0);
         // Children are placed at -offset; their own size is respected
         for (const child of children) {
-          child.transform.x = -offX;
-          child.transform.y = -offY;
+          RGE_ROOT.RGELayoutGeometry.placeInSlot(child, -offX, -offY, child.properties.width, child.properties.height);
         }
       }
     }
