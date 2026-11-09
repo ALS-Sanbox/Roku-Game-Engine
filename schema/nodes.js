@@ -395,8 +395,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     Collider2DComponent: {
       type: 'Collider2DComponent',
       displayName: 'Collider2D',
-      description: 'Adds an AABB collider used by physics and trigger checks.',
-      defaults: { enabled: true, priority: 150, width: 32, height: 32, offsetX: 0, offsetY: 0, isTrigger: false, layer: 'default', mask: 'default', debug: false }
+      description: 'Adds box solid physics and selectable box or circle trigger contacts.',
+      defaults: { enabled: true, priority: 150, width: 32, height: 32, offsetX: 0, offsetY: 0, isTrigger: false, contactMethod: 'project', circleRadius: 0, layer: 'default', mask: 'default', debug: false }
     },
     RigidBody2DComponent: {
       type: 'RigidBody2DComponent',
@@ -1364,7 +1364,7 @@ var RGE_ROOT = globalThis.RGE_ROOT;
   const gameplayNodes = {
     Marker2D: { category: 'Gameplay', defaults: { gizmoSize: 16, tint: '#f2cf66' } },
     Timer: { category: 'Gameplay', defaults: { waitTime: 1, oneShot: false, autostart: true, paused: false, processWhenPaused: false, tint: '#70c9d1' } },
-    TriggerZone2D: { category: 'Gameplay', defaults: { width: 160, height: 120, enabled: true, layer: 'default', mask: 'default', tint: '#6dbd79' } },
+    TriggerZone2D: { category: 'Gameplay', defaults: { width: 160, height: 120, enabled: true, contactMethod: 'project', circleRadius: 0, layer: 'default', mask: 'default', tint: '#6dbd79' } },
     Path2D: { category: 'Gameplay', defaults: { points: [{ x: 0, y: 0 }, { x: 160, y: 0 }], closedPath: false, tint: '#66c9e8' } },
     PathFollow2D: { category: 'Gameplay', defaults: { path: '', speed: 60, progress: 0, loop: true, rotates: false, playing: true, tint: '#66c9e8' } },
     Parallax2D: { category: 'World', defaults: { width: 320, height: 180, scrollScaleX: 0.5, scrollScaleY: 0.5, autoscrollX: 0, autoscrollY: 0, repeatWidth: 0, repeatHeight: 0, tint: '#b496ff' } },
@@ -1386,7 +1386,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
       ...['x', 'y', 'rotation', 'scaleX', 'scaleY', 'pivotX', 'pivotY'].map(key => ({ key: `transform.${key}`, label: key, type: 'number', step: key.startsWith('scale') ? 0.01 : 1, section: 'Transform' })),
       ...Object.entries(config.defaults).map(([key, value]) => ({
         key: `properties.${key}`, label: helperLabels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()),
-        type: Array.isArray(value) ? 'json' : typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : key === 'tint' ? 'color' : 'string',
+          type: key === 'contactMethod' ? 'select' : Array.isArray(value) ? 'json' : typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : key === 'tint' ? 'color' : 'string',
+          ...(key === 'contactMethod' ? { options: ['project','aabb','circle'] } : {}),
         step: 0.1, section: 'Settings'
       }))
     ];

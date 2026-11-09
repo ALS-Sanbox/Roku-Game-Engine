@@ -139,6 +139,11 @@
         <span>Scene</span>
         <button class="mini-btn" id="btn-add-child">+ New Scene</button>
       </div>
+      <div class="scene-search">
+        <input id="scene-node-search" type="search" placeholder="Find nodes..." aria-label="Find scene nodes by name, type or ID" aria-controls="scene-tree">
+        <button id="scene-node-search-clear" class="mini-btn" type="button" aria-label="Clear node search" title="Clear search">&times;</button>
+      </div>
+      <div id="scene-node-search-status" class="scene-search-status" role="status" aria-live="polite" hidden></div>
       <div class="scene-tree" id="scene-tree"></div>
     </section>
 
@@ -257,11 +262,14 @@
       <section class="dock-panel sprite-slicer" id="sprite-slicer-wrap" data-panel="slicer">
         <div class="slicer-toolbar"><button id="slicer-pick" class="mini-btn">Import image</button><button id="slicer-use" class="mini-btn">Use selected element image</button><span id="slicer-image-name">No image loaded</span></div>
         <div class="slicer-toolbar"><label>Mode<select id="slicer-mode"><option value="grid">Grid</option><option value="manual">Draw rectangle</option></select></label><label>Cell width<input id="slicer-cell-w" type="number" min="1" value="64"></label><label>Cell height<input id="slicer-cell-h" type="number" min="1" value="64"></label><label>Spacing<input id="slicer-gap" type="number" min="0" value="0"></label><label>Offset X<input id="slicer-offset-x" type="number" min="0" value="0"></label><label>Offset Y<input id="slicer-offset-y" type="number" min="0" value="0"></label><button id="slicer-grid" class="mini-btn">Slice grid</button></div>
-        <div class="slicer-toolbar"><label>Region name<input id="slicer-name" value="Slice"></label><label>UI borders (pixels)<input id="slicer-border" type="number" min="0" value="0" title="Nine-slice border on each side; zero creates a simple cropped image"></label><button id="slicer-all" class="mini-btn">Select all</button><button id="slicer-none" class="mini-btn">Clear selection</button><button id="slicer-save" class="mini-btn">Save selected regions</button><label>Zoom<select id="slicer-zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="1" selected>100%</option><option value="2">200%</option><option value="4">400%</option></select></label></div>
+        <div class="slicer-toolbar"><label>Region name<input id="slicer-name" value="Slice"></label><label>All slice margins (pixels)<input id="slicer-border" type="number" min="0" value="0" title="Set all four source slice margins; adjust individual sides below"></label><button id="slicer-all" class="mini-btn">Select all</button><button id="slicer-none" class="mini-btn">Clear selection</button><button id="slicer-save" class="mini-btn">Save selected regions</button><label>Zoom<select id="slicer-zoom"><option value="0.25">25%</option><option value="0.5">50%</option><option value="1" selected>100%</option><option value="2">200%</option><option value="4">400%</option></select></label></div>
         <p class="slicer-hint">Grid: click a cell; Ctrl/Shift-click toggles multiple cells. Draw rectangle: drag around one image. Only full grid cells are included. Save regions to reuse them in UI Assets Atlas.</p>
         <div id="slicer-scroll"><canvas id="slicer-canvas" width="1" height="1" aria-label="Sprite slicing preview"></canvas></div>
+        <div class="slicer-toolbar"><label>Left slice<input id="slicer-left" type="number" min="0" value="0"></label><label>Top slice<input id="slicer-top" type="number" min="0" value="0"></label><label>Right slice<input id="slicer-right" type="number" min="0" value="0"></label><label>Bottom slice<input id="slicer-bottom" type="number" min="0" value="0"></label><label>Output width<input id="slicer-output-w" type="number" min="1" max="4096" value="320"></label><label>Output height<input id="slicer-output-h" type="number" min="1" max="4096" value="180"></label></div>
+        <p class="slicer-hint">Select a region to preview it below. Drag the pink guides or adjust the four slice margins to change the frame thickness. Resize the output to stretch the center while preserving the corners. Save before applying; output size is applied to the element.</p>
+        <div class="slicer-preview"><canvas id="slicer-preview" width="320" height="180" aria-label="Live resized nine-slice preview"></canvas><span id="slicer-preview-status" role="status">Load an image to preview it.</span></div>
         <div id="slicer-regions" aria-label="Reusable sliced regions"></div>
-        <div class="slicer-toolbar"><button id="slicer-apply" class="mini-btn">Apply region to selected element</button><select id="slicer-create-type" aria-label="Create element type"><option>Sprite2D</option><option>TextureRect</option><option>Button</option><option>Panel</option></select><button id="slicer-create" class="mini-btn">Create from region</button><button id="slicer-ui-editor" class="mini-btn">Edit UI borders / states</button></div>
+        <div class="slicer-toolbar"><button id="slicer-apply" class="mini-btn">Apply region to selected element</button><select id="slicer-create-type" aria-label="Create element type"><option>Sprite2D</option><option>TextureRect</option><option>Button</option><option selected>Panel</option></select><button id="slicer-create" class="mini-btn">Create from region</button><button id="slicer-ui-editor" class="mini-btn">Edit UI borders / states</button></div>
         <p id="slicer-status" role="status">Import an image or select an image element, then use its image.</p>
       </section>
       <section class="dock-panel script-editor" id="script-editor-wrap" data-panel="scripts">

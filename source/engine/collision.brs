@@ -1,7 +1,7 @@
 ' collision.brs - generated classic 2D runtime
 
-' Ordered world-space segment query against the native collider rectangles.
-' Radius expands rectangles for a swept projectile. A caller can reuse the
+' Ordered world-space segment query against native box/circle contacts.
+' Radius expands the shape for a swept projectile. A caller can reuse the
 ' collider snapshot for a batch; no game-specific collision implementation needed.
 function RokuEngine_QuerySegment(x1 as Float, y1 as Float, x2 as Float, y2 as Float, radius = 0.0 as Float, skipId = "" as String, colliders = invalid as Dynamic) as Object
   hits = []
@@ -11,19 +11,40 @@ function RokuEngine_QuerySegment(x1 as Float, y1 as Float, x2 as Float, y2 as Fl
   for each collider in colliders
     if collider.nodeId = skipId then continue for
     nearTime = 0.0 : farTime = 1.0 : intersects = true
-    for axis = 0 to 1
-      origin = x1 : delta = dx : low = collider.x-radius : high = collider.x+collider.width+radius
-      if axis = 1 then origin = y1 : delta = dy : low = collider.y-radius : high = collider.y+collider.height+radius
-      if Abs(delta) < 0.000001 then
-        if origin < low or origin > high then intersects = false
-      else
-        firstTime = (low-origin)/delta : lastTime = (high-origin)/delta
-        if firstTime > lastTime then swapTime = firstTime : firstTime = lastTime : lastTime = swapTime
-        if firstTime > nearTime then nearTime = firstTime
-        if lastTime < farTime then farTime = lastTime
-        if nearTime > farTime then intersects = false
+    if collider.shape = "circle" then
+      fx = x1-collider.centerX : fy = y1-collider.centerY
+      combinedRadius = collider.radius+radius
+      distance = fx*fx+fy*fy-combinedRadius*combinedRadius
+      if distance > 0 then
+        speedSquared = dx*dx+dy*dy
+        if speedSquared <= 0.0000001 then
+          intersects = false
+        else
+          dot = fx*dx+fy*dy
+          discriminant = dot*dot-speedSquared*distance
+          if discriminant < 0 then
+            intersects = false
+          else
+            nearTime = (-dot-Sqr(discriminant))/speedSquared
+            intersects = nearTime >= 0 and nearTime <= 1
+          end if
+        end if
       end if
-    end for
+    else
+      for axis = 0 to 1
+        origin = x1 : delta = dx : low = collider.x-radius : high = collider.x+collider.width+radius
+        if axis = 1 then origin = y1 : delta = dy : low = collider.y-radius : high = collider.y+collider.height+radius
+        if Abs(delta) < 0.000001 then
+          if origin < low or origin > high then intersects = false
+        else
+          firstTime = (low-origin)/delta : lastTime = (high-origin)/delta
+          if firstTime > lastTime then swapTime = firstTime : firstTime = lastTime : lastTime = swapTime
+          if firstTime > nearTime then nearTime = firstTime
+          if lastTime < farTime then farTime = lastTime
+          if nearTime > farTime then intersects = false
+        end if
+      end for
+    end if
     if intersects then
       hit = { nodeId: collider.nodeId, fraction: nearTime, x: x1+dx*nearTime, y: y1+dy*nearTime, collider: collider }
       at = hits.Count() : hits.Push(hit)
@@ -35,6 +56,62 @@ function RokuEngine_QuerySegment(x1 as Float, y1 as Float, x2 as Float, y2 as Fl
     end if
   end for
   return hits
+end function
+
+' Contact methods affect triggers/queries; the solid movement solver remains
+' AABB. This also keeps old scenes and tile-map solids unchanged.
+function RokuCollision_ContactMethod(engine as Object, props as Object, isTrigger as Boolean) as String
+  if not isTrigger then return "aabb"
+  method = _BRS_StrCoalesce(props.contactMethod,"project")
+  if method = "project" or method = "" then
+    method = "aabb"
+    if engine.projectSettings <> invalid and engine.projectSettings.physics <> invalid then method = _BRS_StrCoalesce(engine.projectSettings.physics.contactMethod,"aabb")
+  end if
+  if LCase(method) = "circle" then return "circle"
+  return "aabb"
+end function
+
+function RokuCollision_SetContactShape(collider as Object, world as Object, props as Object, method as String, width as Float, height as Float, offsetX = 0.0 as Float, offsetY = 0.0 as Float) as Object
+  collider.shape = method
+  if method <> "circle" then return collider
+  radius = _BRS_NumCoalesce(props.circleRadius,0)
+  if radius <= 0 then
+    radius = width/2
+    if height < width then radius = height/2
+  end if
+  ' Largest singular value also handles shear from nested nonuniform scales.
+  trace = world.a*world.a+world.b*world.b+world.c*world.c+world.d*world.d
+  determinant = world.a*world.d-world.b*world.c
+  stretch = trace*trace-4*determinant*determinant
+  if stretch < 0 then stretch = 0
+  radius = radius*Sqr((trace+Sqr(stretch))/2)
+  cx = offsetX+width/2 : cy = offsetY+height/2
+  collider.centerX = world.x+world.a*cx+world.c*cy
+  collider.centerY = world.y+world.b*cx+world.d*cy
+  collider.radius = radius
+  collider.x = collider.centerX-radius : collider.y = collider.centerY-radius
+  collider.width = radius*2 : collider.height = radius*2
+  return collider
+end function
+
+function RokuCollision_TestContact(a as Object, b as Object) as Boolean
+  if a = invalid or b = invalid then return false
+  if a.shape = "circle" and b.shape = "circle" then
+    dx = a.centerX-b.centerX : dy = a.centerY-b.centerY : radius = a.radius+b.radius
+    return dx*dx+dy*dy <= radius*radius
+  end if
+  if a.shape = "circle" or b.shape = "circle" then
+    circle = a : rectangle = b
+    if b.shape = "circle" then circle = b : rectangle = a
+    x = circle.centerX : y = circle.centerY
+    if x < rectangle.x then x = rectangle.x
+    if x > rectangle.x+rectangle.width then x = rectangle.x+rectangle.width
+    if y < rectangle.y then y = rectangle.y
+    if y > rectangle.y+rectangle.height then y = rectangle.y+rectangle.height
+    dx = circle.centerX-x : dy = circle.centerY-y
+    return dx*dx+dy*dy <= circle.radius*circle.radius
+  end if
+  return RokuEngine_TestAabbCollision(a,b)
 end function
 
 function RokuEngine_CreateCollisionSystem(engine as Object) as Object
@@ -74,7 +151,8 @@ function RokuCollision_GetNodeCollider(node as Object) as Dynamic
     if world.visible = false then return invalid
     p = node.properties
     rect = RokuEngine_WorldRect(world, _BRS_NumCoalesce(p.width, 160), _BRS_NumCoalesce(p.height, 120))
-    return { nodeId: node.id, x: rect.x, y: rect.y, width: rect.width, height: rect.height, isTrigger: true, layer: _BRS_StrCoalesce(p.layer, "default"), mask: _BRS_StrCoalesce(p.mask, "default") }
+    collider = { nodeId: node.id, x: rect.x, y: rect.y, width: rect.width, height: rect.height, isTrigger: true, layer: _BRS_StrCoalesce(p.layer, "default"), mask: _BRS_StrCoalesce(p.mask, "default") }
+    return RokuCollision_SetContactShape(collider,world,p,RokuCollision_ContactMethod(engine,p,true),_BRS_NumCoalesce(p.width,160),_BRS_NumCoalesce(p.height,120))
   end if
   components = node.components
   if type(components) <> "roArray" then return invalid
@@ -108,13 +186,16 @@ function RokuCollision_GetNodeCollider(node as Object) as Dynamic
     mask = "default"
     if component.layer <> invalid and component.layer <> "" then layer = component.layer
     if component.mask <> invalid and component.mask <> "" then mask = component.mask
-    shape = RokuCollision_LocalShapeBounds(component.physicsShapes,colliderWidth,colliderHeight)
+    method = RokuCollision_ContactMethod(engine,component,isTrigger)
+    shape = invalid
+    if method <> "circle" then shape = RokuCollision_LocalShapeBounds(component.physicsShapes,colliderWidth,colliderHeight)
     if shape <> invalid then
       offsetX = offsetX+shape.x : offsetY = offsetY+shape.y
       colliderWidth = shape.width : colliderHeight = shape.height
     end if
     rect = RokuEngine_WorldRect(world, colliderWidth, colliderHeight, offsetX, offsetY)
-    return { nodeId: node.id, x: rect.x, y: rect.y, width: rect.width, height: rect.height, isTrigger: isTrigger, layer: layer, mask: mask }
+    collider = { nodeId: node.id, x: rect.x, y: rect.y, width: rect.width, height: rect.height, isTrigger: isTrigger, layer: layer, mask: mask }
+    return RokuCollision_SetContactShape(collider,world,component,method,colliderWidth,colliderHeight,offsetX,offsetY)
   end for
   return invalid
 end function
@@ -309,7 +390,11 @@ function RokuCollision_FindOverlap(target as Object, colliders as Object, skipNo
     if other = invalid then continue for
     if other.nodeId = skipNodeId then continue for
     if not m.CanLayersCollide(target, other) then continue for
-    if target.x < other.x+other.width and target.x+target.width > other.x and target.y < other.y+other.height and target.y+target.height > other.y then return other
+    if target.shape = "circle" or other.shape = "circle" then
+      if RokuCollision_TestContact(target,other) then return other
+    else
+      if target.x < other.x+other.width and target.x+target.width > other.x and target.y < other.y+other.height and target.y+target.height > other.y then return other
+    end if
   end for
   return invalid
 end function
@@ -503,7 +588,7 @@ sub RokuCollision_Process(dt as Dynamic, colliders as Dynamic)
       for each hit in candidates
         if hit = invalid or hit.nodeId = node.id then continue for
         if not m.CanLayersCollide(collider, hit) then continue for
-        if not RokuEngine_TestAabbCollision(collider, hit) then continue for
+        if not RokuCollision_TestContact(collider, hit) then continue for
         pairA = node.id : pairB = hit.nodeId
         hitKey = pairB
         if hit.colliderId <> invalid and hit.colliderId <> "" then hitKey = hit.colliderId

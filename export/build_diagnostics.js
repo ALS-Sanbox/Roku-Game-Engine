@@ -60,8 +60,13 @@ function validateSnapshot(root, scenes, startupScene, settings = {}) {
       }
       references(p, 'properties'); references(n.components, 'components');
       if (Number(n.transform?.rotation || 0) && !['Sprite2D','AnimatedSprite2D','TileMap'].includes(n.type)) add('warning','NATIVE_ROTATION','This node renders with axis-aligned bounds; artwork rotation is implemented for sprites and tilemaps.',{...location,property:'transform.rotation'});
-      if (Number(n.transform?.rotation || 0) && (n.components||[]).some(c=>c.type==='Collider2DComponent')) add('warning','NATIVE_COLLIDER_AABB','Rotated colliders use enclosing AABBs, not oriented polygons.',location);
-      for(const component of n.components||[])if(component.type==='Collider2DComponent'&&(component.physicsShapes?.length>1||component.physicsShapes?.some(s=>s.type==='polygon')))add('warning','NATIVE_COLLIDER_SHAPES','Compound/polygon physics shapes use their combined enclosing AABB in the native solver.',location);
+      const circleContact = c => c.isTrigger && (c.contactMethod === 'circle' || ((!c.contactMethod || c.contactMethod === 'project') && settings.physics?.contactMethod === 'circle'));
+      if (Number(n.transform?.rotation || 0) && (n.components||[]).some(c=>c.type==='Collider2DComponent'&&!circleContact(c))) add('warning','NATIVE_COLLIDER_AABB','Rotated box colliders use enclosing AABBs, not oriented polygons.',location);
+      for(const component of n.components||[])if(component.type==='Collider2DComponent'){
+        if(component.contactMethod==='circle'&&!component.isTrigger)add('warning','NATIVE_CIRCLE_SOLID','Circle contact mode applies to triggers. This solid collider uses AABB physics.',location);
+        if(circleContact(component)&&component.physicsShapes?.length)add('warning','NATIVE_CIRCLE_SHAPES','Circle contacts use width, height, offsets and radius; custom physics shapes are ignored.',location);
+        else if(component.physicsShapes?.length>1||component.physicsShapes?.some(s=>s.type==='polygon'))add('warning','NATIVE_COLLIDER_SHAPES','Compound/polygon physics shapes use their combined enclosing AABB in the native solver.',location);
+      }
     }
     function resources(value, property) {
       if (typeof value === 'string' && /^(res:\/\/|pkg:\/)/.test(value)) { try { const f = packagePath(root, value); if (!fs.existsSync(f.target)) add('error', 'MISSING_FILE', 'Resource asset does not exist.', { ...ctx, property, path: value }); } catch (e) { add('error', 'PACKAGE_PATH', e.message, { ...ctx, property, path: value }); } }

@@ -28,7 +28,7 @@ exports.nodes = {
   SceneInstance: 'Reusable scene reference with instance overrides. Edit the source for shared changes or override a particular instance; repair missing references.',
   Marker2D: 'Named local/world point for spawns/checkpoints/attachments. Its crosshair/label are editing guides rather than game artwork.',
   Timer: 'Logical countdown/repeating timer. Attach Timeout hooks, use seconds, and choose scene-pause behavior. Scripts can restart or stop it.',
-  TriggerZone2D: 'Rectangular trigger region with built-in collider behavior. Use layer/mask to choose interactions and collision hooks to respond.',
+  TriggerZone2D: 'Trigger region with selectable project-default, box or circle contacts. Use layer/mask to choose interactions and collision hooks to respond.',
   Path2D: 'Gameplay route made of local straight-line segments. Parent transforms move/rotate/scale the route; edit points through Inspector/Edit Path.',
   PathFollow2D: 'Moves along an assigned/parent Path2D. Parent moving artwork beneath it; progress is path-local distance and can be changed to seek.',
   Parallax2D: 'Camera-relative background parent with optional autoscroll/repeat. Repeats descendant artwork rather than duplicating collisions.',
@@ -37,6 +37,8 @@ exports.nodes = {
   FocusGroup: 'Menu navigation scope. It can trap/wrap focus and restore previous selection when reopened; disabled groups remove descendant focus targets.'
 };
 exports.fields = {
+  contactMethod:'For trigger contacts and queries: project inherits Settings > Physics; aabb uses box bounds; circle uses distance checks. Solid-body movement remains AABB.',
+  circleRadius:'Local circle radius. Zero fits half the smaller Width/Height. The center uses rectangle midpoint plus offsets; world radius uses the largest transform stretch.',
   width:'Rectangle width in local pixels; interpreted as a guide/content rectangle according to node type.', height:'Rectangle height in local pixels.',
   opacity:'Opacity multiplier from 0 (transparent) to 1 (opaque), combined with inherited opacity.', tint:'Authored artwork or helper-guide color; editor themes do not replace this value.',
   imagePath:'Project-relative image resource. Prefer res://images/name.png; referenced files must exist inside the project.', imageDataUrl:'Embedded image preview/source data used by legacy imports; normally managed by image/resource tools.',
@@ -134,6 +136,7 @@ exports.controls = {
   'ui-resolution-select':'Choose an authoring preview resolution; verify actual project Screen settings separately.'
 };
 exports.api = {
+  QuerySegment:'Query a world-space swept point/projectile against native box or circle contacts. Returns nearest-first hits with nodeId, fraction, x, y and collider. Optional radius expands the target, skipId excludes a node, and colliders reuses a snapshot.',
   QueueSceneChange:'Request a scene change at the safe frame boundary. Use a valid authored scene name.', ChangeScene:'Change the active runtime scene through the scene-manager path.', ReloadScene:'Reload a fresh authored copy of the current scene.', PushScene:'Push scene-stack state and change to another scene.', PopScene:'Return through the scene-stack workflow.',
   FindNodeByName:'Find a node in the active scene by name; invalid means not found. Stable IDs avoid duplicate-name ambiguity.', DestroyNode:'Remove a runtime node/subtree through engine cleanup. Pool objects should normally use PoolRelease.',
   SetPaused:'Pause/unpause scene processing according to phase rules.', SetPhysicsPaused:'Pause/unpause the fixed-step physics simulation.', SetTimeScale:'Change scaled game-time advancement.',

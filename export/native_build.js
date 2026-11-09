@@ -26,6 +26,7 @@ function normalizeSettings(root, override) {
   const saved = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
   const settings = { ...saved, ...override };
   settings.projectName ||= path.basename(root);
+  settings.physics = { ...(settings.physics || {}), contactMethod: settings.physics?.contactMethod === 'circle' ? 'circle' : 'aabb' };
   settings.screen = { width: 1280, height: 720, mode: '720p', ...(settings.screen || {}) };
   settings.input = { actionMap: { move_up: 'up', move_down: 'down', move_left: 'left', move_right: 'right', action: 'ok', pause: 'play', back: 'back' }, ...(settings.input || {}) };
   return settings;

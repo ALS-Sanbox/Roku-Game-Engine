@@ -18,3 +18,10 @@ test('UI nine-slice regions preserve atlas origin and corner sizes',()=>{
   assert.equal(result[4].w,92);assert.equal(result[4].h,72);
   assert.deepEqual(patches({x:64,y:32,w:32,h:32},100,80),[{sx:64,sy:32,sw:32,sh:32,x:0,y:0,w:100,h:80}]);
 });
+
+test('asymmetric frame slices retain margins larger than half the source',()=>{
+  const result=patches({x:10,y:20,w:100,h:80},300,200,{sliceLeft:60,sliceRight:10,sliceTop:45,sliceBottom:5});
+  assert.equal(result[0].sw,60);assert.equal(result[0].sh,45);
+  assert.equal(result[4].sw,30);assert.equal(result[4].sh,30);
+  assert.equal(result[4].w,230);assert.equal(result[4].h,150);
+});

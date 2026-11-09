@@ -97,6 +97,8 @@ Tooltips are the quickest reminder of a symbol's meaning. A plus usually adds an
 
 Create Project starts a new project; Open Project selects a folder; Back to Manager returns to project selection. Save Project saves project work; Save As saves through the project-copy workflow. Export Game produces a Roku package. Build & Test in Roku Simulator runs the native build path. Sideload to Roku opens the developer-device dialog. Settings opens project/input/screen configuration and editor appearance. Quit exits.
 
+The Scene panel search finds editable nodes by name, type or ID, ignoring case. Combine words to narrow results. Matching nodes appear with their ancestors even when those branches were collapsed. Enter selects the first match; Escape or the clear button restores the full tree. Select a node to drag it from inside its selection rectangle, including when guide overlays cover its artwork. Locked nodes remain fixed.
+
 ### Scene menu
 
 New Scene creates a scene; Open Scene opens one; Rename Scene changes its name. Save Scene and Save Scene As persist it. Reload Saved Scene replaces current memory state with the saved version: preserve edits first. New Inherited Scene derives from a base; Rebase Inherited Scene updates from its base; Revert Inherited To Base removes its overrides through that workflow. Back up before intentionally discarding overrides. Close Scene/Close All Scenes close editing tabs, not runtime scenes.
@@ -271,7 +273,7 @@ Templates generate editable starter UI structures. Choose one, review startup op
 
 Marker2D is a named position for starts, spawns or checkpoints. Timer emits Timeout in seconds: Autostart starts it, One Shot ends after one firing, Paused stops that timer. Process When Paused permits real-time advancement while the scene is paused.
 
-TriggerZone2D is a rectangular trigger without a separate Collider2D. Set Layer/Mask and attach collision hooks. Path2D stores local points. PathFollow2D references a path or its Path2D parent; put artwork beneath it. Speed is path-local units/second, Progress sets/seeks distance, Loop repeats, Rotates follows its tangent. Negative speed is supported.
+TriggerZone2D is a trigger without a separate Collider2D. Contact Method selects project default, AABB box or circle; Circle Radius 0 fits half the smaller dimension. Set Layer/Mask and attach collision hooks. Path2D stores local points. PathFollow2D references a path or its Path2D parent; put artwork beneath it. Speed is path-local units/second, Progress sets/seeks distance, Loop repeats, Rotates follows its tangent. Negative speed is supported.
 
 Parallax2D changes descendants' camera-relative motion. Scroll Scale 0 stays fixed onscreen; 1 behaves like world motion. Autoscroll adds units/second. Positive repeat dimensions repeat artwork; zero disables that axis. Repeated artwork does not duplicate gameplay collision.
 
@@ -287,7 +289,11 @@ Add a component through the node Inspector. Enabled toggles the behavior; Priori
 
 Collider2DComponent supplies axis-aligned dimensions/offsets, trigger state and collision Layer/Mask. RigidBody2DComponent supplies body type, velocity, acceleration, gravity, friction, bounce and mass. Dynamic bodies advance through physics; choose static/kinematic when appropriate. Lock Rotation prevents SpinComponent rotation through the rigid-body path.
 
-Solid movement sweeps against AABBs and resolves position/velocity; collision hooks report contacts. Trigger checks use fixed-step overlap, so very fast objects can cross thin triggers. Polygon/rotated shapes use enclosing AABBs. There is no general joint, polygon or angular-dynamics solver.
+For triggers, Contact Method selects project default, AABB (box bounds) or Circle (distance checks). File → Settings → Physics sets the project default; existing projects default to AABB. Circle Radius 0 uses half the smaller Width/Height; a positive value sets a local radius. The circle center is the rectangle midpoint plus offsets. World radius uses the largest transform stretch, keeping a conservative circle under nonuniform scale. Circle mode ignores custom Physics Shapes. Solid colliders always use AABB physics.
+
+Circle-circle contacts compare squared distances without a per-pair square root; mixed circle-box contacts use the closest box point. Both choices retain spatial buckets, layer masks and Enter/Stay/Exit hooks. Neither guarantees higher frame rate: scene traversal, transforms, scripts and drawing also cost time. Rebuild after changing project settings.
+
+Solid movement sweeps against AABBs and resolves position/velocity; collision hooks report contacts. Trigger checks use fixed-step overlap, so very fast objects can cross thin triggers. Use `engine.QuerySegment(x1, y1, x2, y2, radius, skipId, colliders)` for swept projectile queries against the selected box/circle contacts; it returns ordered hit records with nodeId, fraction, x, y and collider. Radius defaults to 0, skipId to an empty string, and an omitted collider list builds a native snapshot. Polygon/rotated box shapes use enclosing AABBs. There is no general joint, polygon or angular-dynamics solver.
 
 File → Settings → Input maps move_up/down/left/right, action, pause and back to remote buttons. Prefer action names in game code so mapping changes do not require rewriting gameplay. The simulator remote controls runtime input; the editing shortcuts in chapter 5 control authoring instead.
 
@@ -411,7 +417,7 @@ Transformed sprite cache limits are 16 MiB total, 4 MiB per sprite and 2048 pixe
 
 ## 19. Settings and appearance
 
-File → Settings provides Project Name, Input, Screen and Appearance. Project Name is saved to project.settings.json. Input defines action mappings/profile. Screen selects mode, dimensions and fullscreen where supported. Save writes project settings. Close/Cancel without Save does not commit that project-edit operation.
+File → Settings provides Project Name, Input, Screen, Physics and Appearance. Project Name is saved to project.settings.json. Input defines action mappings/profile. Screen selects mode, dimensions and fullscreen where supported. Physics chooses the default AABB/circle trigger contact method. Save writes project settings. Close/Cancel without Save does not commit that project-edit operation.
 
 Appearance offers Dark, Light and Mid-tone. Mid-tone is the default when no valid preference exists; existing saved choices remain. Changes apply immediately to open editor windows and save automatically across projects, independently of project Save. They do not recolor artwork, game UI or node guides. A preference-save failure rolls back the change and reports the error.
 
@@ -457,8 +463,12 @@ Recovery/autosave supports the project workflow but does not replace deliberate 
 
 ## 22. Native limits and release checklist
 
-Camera view rotation, rotated UI and affine shear are not implemented. Physics uses AABBs. Audio FX are baked; streams/one-shots have device limits. Old WebGPU/ECS scaffolding is not the active editor/runtime. Do not assume an unused source module is an available feature.
+Camera view rotation, rotated UI and affine shear rendering are not implemented. Solid physics uses AABBs; trigger contacts and projectile queries can use boxes or circles. Audio FX are baked; streams/one-shots have device limits. Old WebGPU/ECS scaffolding is not the active editor/runtime. Do not assume an unused source module is an available feature.
 
 Before release, verify startup scene, references, compilation, remote focus, Back/Pause, screen transitions, persistence, sound loops, long sessions, busy scenes and memory on intended hardware. Simulator success does not establish certification or device performance.
 
 The following catalogs cover every creatable node/component and its schema-exposed settings. The control index covers static buttons/selects in the application pages; dynamic controls are covered by workflow chapters and catalogs. The script API chapter documents game-facing operations. Its final signature index is for advanced source navigation; internal method presence does not make it a stable game API.
+
+### Sprite Slicer live frame preview
+
+Import an image or use the selected element image. The whole image is selected initially and the resized preview appears below the source. Use Grid or Draw rectangle to choose an atlas region. Set All slice margins for equal borders, then adjust Left, Top, Right and Bottom individually or drag the pink guides over the source image. Smaller margins produce thinner preserved borders. Output width and height resize the center while keeping the corner dimensions. Save selected regions after changing margins, then Apply or Create; the output dimensions are applied to the element. Use Panel or Button for nine-slice frames; Sprite2D and TextureRect use ordinary image stretching and accept regions without borders. Select a saved region to restore its margins.

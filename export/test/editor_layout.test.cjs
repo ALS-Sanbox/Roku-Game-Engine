@@ -27,7 +27,7 @@ test('repeated viewport resizes preserve local geometry under a pivoted parent a
       const original=shape[method].bind(shape);
       shape[method]=value=>value?original({...value}):original();
     }
-    const context={state:{},getMovableSelectedNodeIds:()=>[n.id],getNode:()=>n,shapeRefs:new Map([[n.id,shape]]),syncNodeAnchorOffsets:()=>{}};
+    const context={state:{},stage:null,transformer:null,_bumpSceneVersion:()=>{},getMovableSelectedNodeIds:()=>[n.id],getNode:()=>n,shapeRefs:new Map([[n.id,shape]]),syncNodeAnchorOffsets:()=>{}};
     vm.createContext(context);
     vm.runInContext(declarations(['rotatePoint','getPivotableNodeSize','getPivotPresetCoords','applyPivotChange','applyPivotPreset','scaleNodeColliders','captureTransformerSession','syncSelectedNodesFromShapes']),context);
     for(let i=0;i<30;i++) {

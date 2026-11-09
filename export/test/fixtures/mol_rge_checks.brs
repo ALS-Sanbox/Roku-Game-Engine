@@ -132,6 +132,8 @@ GPCheck(engine.QuerySegment(0,12,100,12,0,"",boxes).Count() = 0, "parallel segme
 GPCheck(engine.QuerySegment(0,12,100,12,3,"",boxes).Count() = 2, "sweep radius")
 
 ' Native shot damage, interception, and piercing obstacle ordering.
+for each contactMethod in ["aabb","circle"]
+engine.projectSettings = {physics:{contactMethod:contactMethod}}
 MOLR_ClearCombat(g) : g.effects = {} : g.tier = 1 : g.mode = "playing"
 enemy = MOLR_Spawn(g,"Enemies",{x:270,y:200,hp:5,maxHp:5,row:2,radius:18,score:100,boss:false,id:999,hitFlash:0,windup:0,state:"formation",dead:false})
 MOLR_CreateShots(g,{x:270,y:250})
@@ -152,6 +154,9 @@ MOLR_Projectiles(g,0.02,0.02)
 GPCheck(enemy.hp = 4 and g.shots[0].beamTop = 0, "beam extends when obstacle clears")
 MOLR_Projectiles(g,0.02,0.02) : GPCheck(enemy.hp = 4, "piercing damage deduplicated")
 MOLR_ClearCombat(g)
+
+end for
+engine.projectSettings.physics.contactMethod = "aabb"
 
 engine.EnsureScriptReady = GMReady : engine.InvokeScriptComponent = GMInput
 RokuComponent_Script_Input({engine:engine,node:engine.scene.nodeMap.root,component:{},dt:0.01,event:{code:6,action:"action",isPress:true,isRelease:false,isRepeat:true}})

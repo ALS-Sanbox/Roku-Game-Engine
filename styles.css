@@ -5946,3 +5946,11 @@ body.ui-editor-expanded #app-shell { visibility: hidden; pointer-events: none; }
 #slicer-regions button.active { border-color:var(--accent); color:var(--accent-hi); }
 .inspector-script-links { margin:6px 0; font-size:12px; }
 .inspector-script-links button { display:block; width:100%; margin:5px 0; text-align:left; white-space:normal; overflow-wrap:anywhere; }
+
+.scene-search { display: flex; gap: 4px; padding: 6px 8px; flex-shrink: 0; }
+.scene-search input { flex: 1; min-width: 0; width: 0; }
+.scene-search-status { padding: 0 8px 6px; font-size: 11px; opacity: .75; }
+
+.slicer-preview { flex-shrink: 0; max-height: 320px; overflow: auto; padding: 8px; background: repeating-conic-gradient(var(--panel-2) 0% 25%, var(--panel-3) 0% 50%) 0 0/20px 20px; border: 1px solid var(--border); }
+#slicer-preview { display: block; image-rendering: pixelated; }
+#slicer-preview-status { font-size: 11px; }

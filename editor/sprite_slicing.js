@@ -15,8 +15,8 @@
     return {x:Math.min(x1,x2),y:Math.min(y1,y2),w:Math.abs(x2-x1),h:Math.abs(y2-y1)};
   }
   function patches(rect,width,height,borders={},scale=1) {
-    const l=Math.min(Math.max(0,Number(borders.sliceLeft)||0),rect.w/2),r=Math.min(Math.max(0,Number(borders.sliceRight)||0),rect.w-l);
-    const t=Math.min(Math.max(0,Number(borders.sliceTop)||0),rect.h/2),b=Math.min(Math.max(0,Number(borders.sliceBottom)||0),rect.h-t);
+    const l=Math.min(Math.max(0,Number(borders.sliceLeft)||0),rect.w),r=Math.min(Math.max(0,Number(borders.sliceRight)||0),rect.w-l);
+    const t=Math.min(Math.max(0,Number(borders.sliceTop)||0),rect.h),b=Math.min(Math.max(0,Number(borders.sliceBottom)||0),rect.h-t);
     const dl=Math.min(l*scale,width),dr=Math.min(r*scale,width-dl),dt=Math.min(t*scale,height),db=Math.min(b*scale,height-dt);
     const sx=[rect.x,rect.x+l,rect.x+rect.w-r,rect.x+rect.w],sy=[rect.y,rect.y+t,rect.y+rect.h-b,rect.y+rect.h];
     const dx=[0,dl,width-dr,width],dy=[0,dt,height-db,height],out=[];

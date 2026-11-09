@@ -283,8 +283,8 @@ var RGE_ROOT = globalThis.RGE_ROOT;
     Collider2DComponent: {
       type: 'Collider2DComponent',
       displayName: 'Collider2D',
-      description: 'Adds an AABB collider used by physics and trigger checks.',
-      defaults: { enabled: true, priority: 150, width: 32, height: 32, offsetX: 0, offsetY: 0, isTrigger: false, layer: 'default', mask: 'default', debug: false }
+      description: 'Adds box solid physics and selectable box or circle trigger contacts.',
+      defaults: { enabled: true, priority: 150, width: 32, height: 32, offsetX: 0, offsetY: 0, isTrigger: false, contactMethod: 'project', circleRadius: 0, layer: 'default', mask: 'default', debug: false }
     },
     RigidBody2DComponent: {
       type: 'RigidBody2DComponent',

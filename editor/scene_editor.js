@@ -1052,6 +1052,7 @@ function init() {
   bindFileMenu();
   bindSceneMenu();
   bindSceneActions();
+  bindSceneSearch();
   bindPrimaryEditorUiFallbacks();
   bindDockUI();
   initPanelResizers();
@@ -1084,6 +1085,7 @@ function init() {
       if (state.projectRoot && rootPath && rootPath !== state.projectRoot) return;
       state.projectSettings = normalizeProjectSettings(payload?.settings || {}, rootPath);
       syncAllTileMapsToProjectScreen();
+      scheduleRender(RenderFlags.VIEWPORT | RenderFlags.INSPECTOR);
       setStatus(`Updated project settings for ${state.projectSettings.projectName}.`);
     });
   }
@@ -1450,6 +1452,8 @@ function normalizeProjectSettings(settings = {}, projectRoot = '') {
   const input = settings && typeof settings.input === 'object' && !Array.isArray(settings.input) ? settings.input : {};
   const screen = settings && typeof settings.screen === 'object' && !Array.isArray(settings.screen) ? settings.screen : {};
   return {
+    ...settings,
+    physics: { ...(settings.physics || {}), contactMethod: settings.physics?.contactMethod === 'circle' ? 'circle' : 'aabb' },
     projectName: String(settings.projectName || fallbackName).trim() || 'RokuEngine Game',
     startupScene: String(settings.startupScene || ''),
     input: {
@@ -2441,21 +2445,11 @@ function initViewport() {
     rotateEnabled: true,
     enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
     borderStroke: '#478cbf', anchorFill: '#478cbf', anchorStroke: '#141620',
-    keepRatio: false, centeredScaling: false, ignoreStroke: true
+    keepRatio: false, centeredScaling: false, ignoreStroke: true,
+    shouldOverdrawWholeArea: true
   });
 
-  transformer.on('transformstart', () => {
-    state.history.transformSnapshot = serializeScene(); state.history._vTransform = _getSceneVersion();
-    captureTransformerSession();
-  });
-  transformer.on('transformend', () => {
-    syncSelectedNodesFromShapes();
-    const before = state.history.transformSnapshot; const _vTransform = state.history._vTransform || 0;
-    state.history.transformSnapshot = null; state.history._vTransform = 0;
-    state.transformerSession = null;
-    scheduleRender(RenderFlags.VIEWPORT | RenderFlags.SCENE_SUMMARY);
-    if (before && _sceneChanged(_vTransform)) pushHistory(getSelectedNodeIds().length > 1 ? 'Transform selection' : 'Transform node', before);
-  });
+  bindTransformerEvents();
 
   cameraGroup.add(gridGroup, contentGroup, transformer);
   sceneLayer.add(cameraGroup);
@@ -2786,7 +2780,7 @@ function setSelection(ids, primaryId = null, options = {}) {
   // Only flush VIEWPORT synchronously so attachTransformer() sees the current Konva scene.
   // Tree and inspector are deferred to the next rAF — no visible difference since
   // neither panel paints before the next frame anyway.
-  flushRender(RenderFlags.VIEWPORT);
+  if (!options.deferViewport) flushRender(RenderFlags.VIEWPORT);
   attachTransformer();
   scheduleRender(RenderFlags.TREE | RenderFlags.INSPECTOR);
 
@@ -2947,23 +2941,82 @@ function nudgeSelectedNodes(dx, dy) {
   if (_sceneChanged(_vNudge)) pushHistory(ids.length > 1 ? 'Nudge selection' : 'Nudge node', before);
   return true;
 }
+function bindTransformerEvents() {
+  transformer.on('transformstart', () => {
+    state.history.transformSnapshot = serializeScene(); state.history._vTransform = _getSceneVersion();
+    captureTransformerSession();
+  });
+  transformer.on('transform', () => {
+    syncTransformerRotation();
+  });
+  transformer.on('transformend', () => {
+    syncSelectedNodesFromShapes();
+    const before = state.history.transformSnapshot; const _vTransform = state.history._vTransform || 0;
+    state.history.transformSnapshot = null; state.history._vTransform = 0;
+    state.transformerSession = null;
+    scheduleRender(RenderFlags.VIEWPORT | RenderFlags.SCENE_SUMMARY | RenderFlags.INSPECTOR);
+    if (before && _sceneChanged(_vTransform)) pushHistory(getSelectedNodeIds().length > 1 ? 'Transform selection' : 'Transform node', before);
+  });
+}
 function captureTransformerSession() {
   const ids = getMovableSelectedNodeIds();
+  const pointer = stage?.getPointerPosition();
   state.transformerSession = {
     ids,
+    anchor: transformer?.getActiveAnchor(),
     perNode: Object.fromEntries(ids.map((id) => {
       const node = getNode(id);
       const shape = shapeRefs.get(id);
+      const parentInverse = shape?.getParent()?.getAbsoluteTransform().copy().invert();
+      const localPointer = pointer && parentInverse ? parentInverse.point(pointer) : null;
       return [id, {
         width: Number(node?.properties?.width),
         height: Number(node?.properties?.height),
         nodeScaleX: Number(node?.transform?.scaleX) || 1,
         nodeScaleY: Number(node?.transform?.scaleY) || 1,
         shapeScaleX: Number(shape?.scaleX?.() ?? 1) || 1,
-        shapeScaleY: Number(shape?.scaleY?.() ?? 1) || 1
+        shapeScaleY: Number(shape?.scaleY?.() ?? 1) || 1,
+        shapeX: shape?.x(), shapeY: shape?.y(),
+        shapeRotation: shape?.rotation(),
+        shapeSkewX: shape?.skewX(), shapeSkewY: shape?.skewY(),
+        shapeOffsetX: shape?.offsetX(), shapeOffsetY: shape?.offsetY(),
+        parentInverse,
+        pointerAngle: localPointer ? Math.atan2(localPointer.y-shape.y(), localPointer.x-shape.x()) : null,
+        rotationDelta: 0
       }];
     }))
   };
+}
+function syncTransformerRotation() {
+  const session = state.transformerSession;
+  // Multiple nodes retain the usual shared selection-center rotation.
+  if (session?.anchor !== 'rotater' || session.ids.length !== 1) return;
+  const id = session.ids[0], baseline = session.perNode[id];
+  const node = getNode(id), shape = shapeRefs.get(id), pointer = stage?.getPointerPosition();
+  if (!node || !shape || !pointer || !baseline.parentInverse || baseline.pointerAngle == null) return;
+  const local = baseline.parentInverse.point(pointer);
+  const dx = local.x-baseline.shapeX, dy = local.y-baseline.shapeY;
+  if (dx*dx+dy*dy >= 0.000001) {
+    const angle = Math.atan2(dy,dx);
+    const delta = Math.atan2(Math.sin(angle-baseline.pointerAngle),Math.cos(angle-baseline.pointerAngle));
+    baseline.rotationDelta += delta*180/Math.PI;
+    baseline.pointerAngle = angle;
+  }
+  const rotation = baseline.shapeRotation+baseline.rotationDelta;
+  // Konva rotates its selection bounds in screen space. Restore the authored
+  // local geometry and rotate only around its pivot, just like the Inspector.
+  // Parent-local pointer math includes camera zoom, parent pivots and flips.
+  shape.position({x:baseline.shapeX,y:baseline.shapeY});
+  shape.scale({x:baseline.shapeScaleX,y:baseline.shapeScaleY});
+  shape.skew({x:baseline.shapeSkewX,y:baseline.shapeSkewY});
+  shape.offset({x:baseline.shapeOffsetX,y:baseline.shapeOffsetY});
+  shape.rotation(rotation);
+  if (node.transform.rotation !== rotation) {
+    node.transform.rotation = rotation;
+    _bumpSceneVersion();
+  }
+  patchInspectorTransformInputs(id);
+  transformer.forceUpdate();
 }
 function syncSelectedNodesFromShapes() {
   const ids = getMovableSelectedNodeIds();
@@ -2972,6 +3025,7 @@ function syncSelectedNodesFromShapes() {
     const node = getNode(id);
     const shape = shapeRefs.get(id);
     if (!node || !shape) return;
+    const before = JSON.stringify([node.transform,node.properties.width,node.properties.height]);
     // Shapes already live in their node parent's local coordinates. Converting
     // through screen space includes camera zoom and loses parent pivot offsets.
     node.transform.x = shape.x();
@@ -3025,6 +3079,7 @@ function syncSelectedNodesFromShapes() {
     shape.position({ x: node.transform.x, y: node.transform.y });
     shape.offset({ x: Number(node.transform.pivotX) || 0, y: Number(node.transform.pivotY) || 0 });
     syncNodeAnchorOffsets(node);
+    if (JSON.stringify([node.transform,node.properties.width,node.properties.height]) !== before) _bumpSceneVersion();
   });
 }
 function getFrameTargetIds()  {
@@ -3840,6 +3895,81 @@ function _patchTreeRowClasses() {
 // this flush but only selection changed since, patch classes without rebuilding.
 let _treeRenderedThisFlush     = false;
 let _treeLastSelectionKey      = '';
+let _treeLastSearchQuery = '';
+
+function bindViewportNodeDrag(shape, nodeId) {
+  shape.on('dragstart', (e) => {
+    if (e.target !== shape) return;
+    e.cancelBubble = true;
+    const node = getNode(nodeId);
+    if (!node || node.locked || node.type === 'TileMap' || state.tool === 'pan' || isTileMapScenePaintModeActive()) {
+      shape.stopDrag(); return;
+    }
+    // Rebuilding the viewport here destroys the shape in the active Konva drag.
+    if (!getSelectionSet().has(nodeId)) selectNode(nodeId, { deferViewport: true });
+    suppressStageClick = true;
+    beginSelectionDrag(nodeId);
+  });
+  shape.on('dragmove', (e) => {
+    if (e.target !== shape) return;
+    e.cancelBubble = true;
+    const node = getNode(nodeId);
+    if (!node || node.locked) return;
+    const x = state.snapEnabled ? snapValue(shape.x()) : shape.x();
+    const y = state.snapEnabled ? snapValue(shape.y()) : shape.y();
+    if (node.transform.x !== x || node.transform.y !== y) _bumpSceneVersion();
+    node.transform.x = x; node.transform.y = y;
+    shape.position({ x, y });
+    updateSelectionDragFromNode(nodeId);
+    patchInspectorTransformInputs(nodeId);
+    updateSceneSummary();
+    if (transformer && getSelectedNodeIds().includes(nodeId)) transformer.forceUpdate();
+  });
+  shape.on('dragend', (e) => {
+    if (e.target !== shape) return;
+    e.cancelBubble = true;
+    const node = getNode(nodeId);
+    if (node) syncNodeAnchorOffsets(node);
+    endSelectionDrag();
+  });
+}
+
+function getSceneTreeSearch(nodes, query) {
+  const terms = String(query || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const matches = new Set(), visible = new Set();
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  if (terms.length) nodes.forEach(node => {
+    const text = `${node.name || ''} ${node.type || ''} ${node.id}`.toLowerCase();
+    if (!terms.every(term => text.includes(term))) return;
+    matches.add(node.id);
+    let current = node;
+    const visited = new Set();
+    while (current && !visited.has(current.id)) {
+      visited.add(current.id); visible.add(current.id); current = byId.get(current.parentId);
+    }
+  });
+  return { active: terms.length > 0, matches, visible };
+}
+
+function bindSceneSearch() {
+  const input = document.getElementById('scene-node-search');
+  const clear = document.getElementById('scene-node-search-clear');
+  if (!input || input._rgeBound) return;
+  input._rgeBound = true;
+  input.addEventListener('input', () => { state.tree.search = input.value; refreshTree(); });
+  input.addEventListener('keydown', (event) => {
+    event.stopPropagation();
+    if (event.key === 'Escape') { event.preventDefault(); input.value = ''; state.tree.search = ''; refreshTree(); }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const id = getSceneTreeSearch(getNodes(), input.value).matches.values().next().value;
+      if (id) selectNode(id);
+    }
+  });
+  clear?.addEventListener('click', () => {
+    input.value = ''; state.tree.search = ''; refreshTree(); input.focus();
+  });
+}
 
 function refreshTree() {
   if (!sceneTreeEl) return;
@@ -3847,13 +3977,17 @@ function refreshTree() {
   const selectionKey = state.selectedId + '|' + Array.from(getSelectionSet()).sort().join(',');
 
   // Already did a full rebuild this flush — only patch selection classes if needed
-  if (_treeRenderedThisFlush) {
+  if (_treeRenderedThisFlush && _treeLastSearchQuery === (state.tree.search || '')) {
     if (selectionKey !== _treeLastSelectionKey) {
       _treeLastSelectionKey = selectionKey;
       _patchTreeRowClasses();
     }
     return;
   }
+  _treeLastSearchQuery = state.tree.search || '';
+  const search = getSceneTreeSearch(getNodes(), _treeLastSearchQuery);
+  const status = document.getElementById('scene-node-search-status');
+  if (status) { status.hidden = !search.active; status.textContent = search.matches.size ? `${search.matches.size} matching node${search.matches.size === 1 ? '' : 's'}` : 'No matching nodes'; }
   _treeRenderedThisFlush = true;
   _treeLastSelectionKey  = selectionKey;
   // Reset for next flush pass
@@ -4044,9 +4178,9 @@ function refreshTree() {
   sceneTreeEl.appendChild(rowsWrap);
 
   const renderBranch = (node, depth, lineageFlags = []) => {
-    const children  = getChildren(node.id);
+    const children  = getChildren(node.id).filter(child => !search.active || search.visible.has(child.id));
     const canExpand = children.length > 0;
-    if (state.tree.expanded[node.id] == null && canExpand) state.tree.expanded[node.id] = true;
+    if (!search.active && state.tree.expanded[node.id] == null && canExpand) state.tree.expanded[node.id] = true;
 
     const row = document.createElement('div');
     row.className = 'tree-row'
@@ -4070,7 +4204,8 @@ function refreshTree() {
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'tree-toggle' + (canExpand ? '' : ' empty');
-    toggle.textContent = canExpand ? (state.tree.expanded[node.id] ? '▾' : '▸') : '•';
+    toggle.disabled = search.active;
+    toggle.textContent = canExpand ? ((search.active || state.tree.expanded[node.id]) ? '▾' : '▸') : '•';
     row.appendChild(toggle);
 
     // Main row button
@@ -4170,7 +4305,7 @@ function refreshTree() {
 
     rowsWrap.appendChild(row);
 
-    if (node.type === 'SceneInstance' && state.tree.expanded[node.id] !== false) {
+    if (!search.active && node.type === 'SceneInstance' && state.tree.expanded[node.id] !== false) {
       const cache = getSceneInstanceCache(node.id);
       const resolvedRuntime = getResolvedSceneInstanceRuntime(node);
       if (cache?.status === 'ready' && resolvedRuntime?.scene?.rootNodeId) {
@@ -4247,13 +4382,13 @@ function refreshTree() {
       }
     }
 
-    if (canExpand && state.tree.expanded[node.id] !== false) {
+    if (canExpand && (search.active || state.tree.expanded[node.id] !== false)) {
       children.forEach((child, i) => renderBranch(child, depth + 1, [...lineageFlags, i < children.length - 1]));
     }
   };
 
   const root = getNode(getRootNodeId());
-  if (root) renderBranch(root, 0, []);
+  if (root && (!search.active || search.visible.has(root.id))) renderBranch(root, 0, []);
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -5343,6 +5478,12 @@ function buildComponentCard(node, component) {
         input.appendChild(option);
       });
       input.addEventListener('change', () => updateComponentField(node.id, component.id, key, input.value));
+    } else if (key === 'contactMethod') {
+      input = document.createElement('select');
+      for (const [method, label] of [['project','Project default'],['aabb','AABB (box bounds)'],['circle','Circle (distance checks)']]) {
+        input.appendChild(new Option(label, method, false, String(value || 'project') === method));
+      }
+      input.addEventListener('change', () => updateComponentField(node.id, component.id, key, input.value));
     } else if (key === 'bodyType') {
       input = document.createElement('select');
       ['dynamic', 'static', 'kinematic'].forEach((bodyType) => {
@@ -5367,6 +5508,10 @@ function buildComponentCard(node, component) {
 
   // ── Physics Shapes editor (Collider2DComponent only) ──────────────
   if (component.type === 'Collider2DComponent') {
+    const contactHint = document.createElement('div');
+    contactHint.className = 'inspector-hint';
+    contactHint.textContent = 'Contact method applies to triggers and queries. Circle radius 0 fits the smaller dimension; its center uses width, height and offsets. Circle mode ignores custom physics shapes. Solid physics uses AABB bounds.';
+    card.appendChild(contactHint);
     // Divider
     const divider = document.createElement('div');
     divider.style.cssText = 'height:1px;background:var(--border);margin:4px 0;';
@@ -7584,6 +7729,8 @@ function patchInspectorTransformInputs(nodeId) {
     const key = el.dataset.fieldKey;
     if (key === 'transform.x') el.value = String(Number(node.transform?.x) || 0);
     else if (key === 'transform.y') el.value = String(Number(node.transform?.y) || 0);
+    else if (key === 'transform.rotation') el.value = String(Number(node.transform?.rotation) || 0);
+    if (key === 'transform.x' || key === 'transform.y' || key === 'transform.rotation') el.dataset.lastValid = el.value;
   });
 }
 
@@ -8228,35 +8375,7 @@ function renderViewport() {
         void openSourceSceneFromInstance(node.id);
       });
     }
-    shape.on('dragstart', (e) => {
-      if (node.type === 'TileMap' || isTileMapScenePaintModeActive()) { shape.stopDrag(); e.cancelBubble = true; return; }
-      if (node.locked) { shape.stopDrag(); return; }
-      if (!selectedIds.has(node.id)) selectNode(node.id);
-      suppressStageClick = true;
-      beginSelectionDrag(node.id);
-    });
-    shape.on('dragmove', () => {
-      const n = getNode(node.id); if (!n) return;
-      n.transform.x = shape.x();
-      n.transform.y = shape.y();
-      if (state.snapEnabled) {
-        n.transform.x = snapValue(n.transform.x);
-        n.transform.y = snapValue(n.transform.y);
-        shape.position({ x: n.transform.x, y: n.transform.y });
-      }
-      updateSelectionDragFromNode(node.id);
-      // During drag: skip the expensive full tree + inspector DOM rebuilds.
-      // Just patch the X/Y inputs in the existing inspector DOM so the user
-      // can see live coordinates, and update the status bar label.
-      patchInspectorTransformInputs(node.id);
-      updateSceneSummary();
-      if (nodeSummaryEl) nodeSummaryEl.textContent = `${getSelectedNodeIds().length > 1 ? getSelectedNodeIds().length + ' nodes' : n.name + ' (' + n.type + ')'} selected`;
-      if (transformer && getSelectedNodeIds().includes(node.id)) transformer.forceUpdate();
-    });
-    shape.on('dragend', () => {
-      syncNodeAnchorOffsets(node);
-      endSelectionDrag();
-    });
+    bindViewportNodeDrag(shape, node.id);
 
     const targetParentGroup = isUiNodeType(node.type) ? (parentGroup === contentGroup ? uiContentGroup : parentGroup) : parentGroup;
     targetParentGroup.add(shape);
@@ -8572,6 +8691,12 @@ function _addPhysicsShapesOverlay(g, node) {
     const cw = Math.max(1, Number(comp.width)  || nw);
     const ch = Math.max(1, Number(comp.height) || nh);
     hasOverlay = true;
+    const method = comp.contactMethod && comp.contactMethod !== 'project' ? comp.contactMethod : state.projectSettings?.physics?.contactMethod;
+    if (comp.isTrigger && method === 'circle') {
+      const radius = Math.max(0, Number(comp.circleRadius) || 0) || Math.min(cw, ch) / 2;
+      overlayGroup.add(new Konva.Circle({ x: ox + cw/2, y: oy + ch/2, radius, stroke: '#6dbd79', ...getNodeOutlineAttrs(), listening: false }));
+      return;
+    }
     if (!physicsShapes.length) {
       overlayGroup.add(new Konva.Rect({ x: ox, y: oy, width: cw, height: ch, stroke: '#6dbd79', ...getNodeOutlineAttrs(), listening: false }));
       return;
@@ -8626,7 +8751,13 @@ function buildGameplayHelperGroup(node) {
   const region = ['TriggerZone2D','VisibilityEnabler2D','Parallax2D'].includes(node.type);
   if (region) {
     const w = Math.max(1, Number(p.width) || 160), h = Math.max(1, Number(p.height) || 120);
-    g.add(new Konva.Rect({ width: w, height: h, stroke: color, fill: hexWithAlpha(color, 0.06), ...getNodeOutlineAttrs() }));
+    const method = p.contactMethod && p.contactMethod !== 'project' ? p.contactMethod : state.projectSettings?.physics?.contactMethod;
+    if (node.type === 'TriggerZone2D' && method === 'circle') {
+      const radius = Math.max(0, Number(p.circleRadius) || 0) || Math.min(w,h)/2;
+      g.add(new Konva.Circle({ x: w/2, y: h/2, radius, stroke: color, fill: hexWithAlpha(color,0.06), ...getNodeOutlineAttrs() }));
+    } else {
+      g.add(new Konva.Rect({ width: w, height: h, stroke: color, fill: hexWithAlpha(color, 0.06), ...getNodeOutlineAttrs() }));
+    }
     g.add(new Konva.Text({ x: 6, y: 6, text: node.name || node.type, fill: color, fontSize: 12, listening: false }));
     g.getClientRect = function(config = {}) { const rect = { x: 0, y: 0, width: w, height: h }; return config.skipTransform ? rect : this._transformedRect(rect, config.relativeTo); };
   } else {
@@ -18909,24 +19040,28 @@ RGE_ROOT.RGESceneBridge = {
     syncNineSliceStylesToSceneState();syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Slice image into regions',before);refreshAll();
     return saved;
   },
-  applySlicedRegion: (regionId, targetId=state.selectedId) => {
+  applySlicedRegion: (regionId, targetId=state.selectedId, size=null) => {
     const node=getNode(targetId),region=state.nineSliceStyles.find(r=>r.id===regionId);
     if(!region)throw new Error('Choose a saved region.');
     if(!node||!['Sprite2D','TextureRect','Button','Panel','NineSlicePanel'].includes(node.type))throw new Error('Select a Sprite2D, TextureRect, Button, Panel, or NineSlicePanel first.');
+    if(['Sprite2D','TextureRect'].includes(node.type)&&['Left','Top','Right','Bottom'].some(side=>region['slice'+side]>0))throw new Error('Use a Panel, Button or NineSlicePanel for a frame with preserved borders.');
     const before=serializeScene();
     node.properties ||= {};
     Object.assign(node.properties,{imagePath:region.imagePath,imageDataUrl:region.imageDataUrl,sourceRect:{...region.sourceRect},atlasRegionId:region.id});
+    if(size)Object.assign(node.properties,size);
     if(node.type!=='Sprite2D'&&node.type!=='TextureRect')Object.assign(node.properties,{nineSliceStyleId:region.id,sliceLeft:region.sliceLeft,sliceTop:region.sliceTop,sliceRight:region.sliceRight,sliceBottom:region.sliceBottom});
     loadImageIntoCache(node.id,region.imageDataUrl,()=>{refreshAll();window.RGEUIEditor?.forceRefresh('slice');});
     syncEditorStateFromRuntime();persistActiveSceneEntry();pushHistory('Apply sliced image',before);refreshAll();return node;
   },
-  createSlicedElement: (type,regionId) => {
+  createSlicedElement: (type,regionId,size=null) => {
     if(!['Sprite2D','TextureRect','Button','Panel'].includes(type))throw new Error('Unsupported element type.');
     const region=state.nineSliceStyles.find(r=>r.id===regionId);if(!region)throw new Error('Choose a saved region.');
+    if(['Sprite2D','TextureRect'].includes(type)&&['Left','Top','Right','Bottom'].some(side=>region['slice'+side]>0))throw new Error('Choose Panel or Button for a frame with preserved borders.');
     const before=serializeScene(),node=createDefaultNode(type),selected=getNode(state.selectedId);
     node.name=region.name;node.parentId=type==='Sprite2D'?getRootNodeId():selected?.type==='CanvasLayer'||selected?.type==='Control'?selected.id:selected?.parentId||getRootNodeId();
     Object.assign(node.transform,{x:96,y:96,pivotX:0,pivotY:0,pivotPreset:'top-left'});
     node.properties.width=region.sourceRect.w;node.properties.height=region.sourceRect.h;
+    if(size)Object.assign(node.properties,size);
     Object.assign(node.properties,{imagePath:region.imagePath,imageDataUrl:region.imageDataUrl,sourceRect:{...region.sourceRect},atlasRegionId:region.id});
     if(['Button','Panel'].includes(type))node.properties.nineSliceStyleId=region.id;
     getNodes().push(node);loadImageIntoCache(node.id,region.imageDataUrl,refreshAll);selectNode(node.id);

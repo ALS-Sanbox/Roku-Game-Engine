@@ -18,7 +18,7 @@ This alpha is available as a source checkout. It includes an editable sample gam
 | Scripting | BrightScript editor with syntax highlighting, scene element references, script attachments, and UI action connections |
 | Rendering | Native sprite rotation, flipping, tint, opacity, layer ordering, cropped textures, and UI clipping |
 | Cameras | Follow, smoothing, lookahead, deadzones, bounds, zones, paths, target groups, dynamic zoom, and shake |
-| Physics | AABB collision, swept solid movement, triggers, mass, restitution, and parent-aware position correction |
+| Physics | AABB solid physics, selectable box/circle trigger contacts and swept projectile queries, mass, restitution, and parent-aware position correction |
 | Audio | Streaming and one-shot playback; mixer, EQ, and effect settings baked into playback assets during export |
 | Build workflow | F5 / Build & Test, runtime logs, Roku ZIP export, and device sideloading |
 | Appearance | Dark, Light, and Mid-tone editor themes, saved across sessions and projects |
@@ -26,6 +26,8 @@ This alpha is available as a source checkout. It includes an editable sample gam
 ## Editor appearance
 
 Open **Settings → Appearance → Editor color theme** and choose **Dark**, **Light**, or **Mid-tone** (the default medium slate palette). Changes apply immediately to open editor windows and save automatically for future sessions. Existing saved theme choices are preserved. The preference applies across projects; scene artwork and node colors keep their authored values.
+
+Choose **Settings → Physics → Trigger contact method** to use **AABB** (box bounds, the default) or **Circle** (distance checks). `Collider2DComponent` and `TriggerZone2D` can override the project choice; circle radius `0` fits half the smaller dimension. Circle contacts reject box-corner overlaps and are also used by swept projectile queries. Solid-body movement retains AABB physics. Both methods use spatial buckets; changing geometry alone does not guarantee faster simulation. Rebuild to apply the setting to a Roku package.
 
 ## User manual
 

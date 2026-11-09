@@ -100,7 +100,7 @@ const interpreterPath = path.resolve(__dirname, '../../tools/brs-engine/packages
 test('native gameplay behaviors execute correctly in BrightScript', { skip: !fs.existsSync(interpreterPath) }, () => {
   const brs = require(interpreterPath);
   const runtime = Object.values(getClassicRuntimeSourceFiles()).join('\n');
-  const fixture = ['gameplay_checks.brs', 'runtime_audit_checks.brs', 'remaining_gaps_checks.brs'].map(file => fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8')).join('\n');
+  const fixture = ['gameplay_checks.brs', 'runtime_audit_checks.brs', 'remaining_gaps_checks.brs', 'collision_methods_checks.brs'].map(file => fs.readFileSync(path.join(__dirname, 'fixtures', file), 'utf8')).join('\n');
   const tokens = brs.Lexer.scan(runtime + '\n' + fixture);
   assert.deepEqual(tokens.errors, []);
   const parsed = brs.Parser.parse(tokens.tokens);
@@ -113,4 +113,5 @@ test('native gameplay behaviors execute correctly in BrightScript', { skip: !fs.
   assert.ok(output.includes('PASS: gameplay runtime'), output);
   assert.ok(output.includes('PASS: runtime audit regressions'), output);
   assert.ok(output.includes('PASS: remaining gaps repaired'), output);
+  assert.ok(output.includes('PASS: collision methods'), output);
 });

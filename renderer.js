@@ -1177,6 +1177,8 @@ function normalizeProjectSettings(settings = {}, projectRoot = '') {
   const input = settings && typeof settings.input === 'object' && !Array.isArray(settings.input) ? settings.input : {};
   const screen = settings && typeof settings.screen === 'object' && !Array.isArray(settings.screen) ? settings.screen : {};
   return {
+    ...settings,
+    physics: { ...(settings.physics || {}), contactMethod: settings.physics?.contactMethod === 'circle' ? 'circle' : 'aabb' },
     projectName: String(settings.projectName || fallbackName).trim() || 'RokuEngine Game',
     input: {
       movement: String(input.movement || 'standard').trim() || 'standard',

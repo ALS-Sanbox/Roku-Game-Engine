@@ -48,9 +48,21 @@
       <button class="tab active" data-tab="project">Project Name</button>
       <button class="tab" data-tab="input">Input</button>
       <button class="tab" data-tab="screen">Screen</button>
+      <button class="tab" data-tab="physics">Physics</button>
       <button class="tab" data-tab="appearance">Appearance</button>
     </div>
 
+    <section class="panel" data-panel="physics">
+      <div class="field">
+        <label for="contact-method">Trigger contact method</label>
+        <select id="contact-method">
+          <option value="aabb">AABB (box bounds)</option>
+          <option value="circle">Circle (distance checks)</option>
+        </select>
+        <div class="hint">Default for trigger contacts and projectile queries. Individual colliders can override this choice. Solid-body movement continues to use box bounds.</div>
+        <div class="hint">Both methods use spatial buckets. Circle checks avoid box-corner contacts; neither option guarantees a higher frame rate.</div>
+      </div>
+    </section>
     <section class="panel" data-panel="appearance">
       <div class="field">
         <label for="editor-theme">Editor color theme</label>
@@ -140,6 +152,7 @@
   <script>
     const els = {
       projectName: document.getElementById('project-name'),
+      contactMethod: document.getElementById('contact-method'),
       inputMovement: document.getElementById('input-movement'),
       inputAction: document.getElementById('input-action'),
       inputPause: document.getElementById('input-pause'),
@@ -162,6 +175,8 @@
       const input = raw && typeof raw.input === 'object' ? raw.input : {};
       const screen = raw && typeof raw.screen === 'object' ? raw.screen : {};
       return {
+        ...raw,
+        physics: { ...(raw.physics || {}), contactMethod: raw.physics?.contactMethod === 'circle' ? 'circle' : 'aabb' },
         projectName: String(raw.projectName || '').trim() || 'RokuEngine Game',
         input: {
           movement: String(input.movement || 'standard'),
@@ -188,6 +203,7 @@
     function render() {
       const s = settings || normalizeSettings();
       els.projectName.value = s.projectName;
+      els.contactMethod.value = s.physics.contactMethod;
       els.inputMovement.value = s.input.movement;
       els.inputAction.value = s.input.action;
       els.inputPause.value = s.input.pause;
@@ -203,6 +219,8 @@
     }
     function collect() {
       return normalizeSettings({
+        ...settings,
+        physics: { ...(settings?.physics || {}), contactMethod: els.contactMethod.value },
         projectName: els.projectName.value,
         input: {
           movement: els.inputMovement.value,
